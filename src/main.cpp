@@ -4,9 +4,15 @@
 #include "config.h"
 #include "led.h"
 
+#include "network/wifi.h"
+#include "network/udp.h"
+
 Led led(WIDTH, HEIGHT);
+
 Config config;
 AppConfig appConfig(config);
+
+UdpServer udpServer(appConfig);
 
 void setup() {
 #ifdef DEBUG
@@ -19,9 +25,15 @@ void setup() {
 
     led.clear();
     led.show();
+
+    wifi_connect(WIFI_MODE, WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL);
+    udpServer.begin(UDP_PORT);
 }
 
 void loop() {
+    wifi_check_connection();
+    udpServer.handle_incoming_data();
+
     const auto &effectFn = appConfig.colorEffectFn;
     const auto &brightnessFn = appConfig.brightnessEffectFn;
     const auto &palette = *appConfig.palette;

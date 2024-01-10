@@ -17,13 +17,13 @@ void perlin(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
     }
 }
 
-void solid(Led &led, const CRGBPalette16 &_, byte scale, byte speed) {
+void solid(Led &led, const CRGBPalette16 &, byte scale, byte speed) {
     auto color = CHSV(scale, speed, 255);
 
     fill_solid(led.data(), led.count(), color);
 }
 
-void changeColor(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
+void changeColor(Led &led, const CRGBPalette16 &palette, byte, byte speed) {
     auto color = ColorFromPalette(palette, millis() / 20 * speed / 255, 255, LINEARBLEND);
 
     fill_solid(led.data(), led.count(), color);
@@ -40,9 +40,6 @@ void gradient(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
     }
 }
 
-
-const int MAX_PARTICLES_COUNT = 50;
-
 struct Particle {
     int x = 0;
     int y = 0;
@@ -50,7 +47,8 @@ struct Particle {
     CRGB color;
 };
 
-Particle particles_store[MAX_PARTICLES_COUNT];
+const int MAX_PARTICLES_COUNT = 50;
+static Particle particles_store[MAX_PARTICLES_COUNT];
 
 void particles(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
     const auto height = led.height();
