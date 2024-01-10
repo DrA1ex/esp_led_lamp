@@ -1,8 +1,6 @@
 #include "brightness_effect.h"
 
-void fixed(Led &led, byte level) {
-    led.fadeToBlack(255 - level);
-}
+void fixed(Led &led, byte level) {}
 
 void pulse(Led &led, byte level) {
     auto value = (millis() * 4 / (1 + 255 - level)) % 768;

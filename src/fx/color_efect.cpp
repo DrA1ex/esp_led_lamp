@@ -88,7 +88,7 @@ void _pacific_wave(Led &led, CRGB color, uint16_t phase, uint16_t width) {
         const auto &pixel = led.getPixel(i, 0);
 
         const auto faded_color = color.scale8(255 - brightness);
-        const auto out_color = blend(pixel, faded_color, 64);
+        const auto out_color = blend(pixel, faded_color, 32);
 
         led.setPixel(i, 0, out_color);
     }
@@ -97,7 +97,12 @@ void _pacific_wave(Led &led, CRGB color, uint16_t phase, uint16_t width) {
 void pacific(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
     _pacific_wave(led,
                   ColorFromPalette(palette, beatsin8(speed / 16)),
-                  beatsin16(speed / 8, 0, led.width()),
+                  beatsin16(speed / 8, 0, led.width(), 0),
+                  scale / 8);
+
+    _pacific_wave(led,
+                  ColorFromPalette(palette, beatsin8(speed / 15)),
+                  beatsin16(speed / 8 + 2, 0, led.width()),
                   scale / 8);
 
     _pacific_wave(led,
