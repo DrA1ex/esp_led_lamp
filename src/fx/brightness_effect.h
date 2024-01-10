@@ -6,3 +6,4 @@
 void fixed(Led &led, byte level);
 void pulse(Led &led, byte level);
 void wave(Led &led, byte level);
+void double_wave(Led &led, byte level);

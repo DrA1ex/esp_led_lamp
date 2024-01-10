@@ -30,7 +30,30 @@ void wave(Led &led, byte level) {
 
         for (int j = 0; j < led.height(); ++j) {
             auto &color = led.getPixel(i, j);
-            color.fadeToBlackBy(255 - brightness);
+            color.fadeToBlackBy(brightness);
+        }
+    }
+}
+
+void double_wave(Led &led, byte level) {
+    const auto &width = led.width();
+
+    const auto offset = millis() * 8 / (1 + 255 - level);
+    const int half_width = ceil(width / 2.0f);
+
+    for (int i = 0; i < half_width; ++i) {
+        const auto phase = (offset + i * 32) % 512;
+        const byte brightness = 255 - (phase < 256 ? cubicwave8(phase) : 0);
+
+        for (int j = 0; j < led.height(); ++j) {
+            auto &color = led.getPixel(i, j);
+            color.fadeToBlackBy(brightness);
+
+            const auto i2 = width - i - 1;
+            if (i2 >= half_width) {
+                auto &color2 = led.getPixel(i2, j);
+                color2.fadeToBlackBy(brightness);
+            }
         }
     }
 }

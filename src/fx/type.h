@@ -43,6 +43,8 @@ enum PaletteEnum {
 enum ColorEffectEnum {
     PERLIN,
     GRADIENT,
+    PACIFIC,
+    PARTICLES,
     CHANGE_COLOR,
     SOLID,
 };
@@ -51,4 +53,5 @@ enum BrightnessEffectEnum {
     FIXED,
     PULSE,
     WAVE,
+    DOUBLE_WAVE,
 };

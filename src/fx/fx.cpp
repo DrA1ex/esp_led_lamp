@@ -42,6 +42,8 @@ CRGBPalette16 Palettes[] = {
 ColorEffectFn ColorEffects[] = {
         perlin,
         gradient,
+        pacific,
+        particles,
         changeColor,
         solid,
 };
@@ -50,4 +52,5 @@ BrightnessEffectFn BrightnessEffects[] = {
         fixed,
         pulse,
         wave,
+        double_wave
 };

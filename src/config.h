@@ -5,13 +5,13 @@
 struct Config {
     byte maxBrightness = 255;
 
-    byte speed = 200;
-    byte scale = 64;
-    byte brightness = 200;
+    byte speed = 80;
+    byte scale = 128;
+    byte light = 180;
 
     PaletteEnum palette = PaletteEnum::RAINBOW;
-    ColorEffectEnum colorEffect = ColorEffectEnum::GRADIENT;
-    BrightnessEffectEnum brightnessEffect = BrightnessEffectEnum::WAVE;
+    ColorEffectEnum colorEffect = ColorEffectEnum::PACIFIC;
+    BrightnessEffectEnum brightnessEffect = BrightnessEffectEnum::FIXED;
 };
 
 struct AppConfig {
