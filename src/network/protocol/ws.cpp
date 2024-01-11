@@ -39,7 +39,7 @@ void WebSocketServer::on_event(AsyncWebSocket *server,
             break;
 
         case WS_EVT_DATA: {
-            D_PRINTF("Received WebSocket packet, size: %u", len);
+            D_PRINTF("Received WebSocket packet, size: %u\n", len);
             bool success = handle_packet_data(data, len);
 
             _ws.text(client->id(), success ? "OK" : "ERROR");

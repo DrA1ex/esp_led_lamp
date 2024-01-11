@@ -39,12 +39,25 @@ void setup() {
     webServer.begin();
 }
 
+void render();
+
 void loop() {
     wifi_check_connection();
 
     udpServer.handle_incoming_data();
     wsServer.handle_incoming_data();
 
+    if (config.power) {
+        render();
+    } else {
+        led.clear();
+        led.show();
+    }
+
+    delay(1000 / FRAMES_PER_SECOND);
+}
+
+void render() {
     const auto &effectFn = appConfig.colorEffectFn;
     const auto &brightnessFn = appConfig.brightnessEffectFn;
     const auto &palette = (const CRGBPalette16 &) *appConfig.palette;
@@ -56,5 +69,4 @@ void loop() {
     brightnessFn(led, config.light);
 
     led.show();
-    delay(1000 / FRAMES_PER_SECOND);
 }

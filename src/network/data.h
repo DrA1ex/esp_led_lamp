@@ -13,10 +13,17 @@ enum PacketType : uint8_t {
     COLOR_EFFECT = 101,
     BRIGHTNESS_EFFECT = 102,
 
-    DISCOVERY = 250,
-    POWER_OFF = 251,
-    POWER_ON = 252,
-    RESTART = 253,
+    CONFIGURE_PALETTE = 150,
+
+    DISCOVERY = 200,
+
+    PALETTE_LIST = 210,
+    COLOR_EFFECT_LIST = 211,
+    BRIGHTNESS_EFFECT_LIST = 212,
+
+    POWER_OFF = 220,
+    POWER_ON = 221,
+    RESTART = 222,
 };
 
 struct __attribute__ ((packed))  PacketHeader {

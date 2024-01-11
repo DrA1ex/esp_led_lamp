@@ -3,6 +3,8 @@
 #include "fx/type.h"
 
 struct Config {
+    bool power = true;
+
     byte maxBrightness = 128;
 
     byte speed = 180;
