@@ -15,6 +15,8 @@ public:
 protected:
     inline AppConfig &app_config() { return _app_config; }
 
+    bool handle_packet_data(const byte *buffer, uint16_t length);
+
     bool update_parameter(const PacketHeader &header, const void *data);
     bool process_command(const PacketHeader &header, const void *data);
 };

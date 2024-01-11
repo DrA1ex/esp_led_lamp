@@ -4,7 +4,6 @@
 #include <WiFiUdp.h>
 
 #include "base.h"
-#include "config.h"
 
 class UdpServer : ServerBase {
     WiFiUDP _udp;

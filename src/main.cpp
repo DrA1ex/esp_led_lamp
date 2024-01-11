@@ -5,14 +5,19 @@
 #include "led.h"
 
 #include "network/wifi.h"
-#include "network/protocol//udp.h"
+#include "network/web.h"
+#include "network/protocol/udp.h"
+#include "network/protocol/ws.h"
 
 Led led(WIDTH, HEIGHT);
 
 Config config;
 volatile AppConfig appConfig(config);
 
+WebServer webServer(WEB_PORT);
+
 UdpServer udpServer((AppConfig &) appConfig);
+WebSocketServer wsServer((AppConfig &) appConfig);
 
 void setup() {
 #ifdef DEBUG
@@ -27,12 +32,18 @@ void setup() {
     led.show();
 
     wifi_connect(WIFI_MODE, WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL);
+
     udpServer.begin(UDP_PORT);
+    wsServer.begin(webServer);
+
+    webServer.begin();
 }
 
 void loop() {
     wifi_check_connection();
+
     udpServer.handle_incoming_data();
+    wsServer.handle_incoming_data();
 
     const auto &effectFn = appConfig.colorEffectFn;
     const auto &brightnessFn = appConfig.brightnessEffectFn;
