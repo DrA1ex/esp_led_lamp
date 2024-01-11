@@ -13,6 +13,8 @@
 #define UDP_MAX_PACKET_SIZE                     (260u)
 #define UDP_PACKET_SIGNATURE                    ((uint16_t) 0xAA34)
 
+#define WEB_PORT                                (80)
+
 #define LED_PIN                                 (5u)
 #define LED_TYPE                                WS2812B
 #define LED_COLOR_ORDER                         GRB
