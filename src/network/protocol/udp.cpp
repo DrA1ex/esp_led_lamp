@@ -17,15 +17,29 @@ void UdpServer::handle_incoming_data() {
         unsigned int packetSize = _udp.parsePacket();
         if (packetSize == 0) return;
 
-        const bool success = handle_incoming_data_impl(packetSize);
+        auto response = handle_incoming_data_impl(packetSize);
 
         _udp.beginPacket(_udp.remoteIP(), _udp.remotePort());
-        _udp.write(success ? "OK" : "ERROR");
+
+        switch (response.type) {
+            case ResponseType::CODE:
+                _udp.write(response.codeString());
+                break;
+
+            case ResponseType::STRING:
+                _udp.write(response.body.str);
+                break;
+
+            case ResponseType::BINARY:
+                _udp.write(response.body.buffer.data, response.body.buffer.size);
+                break;
+        }
+
         _udp.endPacket();
     }
 }
 
-bool UdpServer::handle_incoming_data_impl(unsigned int packetSize) {
+Response UdpServer::handle_incoming_data_impl(unsigned int packetSize) {
     D_WRITE("Received UDP packet, size: ");
     D_PRINT(packetSize);
 

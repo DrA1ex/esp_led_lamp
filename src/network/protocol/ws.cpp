@@ -40,9 +40,21 @@ void WebSocketServer::on_event(AsyncWebSocket *server,
 
         case WS_EVT_DATA: {
             D_PRINTF("Received WebSocket packet, size: %u\n", len);
-            bool success = handle_packet_data(data, len);
+            auto response = handle_packet_data(data, len);
 
-            _ws.text(client->id(), success ? "OK" : "ERROR");
+            switch (response.type) {
+                case ResponseType::CODE:
+                    _ws.text(client->id(), response.codeString());
+                    break;
+
+                case ResponseType::STRING:
+                    _ws.text(client->id(), response.body.str);
+                    break;
+
+                case ResponseType::BINARY:
+                    _ws.binary(client->id(), response.body.buffer.data, (size_t) response.body.buffer.size);
+                    break;
+            }
             break;
         }
 

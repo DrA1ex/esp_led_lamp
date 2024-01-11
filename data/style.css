@@ -1,0 +1,146 @@
+html {
+    margin: 0 auto;
+    text-align: center
+}
+
+body {
+    margin: 0;
+    color: #555;
+    font: 14px Helvetica Neue, Lucida Grande, Arial;
+
+    -webkit-font-smoothing: antialiased;
+}
+
+.bg {
+    background: #ece9e9 linear-gradient(180deg, #fff, #ece9e9) no-repeat;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+}
+
+h1, h2, h3 {
+    text-transform: uppercase;
+    font-weight: 300;
+}
+
+h1 {
+    font-size: 3rem;
+    color: #34495e;
+    margin: 1rem auto 1rem;
+}
+
+h2 {
+    font-size: 2rem;
+    color: #145d8d;
+    margin: 2rem auto 1rem auto;
+}
+
+h3 {
+    font-size: 1.5rem;
+    margin: 0 auto 1.5rem auto;
+}
+
+.button, .input {
+    display: block;
+    width: 60vw;
+    max-width: 20rem;
+    box-sizing: content-box;
+    background-color: #3498db;
+    border: none;
+    color: #fff;
+    padding: 1rem 1rem;
+    font-size: 2rem;
+    margin: 0 auto 2rem;
+    text-align: center;
+    cursor: pointer;
+    border-radius: .25rem
+}
+
+select.input {
+    appearance: none;
+    text-align-last: center;
+}
+
+.button[disabled] {
+    pointer-events: none;
+}
+
+.button[data-saving=true], .input[data-saving=true] {
+    animation: saving infinite 2s;
+}
+
+.button[data-value=true] {
+    background-color: #3498db
+}
+
+.button[data-value=true]::before {
+    content: "ON"
+}
+
+.button[data-value=true]:not([disabled]):active {
+    background-color: #2980b9
+}
+
+.button[data-value=false] {
+    background-color: #34495e
+}
+
+.button[data-value=false]::before {
+    content: "OFF"
+}
+
+.button[data-value=false]:not([disabled]):active {
+    background-color: #2c3e50
+}
+
+.button-danger {
+    background-color: #5e3434
+}
+
+#actions {
+    margin-top: 8rem;
+}
+
+
+p {
+    font-size: 1rem;
+    font-weight: 300;
+    margin-bottom: 0.75rem;
+}
+
+#status {
+    top: 0;
+    background: #fdfdfd;
+}
+
+#extra {
+    bottom: 0;
+    background: #edeaea;
+}
+
+.status {
+    position: sticky;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0.75rem 0;
+
+    text-align: center;
+    font-style: italic;
+    font-size: 0.6rem;
+    font-weight: 200;
+}
+
+@keyframes saving {
+    0% {
+        background-color: #5e646d;
+    }
+
+    50% {
+        background-color: #858c9a;
+    }
+
+    100% {
+        background-color: #5e646d;
+    }
+}
