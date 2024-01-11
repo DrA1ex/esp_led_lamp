@@ -5,14 +5,14 @@
 #include "led.h"
 
 #include "network/wifi.h"
-#include "network/udp.h"
+#include "network/protocol//udp.h"
 
 Led led(WIDTH, HEIGHT);
 
 Config config;
-AppConfig appConfig(config);
+volatile AppConfig appConfig(config);
 
-UdpServer udpServer(appConfig);
+UdpServer udpServer((AppConfig &) appConfig);
 
 void setup() {
 #ifdef DEBUG
