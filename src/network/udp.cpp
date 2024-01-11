@@ -65,7 +65,10 @@ bool UdpServer::handle_incoming_data_impl(unsigned int packetSize) {
     if (packet->type >= UdpPacketType::DISCOVERY) {
         return process_command(*packet, data);
     } else {
-        return update_parameter(*packet, data);
+        bool success = update_parameter(*packet, data);
+        if (success) _appConfig.update();
+
+        return success;
     }
 }
 

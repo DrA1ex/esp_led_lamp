@@ -11,7 +11,7 @@
 
 #define UDP_PORT                                (1423)
 #define UDP_MAX_PACKET_SIZE                     (260u)
-#define UDP_PACKET_SIGNATURE                    ((uint16_t) 0xAABB1234)
+#define UDP_PACKET_SIGNATURE                    ((uint16_t) 0xAA34)
 
 #define LED_PIN                                 (5u)
 #define LED_TYPE                                WS2812B
