@@ -5,7 +5,7 @@
 typedef void(*ColorEffectFn)(Led &led, const CRGBPalette16 &palette, byte scale, byte speed);
 typedef void (*BrightnessEffectFn)(Led &led, byte level);
 
-enum PaletteEnum {
+enum PaletteEnum : uint8_t {
     CUSTOM,
     HEAT_COLORS,
     FIRE,
@@ -40,7 +40,7 @@ enum PaletteEnum {
     AURORA,
 };
 
-enum ColorEffectEnum {
+enum ColorEffectEnum : uint8_t {
     PERLIN,
     GRADIENT,
     PACIFIC,
@@ -49,7 +49,7 @@ enum ColorEffectEnum {
     SOLID,
 };
 
-enum BrightnessEffectEnum {
+enum BrightnessEffectEnum : uint8_t {
     FIXED,
     PULSE,
     WAVE,

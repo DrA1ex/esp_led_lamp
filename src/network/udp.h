@@ -4,22 +4,28 @@
 #include <WiFiUdp.h>
 
 #include "config.h"
-#include "constants.h"
 
-enum UdpPacketType {
-    SPEED,
-    SCALE,
-    LIGHT,
+enum UdpPacketType : uint8_t {
+    SPEED = 0,
+    SCALE = 1,
+    LIGHT = 2,
 
-    PALETTE,
-    COLOR_EFFECT,
-    BRIGHTNESS_EFFECT,
+    MAX_BRIGHTNESS = 50,
+
+    PALETTE = 100,
+    COLOR_EFFECT = 101,
+    BRIGHTNESS_EFFECT = 102,
+
+    DISCOVERY = 250,
+    POWER_OFF = 251,
+    POWER_ON = 252,
+    RESTART = 253,
 };
 
-struct UdpPacket {
+struct __attribute__ ((packed))  UdpPacketHeader {
     uint16_t signature;
     UdpPacketType type;
-    uint16_t data;
+    uint8_t size;
 };
 
 class UdpServer {
@@ -29,13 +35,15 @@ class UdpServer {
     AppConfig &_appConfig;
 
 public:
-    UdpServer(AppConfig &config);
+    explicit UdpServer(AppConfig &config);
 
     void begin(uint16_t port);
 
     void handle_incoming_data();
 
 protected:
-    bool update_parameter(UdpPacketType type, uint16_t value);
+    bool handle_incoming_data_impl(unsigned int packetSize);
+    bool update_parameter(const UdpPacketHeader &header, const void *data);
+    bool process_command(const UdpPacketHeader &header, const void *data);
 };
 

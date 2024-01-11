@@ -10,7 +10,7 @@
 #define WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL    (0u)
 
 #define UDP_PORT                                (1423)
-#define UDP_MAX_PACKET_SIZE                     (128u)
+#define UDP_MAX_PACKET_SIZE                     (260u)
 #define UDP_PACKET_SIGNATURE                    ((uint16_t) 0xAABB1234)
 
 #define LED_PIN                                 (5u)

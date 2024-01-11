@@ -36,10 +36,11 @@ void loop() {
 
     const auto &effectFn = appConfig.colorEffectFn;
     const auto &brightnessFn = appConfig.brightnessEffectFn;
-    const auto &palette = *appConfig.palette;
+    const auto &palette = (const CRGBPalette16 &) *appConfig.palette;
 
     led.clear();
 
+    led.setBrightness(config.maxBrightness);
     effectFn(led, palette, config.scale, config.speed);
     brightnessFn(led, config.light);
 

@@ -86,7 +86,7 @@ void _pacific_wave(Led &led, CRGB color, uint16_t phase, uint16_t width) {
         const auto &pixel = led.getPixel(i, 0);
 
         const auto faded_color = color.scale8(255 - brightness);
-        const auto out_color = blend(pixel, faded_color, 32);
+        const auto out_color = blend(pixel, faded_color, 64);
 
         led.setPixel(i, 0, out_color);
     }

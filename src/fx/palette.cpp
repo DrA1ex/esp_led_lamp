@@ -2,14 +2,14 @@
 
 CRGBPalette16 CustomPal = CRGBPalette16();
 
-const TProgmemRGBGradientPalette_byte Fire_gp[] =  {
+const TProgmemRGBGradientPalette_byte Fire_gp[] = {
         0, 0, 0, 0,
         128, 255, 0, 0,
         224, 255, 255, 0,
         255, 255, 255, 255
 };
 
-const TProgmemRGBGradientPalette_byte Sunset_Real_gp[] =  {
+const TProgmemRGBGradientPalette_byte Sunset_Real_gp[] = {
         0, 120, 0, 0,
         22, 179, 22, 0,
         51, 255, 104, 0,
@@ -19,7 +19,7 @@ const TProgmemRGBGradientPalette_byte Sunset_Real_gp[] =  {
         255, 0, 0, 160
 };
 
-const TProgmemRGBGradientPalette_byte Dkbluered_gp[] =  {
+const TProgmemRGBGradientPalette_byte Dkbluered_gp[] = {
         0, 1, 0, 4,
         8, 1, 0, 13,
         17, 1, 0, 29,
@@ -52,7 +52,7 @@ const TProgmemRGBGradientPalette_byte Dkbluered_gp[] =  {
         246, 12, 0, 1,
         255, 4, 0, 1
 };
-const TProgmemRGBGradientPalette_byte Optimus_Prime_gp[] =  {
+const TProgmemRGBGradientPalette_byte Optimus_Prime_gp[] = {
         0, 5, 16, 18,
         25, 5, 16, 18,
         51, 7, 25, 39,
@@ -66,7 +66,7 @@ const TProgmemRGBGradientPalette_byte Optimus_Prime_gp[] =  {
         255, 53, 1, 1
 };
 
-const TProgmemRGBGradientPalette_byte WarmGrad_gp[] =  {
+const TProgmemRGBGradientPalette_byte WarmGrad_gp[] = {
         0, 252, 252, 172,
         25, 239, 255, 61,
         53, 247, 45, 17,
@@ -78,7 +78,7 @@ const TProgmemRGBGradientPalette_byte WarmGrad_gp[] =  {
         255, 1, 1, 1
 };
 
-const TProgmemRGBGradientPalette_byte ColdGrad_gp[] =  {
+const TProgmemRGBGradientPalette_byte ColdGrad_gp[] = {
         0, 66, 186, 192,
         43, 1, 22, 71,
         79, 2, 104, 142,
@@ -89,7 +89,7 @@ const TProgmemRGBGradientPalette_byte ColdGrad_gp[] =  {
         255, 4, 27, 28
 };
 
-const TProgmemRGBGradientPalette_byte HotGrad_gp[] =  {
+const TProgmemRGBGradientPalette_byte HotGrad_gp[] = {
         0, 157, 21, 2,
         35, 229, 244, 16,
         73, 255, 44, 7,
@@ -100,7 +100,7 @@ const TProgmemRGBGradientPalette_byte HotGrad_gp[] =  {
 };
 
 
-const TProgmemRGBGradientPalette_byte PinkGrad_gp[] =  {
+const TProgmemRGBGradientPalette_byte PinkGrad_gp[] = {
         0, 249, 32, 145,
         28, 208, 1, 7,
         43, 249, 1, 19,
@@ -115,7 +115,7 @@ const TProgmemRGBGradientPalette_byte PinkGrad_gp[] =  {
         255, 112, 0, 1
 };
 
-const TProgmemRGBGradientPalette_byte Comfy_gp[] =  {
+const TProgmemRGBGradientPalette_byte Comfy_gp[] = {
         0, 255, 255, 45,
         43, 208, 93, 1,
         137, 224, 1, 242,
@@ -123,7 +123,7 @@ const TProgmemRGBGradientPalette_byte Comfy_gp[] =  {
         255, 63, 4, 68
 };
 
-const TProgmemRGBGradientPalette_byte Cyberpunk_gp[] =  {
+const TProgmemRGBGradientPalette_byte Cyberpunk_gp[] = {
         0, 3, 6, 72,
         38, 12, 50, 188,
         109, 217, 35, 1,
@@ -132,7 +132,7 @@ const TProgmemRGBGradientPalette_byte Cyberpunk_gp[] =  {
         255, 24, 6, 108
 };
 
-const TProgmemRGBGradientPalette_byte Girl_gp[] =  {
+const TProgmemRGBGradientPalette_byte Girl_gp[] = {
         0, 103, 1, 10,
         33, 109, 1, 12,
         76, 159, 5, 48,
@@ -143,7 +143,7 @@ const TProgmemRGBGradientPalette_byte Girl_gp[] =  {
         255, 103, 1, 10
 };
 
-const TProgmemRGBGradientPalette_byte Xmas_gp[] =  {
+const TProgmemRGBGradientPalette_byte Xmas_gp[] = {
         0, 0, 12, 0,
         40, 0, 55, 0,
         66, 1, 117, 2,
@@ -158,7 +158,7 @@ const TProgmemRGBGradientPalette_byte Xmas_gp[] =  {
         255, 42, 0, 0
 };
 
-const TProgmemRGBGradientPalette_byte Acid_gp[] =  {
+const TProgmemRGBGradientPalette_byte Acid_gp[] = {
         0, 0, 12, 0,
         61, 153, 239, 112,
         127, 0, 12, 0,
@@ -169,7 +169,7 @@ const TProgmemRGBGradientPalette_byte Acid_gp[] =  {
 };
 
 
-const TProgmemRGBGradientPalette_byte BlueSmoke_gp[] =  {
+const TProgmemRGBGradientPalette_byte BlueSmoke_gp[] = {
         0, 0, 0, 0,
         12, 1, 1, 3,
         53, 8, 1, 22,
@@ -181,7 +181,7 @@ const TProgmemRGBGradientPalette_byte BlueSmoke_gp[] =  {
         255, 0, 0, 0
 };
 
-const TProgmemRGBGradientPalette_byte Gummy_gp[] =  {
+const TProgmemRGBGradientPalette_byte Gummy_gp[] = {
         0, 8, 47, 5,
         31, 77, 122, 6,
         63, 249, 237, 7,
@@ -193,7 +193,7 @@ const TProgmemRGBGradientPalette_byte Gummy_gp[] =  {
         255, 239, 45, 1,
 };
 
-const TProgmemRGBGradientPalette_byte Leo_gp[] =  {
+const TProgmemRGBGradientPalette_byte Leo_gp[] = {
         0, 0, 0, 0,
         16, 0, 0, 0,
         32, 0, 0, 0,
