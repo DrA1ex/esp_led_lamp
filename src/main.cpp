@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ArduinoOTA.h>
 
 #include "constants.h"
 #include "config.h"
@@ -37,11 +38,15 @@ void setup() {
     wsServer.begin(webServer);
 
     webServer.begin();
+
+    ArduinoOTA.setHostname(MDNS_NAME);
+    ArduinoOTA.begin();
 }
 
 void render();
 
 void loop() {
+    ArduinoOTA.handle();
     wifi_check_connection();
 
     udpServer.handle_incoming_data();
@@ -58,9 +63,9 @@ void loop() {
 }
 
 void render() {
-    const auto &effectFn = appConfig.colorEffectFn;
-    const auto &brightnessFn = appConfig.brightnessEffectFn;
-    const auto &palette = (const CRGBPalette16 &) *appConfig.palette;
+    const auto &effectFn = appConfig.colorEffect->value;
+    const auto &brightnessFn = appConfig.brightnessEffect->value;
+    const auto &palette = appConfig.palette->value;
 
     led.clear();
 
