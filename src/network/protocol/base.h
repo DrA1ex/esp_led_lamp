@@ -13,6 +13,7 @@ enum class ResponseCode : uint8_t {
     OK,
     BAD_REQUEST,
     BAD_COMMAND,
+    INTERNAL_ERROR
 };
 
 struct Response {

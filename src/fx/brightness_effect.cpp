@@ -15,8 +15,6 @@ void pulse(Led &led, byte level) {
     }
 
     auto brightness = ease8InOutQuad(phase);
-    D_PRINT(String("Pulse phase: ") + value + " (brightness: " + String(brightness / 2.55f, 1) + "%)");
-
     led.fadeToBlack(255 - brightness);
 }
 

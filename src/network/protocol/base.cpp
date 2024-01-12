@@ -1,5 +1,7 @@
 #include "base.h"
 
+#include "fx/fx.h"
+
 ServerBase::ServerBase(AppConfig &config) : _app_config(config) {}
 
 Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
@@ -34,7 +36,10 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     if (packet->type >= PacketType::DISCOVERY) {
         return process_command(*packet);
     } else if (packet->type >= PacketType::PALETTE_LIST) {
-        return process_data_request(*packet);
+        auto response = process_data_request(*packet);
+        if (response.isOk()) D_PRINTF("Data request %u, size: %u \n", packet->type, response.body.buffer.size);
+
+        return response;
     } else {
         auto response = update_parameter(*packet, data);
         if (response.isOk()) app_config().update();
@@ -124,8 +129,51 @@ Response ServerBase::process_command(const PacketHeader &header) {
     return Response::code(success ? ResponseCode::OK : ResponseCode::BAD_COMMAND);
 }
 
+template<typename C, typename V>
+Response serialize_config(const FxConfig<FxConfigEntry<C, V>> &config) {
+    const int CONFIG_DATA_MAX_LENGTH = 1024;
+
+    static uint8_t buffer[CONFIG_DATA_MAX_LENGTH];
+    uint16_t size = 0;
+
+    *(buffer + size) = config.count;
+    ++size;
+
+    for (int i = 0; i < config.count; ++i) {
+        const auto &entry = config.entries[i];
+
+        *(buffer + size) = (uint8_t) entry.code;
+        ++size;
+
+        const auto name_length = strlen(entry.name);
+        memcpy(buffer + size, entry.name, name_length);
+        size += name_length;
+
+        *(buffer + size) = '\0';
+        ++size;
+    }
+
+    if (size > CONFIG_DATA_MAX_LENGTH) {
+        return Response::code(ResponseCode::INTERNAL_ERROR);
+    }
+
+    return Response{ResponseType::BINARY, {.buffer = {.size = size, .data=buffer}}};
+}
+
 Response ServerBase::process_data_request(const PacketHeader &header) {
-    return Response{ResponseType::CODE, {.code = ResponseCode::BAD_REQUEST}};
+    switch (header.type) {
+        case PacketType::COLOR_EFFECT_LIST:
+            return serialize_config(ColorEffects);
+
+        case PacketType::BRIGHTNESS_EFFECT_LIST:
+            return serialize_config(BrightnessEffects);
+
+        case PacketType::PALETTE_LIST:
+            return serialize_config(Palettes);
+
+        default:
+            return Response{ResponseType::CODE, {.code = ResponseCode::BAD_COMMAND}};
+    }
 }
 
 const char *Response::codeString() {
@@ -141,6 +189,7 @@ const char *Response::codeString() {
         case ResponseCode::BAD_COMMAND:
             return "BAD COMMAND";
 
+        case ResponseCode::INTERNAL_ERROR:
         default:
             return "INTERNAL ERROR";
     }

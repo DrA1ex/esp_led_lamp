@@ -58,26 +58,25 @@ enum class BrightnessEffectEnum : uint8_t {
 
 
 template<typename C, typename V>
-struct __attribute__ ((packed)) ConfigEntry {
+struct FxConfigEntry {
+    static_assert(std::is_enum_v<C> && std::is_same_v<std::underlying_type_t<C>, uint8_t>);
+
     C code;
     const char *name;
     V value;
 };
 
-typedef ConfigEntry<PaletteEnum, CRGBPalette16> PaletteEntry;
-struct __attribute__ ((packed))PaletteConfig {
+template<typename E>
+struct FxConfig {
     uint8_t count = 0;
-    PaletteEntry entries[];
+    E entries[];
 };
 
-typedef ConfigEntry<ColorEffectEnum, ColorEffectFn> ColorEffectEntry;
-struct __attribute__ ((packed)) ColorEffectConfig {
-    uint8_t count = 0;
-    ColorEffectEntry entries[];
-};
+typedef FxConfigEntry<PaletteEnum, CRGBPalette16> PaletteEntry;
+typedef FxConfig<PaletteEntry> PaletteConfig;
 
-typedef ConfigEntry<BrightnessEffectEnum, BrightnessEffectFn> BrightnessEffectEntry;
-struct __attribute__ ((packed)) BrightnessEffectConfig {
-    uint8_t count = 0;
-    BrightnessEffectEntry entries[];
-};
+typedef FxConfigEntry<ColorEffectEnum, ColorEffectFn> ColorEffectEntry;
+typedef FxConfig<ColorEffectEntry> ColorEffectConfig;
+
+typedef FxConfigEntry<BrightnessEffectEnum, BrightnessEffectFn> BrightnessEffectEntry;
+typedef FxConfig<BrightnessEffectEntry> BrightnessEffectConfig;
