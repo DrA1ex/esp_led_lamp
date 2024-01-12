@@ -37,7 +37,7 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
         return process_command(*packet);
     } else if (packet->type >= PacketType::PALETTE_LIST) {
         auto response = process_data_request(*packet);
-        if (response.isOk()) D_PRINTF("Data request %u, size: %u \n", packet->type, response.body.buffer.size);
+        if (response.isOk()) D_PRINTF("Data request %hhu, size: %u \n", packet->type, response.body.buffer.size);
 
         return response;
     } else {
@@ -67,7 +67,7 @@ Response update_parameter_value(T &parameter, const PacketHeader &header, const 
 
     parameter = *((T *) data);
     D_WRITE("Update parameter ");
-    D_WRITE(header.type);
+    D_WRITE(to_underlying(header.type));
     D_WRITE(" = ");
     D_PRINT(to_underlying(parameter));
 
@@ -76,29 +76,29 @@ Response update_parameter_value(T &parameter, const PacketHeader &header, const 
 
 Response ServerBase::update_parameter(const PacketHeader &header, const void *data) {
     switch (header.type) {
-        case SPEED:
+        case PacketType::SPEED:
             return update_parameter_value(app_config().config.speed, header, data);
 
-        case SCALE:
+        case PacketType::SCALE:
             return update_parameter_value(app_config().config.scale, header, data);
 
-        case LIGHT:
+        case PacketType::LIGHT:
             return update_parameter_value(app_config().config.light, header, data);
 
-        case MAX_BRIGHTNESS:
+        case PacketType::MAX_BRIGHTNESS:
             return update_parameter_value(app_config().config.maxBrightness, header, data);
 
-        case PALETTE:
+        case PacketType::PALETTE:
             return update_parameter_value(app_config().config.palette, header, data);
 
-        case COLOR_EFFECT:
+        case PacketType::COLOR_EFFECT:
             return update_parameter_value(app_config().config.colorEffect, header, data);
 
-        case BRIGHTNESS_EFFECT:
+        case PacketType::BRIGHTNESS_EFFECT:
             return update_parameter_value(app_config().config.brightnessEffect, header, data);
 
         default:
-            D_PRINTF("Unable to update value, bad type: %u\n", header.type);
+            D_PRINTF("Unable to update value, bad type: %hhu\n", header.type);
             return Response::code(ResponseCode::BAD_COMMAND);
     }
 }
@@ -107,30 +107,33 @@ Response ServerBase::process_command(const PacketHeader &header) {
     bool success = true;
 
     switch (header.type) {
-        case POWER_ON:
+        case PacketType::POWER_ON:
             app_config().config.power = true;
             break;
 
-        case POWER_OFF:
+        case PacketType::POWER_OFF:
             app_config().config.power = false;
             break;
 
-        case RESTART:
+        case PacketType::RESTART:
             ESP.restart();
             break;
 
+        case PacketType::DISCOVERY:
+            break;
+
         default:
-            D_PRINTF("Unknown command: %u\n", header.type);
+            D_PRINTF("Unknown command: %hhu\n", header.type);
             success = false;
     }
 
-    if (success) D_PRINTF("Command %u\n", header.type);
+    if (success) D_PRINTF("Command %hhu\n", header.type);
 
     return Response::code(success ? ResponseCode::OK : ResponseCode::BAD_COMMAND);
 }
 
 template<typename C, typename V>
-Response serialize_config(const FxConfig<FxConfigEntry<C, V>> &config) {
+Response serialize_fx_config(const FxConfig<FxConfigEntry<C, V>> &config) {
     const int CONFIG_DATA_MAX_LENGTH = 1024;
 
     static uint8_t buffer[CONFIG_DATA_MAX_LENGTH];
@@ -160,16 +163,29 @@ Response serialize_config(const FxConfig<FxConfigEntry<C, V>> &config) {
     return Response{ResponseType::BINARY, {.buffer = {.size = size, .data=buffer}}};
 }
 
+Response serialize_config(const Config &config) {
+    const int CONFIG_DATA_MAX_LENGTH = sizeof(config) + 1;
+    static uint8_t buffer[CONFIG_DATA_MAX_LENGTH];
+
+    buffer[0] = sizeof(config);
+    memcpy(buffer + 1, &config, sizeof(config));
+
+    return Response{ResponseType::BINARY, {.buffer = {.size = CONFIG_DATA_MAX_LENGTH, .data=buffer}}};
+}
+
 Response ServerBase::process_data_request(const PacketHeader &header) {
     switch (header.type) {
         case PacketType::COLOR_EFFECT_LIST:
-            return serialize_config(ColorEffects);
+            return serialize_fx_config(ColorEffects);
 
         case PacketType::BRIGHTNESS_EFFECT_LIST:
-            return serialize_config(BrightnessEffects);
+            return serialize_fx_config(BrightnessEffects);
 
         case PacketType::PALETTE_LIST:
-            return serialize_config(Palettes);
+            return serialize_fx_config(Palettes);
+
+        case PacketType::GET_CONFIG:;
+            return serialize_config(app_config().config);
 
         default:
             return Response{ResponseType::CODE, {.code = ResponseCode::BAD_COMMAND}};

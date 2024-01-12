@@ -2,7 +2,7 @@
 
 #include "fx/type.h"
 
-struct Config {
+struct __attribute__ ((packed)) Config {
     bool power = true;
 
     byte maxBrightness = 128;

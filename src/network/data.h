@@ -2,7 +2,7 @@
 
 #include "c_types.h"
 
-enum PacketType : uint8_t {
+enum class PacketType : uint8_t {
     SPEED = 0,
     SCALE = 1,
     LIGHT = 2,
