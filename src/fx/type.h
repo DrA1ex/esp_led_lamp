@@ -5,7 +5,7 @@
 typedef void(*ColorEffectFn)(Led &led, const CRGBPalette16 &palette, byte scale, byte speed);
 typedef void (*BrightnessEffectFn)(Led &led, byte level);
 
-enum PaletteEnum : uint8_t {
+enum class PaletteEnum : uint8_t {
     CUSTOM,
     HEAT_COLORS,
     FIRE,
@@ -40,7 +40,7 @@ enum PaletteEnum : uint8_t {
     AURORA,
 };
 
-enum ColorEffectEnum : uint8_t {
+enum class ColorEffectEnum : uint8_t {
     PERLIN,
     GRADIENT,
     PACIFIC,
@@ -49,9 +49,35 @@ enum ColorEffectEnum : uint8_t {
     SOLID,
 };
 
-enum BrightnessEffectEnum : uint8_t {
+enum class BrightnessEffectEnum : uint8_t {
     FIXED,
     PULSE,
     WAVE,
     DOUBLE_WAVE,
+};
+
+
+template<typename C, typename V>
+struct __attribute__ ((packed)) ConfigEntry {
+    C code;
+    const char *name;
+    V value;
+};
+
+typedef ConfigEntry<PaletteEnum, CRGBPalette16> PaletteEntry;
+struct __attribute__ ((packed))PaletteConfig {
+    uint8_t count = 0;
+    PaletteEntry entries[];
+};
+
+typedef ConfigEntry<ColorEffectEnum, ColorEffectFn> ColorEffectEntry;
+struct __attribute__ ((packed)) ColorEffectConfig {
+    uint8_t count = 0;
+    ColorEffectEntry entries[];
+};
+
+typedef ConfigEntry<BrightnessEffectEnum, BrightnessEffectFn> BrightnessEffectEntry;
+struct __attribute__ ((packed)) BrightnessEffectConfig {
+    uint8_t count = 0;
+    BrightnessEffectEntry entries[];
 };

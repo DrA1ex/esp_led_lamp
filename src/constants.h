@@ -13,6 +13,8 @@
 #define UDP_MAX_PACKET_SIZE                     (260u)
 #define UDP_PACKET_SIGNATURE                    ((uint16_t) 0xAA34)
 
+#define MDNS_NAME                               "esp_lamp"
+
 #define WEB_PORT                                (80)
 
 #define LED_PIN                                 (5u)

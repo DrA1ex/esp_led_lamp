@@ -7,7 +7,21 @@ AppConfig::AppConfig(Config &config) : config(config) {
 }
 
 void AppConfig::update() {
-    colorEffectFn = ColorEffects[config.colorEffect];
-    brightnessEffectFn = BrightnessEffects[config.brightnessEffect];
-    palette = &Palettes[config.palette];
+    if ((int) config.colorEffect < ColorEffects.count) {
+        colorEffect = &ColorEffects.entries[(int) config.colorEffect];
+    } else {
+        colorEffect = &ColorEffects.entries[(int) ColorEffectEnum::PERLIN];
+    }
+
+    if ((int) config.brightnessEffect < BrightnessEffects.count) {
+        brightnessEffect = &BrightnessEffects.entries[(int) config.brightnessEffect];
+    } else {
+        brightnessEffect = &BrightnessEffects.entries[(int) BrightnessEffectEnum::FIXED];
+    }
+
+    if ((int) config.palette < Palettes.count) {
+        palette = &Palettes.entries[(int) config.palette];
+    } else {
+        palette = &Palettes.entries[(int) PaletteEnum::RAINBOW];
+    }
 }

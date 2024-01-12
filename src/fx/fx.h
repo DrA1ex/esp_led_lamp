@@ -2,6 +2,6 @@
 
 #include "type.h"
 
-extern CRGBPalette16 Palettes[];
-extern ColorEffectFn ColorEffects[];
-extern BrightnessEffectFn BrightnessEffects[];
+extern PaletteConfig Palettes;
+extern ColorEffectConfig ColorEffects;
+extern BrightnessEffectConfig BrightnessEffects;

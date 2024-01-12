@@ -19,9 +19,9 @@ struct Config {
 struct AppConfig {
     Config &config;
 
-    ColorEffectFn colorEffectFn;
-    BrightnessEffectFn brightnessEffectFn;
-    const CRGBPalette16 *palette;
+    const ColorEffectEntry *colorEffect;
+    const BrightnessEffectEntry *brightnessEffect;
+    const PaletteEntry *palette;
 
     explicit AppConfig(Config &config);
 

@@ -43,6 +43,15 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     }
 }
 
+template<typename E>
+constexpr auto to_underlying(E e) noexcept {
+    if constexpr (std::is_enum_v<E>) {
+        return static_cast<std::underlying_type_t<E>>(e);
+    } else {
+        return static_cast<E>(e);
+    }
+}
+
 template<typename T, typename = std::enable_if<std::is_enum<T>::value || std::is_integral<T>::value>>
 Response update_parameter_value(T &parameter, const PacketHeader &header, const void *data) {
     if (header.size != sizeof(T)) {
@@ -55,7 +64,7 @@ Response update_parameter_value(T &parameter, const PacketHeader &header, const 
     D_WRITE("Update parameter ");
     D_WRITE(header.type);
     D_WRITE(" = ");
-    D_PRINT(parameter);
+    D_PRINT(to_underlying(parameter));
 
     return Response::ok();
 }
