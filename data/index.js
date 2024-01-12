@@ -16,7 +16,7 @@ function initWebSocket() {
         window.__app.connected = true;
 
         if (!window.__app.config) {
-            await loadConfig();
+            await initialize();
         }
 
         LoaderElement.style.visibility = "collapse";
@@ -175,6 +175,12 @@ function createTrigger(title, value, cmdOn, cmdOff) {
     document.body.appendChild(control);
 }
 
+function createSection(title) {
+    const sectionTitle = document.createElement("h3");
+    sectionTitle.innerText = title;
+    document.body.appendChild(sectionTitle);
+}
+
 const PacketType = {
     SPEED: 0,
     SCALE: 1,
@@ -201,15 +207,17 @@ const PacketType = {
     RESTART: 222,
 };
 
-async function loadConfig() {
+async function initialize() {
     const config = await request_config();
     console.log("Config", config);
 
-    createTrigger("Power", config.power, PacketType.POWER_ON, PacketType.POWER_OFF);
+    const _256 = Array.from({length: 256}, (_, i) => ({code: i, name: i}));
 
-    const sectionTitle = document.createElement("h3");
-    sectionTitle.innerText = "FX";
-    document.body.appendChild(sectionTitle);
+    createSection("General");
+    createTrigger("Power", config.power, PacketType.POWER_ON, PacketType.POWER_OFF);
+    createSelect("Brightness", _256, config.maxBrightness, PacketType.MAX_BRIGHTNESS);
+
+    createSection("FX");
 
     const palette = await request_fx(PacketType.PALETTE_LIST);
     createSelect("Palette", palette, config.palette, PacketType.PALETTE);
@@ -219,6 +227,11 @@ async function loadConfig() {
 
     const brightnessEffects = await request_fx(PacketType.BRIGHTNESS_EFFECT_LIST);
     createSelect("Brightness Effect", brightnessEffects, config.brightnessEffect, PacketType.BRIGHTNESS_EFFECT);
+
+    createSection("Fine Tune");
+    createSelect("Speed", _256, config.speed, PacketType.SPEED);
+    createSelect("Scale", _256, config.scale, PacketType.SCALE);
+    createSelect("Light", _256, config.light, PacketType.LIGHT);
 
     window.__app.config = {
         config,
