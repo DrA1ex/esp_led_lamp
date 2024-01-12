@@ -4,6 +4,8 @@
 #include "constants.h"
 #include "config.h"
 #include "led.h"
+#include "storage.h"
+#include "timer.h"
 
 #include "network/wifi.h"
 #include "network/web.h"
@@ -12,8 +14,10 @@
 
 Led led(WIDTH, HEIGHT);
 
-Config config;
-volatile AppConfig appConfig(config);
+Timer globalTimer;
+Storage<Config> configStorage(globalTimer, 0);
+
+AppConfig appConfig(configStorage);
 
 WebServer webServer(WEB_PORT);
 
@@ -21,13 +25,17 @@ UdpServer udpServer((AppConfig &) appConfig);
 WebSocketServer wsServer((AppConfig &) appConfig);
 
 void setup() {
-#ifdef DEBUG
+#if defined(DEBUG)
     Serial.begin(115200);
+    delay(2000);
 #endif
+
+    configStorage.begin();
+    appConfig.load();
 
     led.setPowerLimit(MATRIX_VOLTAGE, CURRENT_LIMIT);
     led.setCorrection(TypicalLEDStrip);
-    led.setBrightness(config.maxBrightness);
+    led.setBrightness(appConfig.config.maxBrightness);
 
     led.clear();
     led.show();
@@ -52,7 +60,9 @@ void loop() {
     udpServer.handle_incoming_data();
     wsServer.handle_incoming_data();
 
-    if (config.power) {
+    globalTimer.handle_timers();
+
+    if (appConfig.config.power) {
         render();
     } else {
         led.clear();
@@ -69,6 +79,7 @@ void render() {
 
     led.clear();
 
+    const auto &config = appConfig.config;
     led.setBrightness(config.maxBrightness);
     effectFn(led, palette, config.scale, config.speed);
     brightnessFn(led, config.light);

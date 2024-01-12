@@ -2,11 +2,9 @@
 
 #include "fx/fx.h"
 
-AppConfig::AppConfig(Config &config) : config(config) {
-    update();
-}
+AppConfig::AppConfig(Storage<Config> &storage) : storage(storage), config(storage.get()) {}
 
-void AppConfig::update() {
+void AppConfig::load() {
     if ((int) config.colorEffect < ColorEffects.count) {
         colorEffect = &ColorEffects.entries[(int) config.colorEffect];
     } else {
@@ -24,4 +22,9 @@ void AppConfig::update() {
     } else {
         palette = &Palettes.entries[(int) PaletteEnum::RAINBOW];
     }
+}
+
+void AppConfig::update() {
+    storage.save();
+    load();
 }

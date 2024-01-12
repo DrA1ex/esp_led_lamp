@@ -11,7 +11,8 @@
 
 #define UDP_PORT                                (1423)
 #define UDP_MAX_PACKET_SIZE                     (260u)
-#define UDP_PACKET_SIGNATURE                    ((uint16_t) 0xAA34)
+
+#define PACKET_SIGNATURE                        ((uint16_t) 0xAA34)
 
 #define MDNS_NAME                               "esp_lamp"
 
@@ -28,3 +29,9 @@
 #define HEIGHT                                  (1u)
 
 #define FRAMES_PER_SECOND                       (60u)
+
+#define STORAGE_HEADER                          ((uint32_t) 0xffaabbcc)
+#define STORAGE_VERSION                         ((uint8_t) 1)
+#define STORAGE_SAVE_INTERVAL                   ((uint16_t) 300000)
+
+#define TIMER_GROW_AMOUNT                       (8u);

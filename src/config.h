@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fx/type.h"
+#include "storage.h"
 
 struct __attribute__ ((packed)) Config {
     bool power = true;
@@ -12,19 +13,22 @@ struct __attribute__ ((packed)) Config {
     byte light = 180;
 
     PaletteEnum palette = PaletteEnum::SUNSET;
-    ColorEffectEnum colorEffect = ColorEffectEnum::PERLIN;
+    ColorEffectEnum colorEffect = ColorEffectEnum::GRADIENT;
     BrightnessEffectEnum brightnessEffect = BrightnessEffectEnum::DOUBLE_WAVE;
 };
 
-struct AppConfig {
-    Config &config;
+class AppConfig {
+public:
+    Storage<Config> &storage;
+    volatile Config &config;
 
     const ColorEffectEntry *colorEffect;
     const BrightnessEffectEntry *brightnessEffect;
     const PaletteEntry *palette;
 
-    explicit AppConfig(Config &config);
+    explicit AppConfig(Storage<Config> &storage);
 
+    void load();
     void update();
 };
 

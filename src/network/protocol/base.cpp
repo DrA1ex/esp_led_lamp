@@ -20,7 +20,7 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     }
 
     auto *packet = (PacketHeader *) buffer;
-    if (packet->signature != UDP_PACKET_SIGNATURE) {
+    if (packet->signature != PACKET_SIGNATURE) {
         D_PRINTF("Wrong packet signature: %X\n", packet->signature);
 
         return Response::code(ResponseCode::BAD_REQUEST);
@@ -34,10 +34,13 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
 
     const void *data = buffer + header_size;
     if (packet->type >= PacketType::DISCOVERY) {
-        return process_command(*packet);
+        auto response = process_command(*packet);
+        if (response.isOk() && packet->type >= PacketType::POWER_OFF) app_config().update();
+
+        return response;
     } else if (packet->type >= PacketType::PALETTE_LIST) {
         auto response = process_data_request(*packet);
-        if (response.isOk()) D_PRINTF("Data request %hhu, size: %u \n", packet->type, response.body.buffer.size);
+        if (response.isOk()) D_PRINTF("Data request %u, size: %u \n", (uint8_t) packet->type, response.body.buffer.size);
 
         return response;
     } else {
@@ -98,7 +101,7 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
             return update_parameter_value(app_config().config.brightnessEffect, header, data);
 
         default:
-            D_PRINTF("Unable to update value, bad type: %hhu\n", header.type);
+            D_PRINTF("Unable to update value, bad type: %u\n", (uint8_t) header.type);
             return Response::code(ResponseCode::BAD_COMMAND);
     }
 }
@@ -116,6 +119,7 @@ Response ServerBase::process_command(const PacketHeader &header) {
             break;
 
         case PacketType::RESTART:
+            app_config().storage.force_save();
             ESP.restart();
             break;
 
@@ -123,11 +127,11 @@ Response ServerBase::process_command(const PacketHeader &header) {
             break;
 
         default:
-            D_PRINTF("Unknown command: %hhu\n", header.type);
+            D_PRINTF("Unknown command: %u\n", (uint8_t) header.type);
             success = false;
     }
 
-    if (success) D_PRINTF("Command %hhu\n", header.type);
+    if (success) D_PRINTF("Command %u\n", (uint8_t) header.type);
 
     return Response::code(success ? ResponseCode::OK : ResponseCode::BAD_COMMAND);
 }
@@ -185,7 +189,7 @@ Response ServerBase::process_data_request(const PacketHeader &header) {
             return serialize_fx_config(Palettes);
 
         case PacketType::GET_CONFIG:;
-            return serialize_config(app_config().config);
+            return serialize_config((Config &) app_config().config);
 
         default:
             return Response{ResponseType::CODE, {.code = ResponseCode::BAD_COMMAND}};
