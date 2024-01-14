@@ -33,6 +33,6 @@
 
 #define STORAGE_HEADER                          ((uint32_t) 0xffaabbcc)
 #define STORAGE_VERSION                         ((uint8_t) 1)
-#define STORAGE_SAVE_INTERVAL                   ((uint16_t) 60000)      // Wait before commit settings to FLASH
+#define STORAGE_SAVE_INTERVAL                   (60000u)      // Wait before commit settings to FLASH
 
 #define TIMER_GROW_AMOUNT                       (8u);
