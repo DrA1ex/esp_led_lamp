@@ -5,9 +5,8 @@
 #include "palette.h"
 
 PaletteConfig Palettes = {
-        .count = 32,
+        .count = 31,
         .entries = {
-                {PaletteEnum::CUSTOM,         "Custom",         CustomPal},
                 {PaletteEnum::HEAT_COLORS,    "Heat",           HeatColors_p},
                 {PaletteEnum::FIRE,           "Fire",           Fire_gp},
                 {PaletteEnum::WOOD_FIRE,      "Wood Fire",      WoodFireColors_p},

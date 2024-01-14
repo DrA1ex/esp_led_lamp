@@ -6,7 +6,6 @@ typedef void(*ColorEffectFn)(Led &led, const CRGBPalette16 &palette, byte scale,
 typedef void (*BrightnessEffectFn)(Led &led, byte level);
 
 enum class PaletteEnum : uint8_t {
-    CUSTOM,
     HEAT_COLORS,
     FIRE,
     WOOD_FIRE,

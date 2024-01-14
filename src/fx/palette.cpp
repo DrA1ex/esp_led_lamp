@@ -1,7 +1,5 @@
 #include "palette.h"
 
-CRGBPalette16 CustomPal = CRGBPalette16();
-
 const TProgmemRGBGradientPalette_byte Fire_gp[] = {
         0, 0, 0, 0,
         128, 255, 0, 0,

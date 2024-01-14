@@ -7,7 +7,9 @@ body {
     margin: 0;
     color: #555;
     font: 14px Helvetica Neue, Lucida Grande, Arial;
+    padding-bottom: 4rem;
 
+    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -42,7 +44,7 @@ h3 {
 
 .button, .input {
     display: block;
-    width: 60vw;
+    width: 70vw;
     max-width: 20rem;
     box-sizing: content-box;
     background-color: #3498db;
@@ -59,6 +61,45 @@ h3 {
 select.input {
     appearance: none;
     text-align-last: center;
+}
+
+.input.wheel {
+    position: relative;
+    padding: 0 1rem;
+}
+
+.input.wheel > div {
+    user-select: none;
+
+    overflow-x: scroll;
+    overflow-y: hidden;
+
+    scroll-snap-type: x mandatory;
+
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 33%;
+}
+
+.wheel > div::-webkit-scrollbar {
+    display: none;
+}
+
+.wheel:after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-image: linear-gradient(to right, #3498db 10%, transparent 40%), linear-gradient(to left, #3498db 10%, transparent 40%);
+}
+
+.wheel .option {
+    padding: 1rem;
+    scroll-snap-align: center;
+    user-select: none;
 }
 
 .button[disabled] {

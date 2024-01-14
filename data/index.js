@@ -156,6 +156,97 @@ function createSelect(title, list, value, cmd) {
     document.body.appendChild(control);
 }
 
+function createWheel(title, list, value, cmd) {
+    const titleElement = document.createElement("p");
+    titleElement.innerText = title;
+    document.body.appendChild(titleElement);
+
+    const control = document.createElement("div");
+    control.classList.add("input");
+    control.classList.add("wheel");
+
+    const items = document.createElement("div");
+    control.appendChild(items);
+
+    const opt1 = document.createElement("div");
+    opt1.classList.add("option");
+    items.appendChild(opt1);
+
+    for (let i = 0; i < list.length; i++) {
+        const opt = document.createElement("div");
+        opt.classList.add("option");
+        opt.innerText = list[i].name;
+        items.appendChild(opt);
+    }
+
+    const opt2 = document.createElement("div");
+    opt2.classList.add("option");
+    items.appendChild(opt2);
+
+    document.body.appendChild(control);
+
+    const cellWidth = opt1.getBoundingClientRect().width
+    items.scrollLeft = list.findIndex(v => v.code === value) * cellWidth;
+    control.__busy = false;
+    control.__value = value;
+
+    setTimeout(() => {
+        items.onscroll = async (e) => {
+            if (control.__busy) return;
+
+            const i = Math.round(items.scrollLeft / cellWidth);
+            if (i < list.length) {
+                const newValue = list[i].code;
+                if (newValue === control.__value) return;
+
+                try {
+                    control.__busy = true;
+                    await request(cmd, Uint8Array.of(newValue).buffer);
+                    control.__value = newValue;
+                } finally {
+                    control.__busy = false;
+                }
+            }
+        }
+    }, 100);
+
+    const props = {};
+    control.onmousedown = (e) => {
+        props.active = true;
+        props.margin = 20;
+
+        props.width = control.getBoundingClientRect().width - props.margin * 2;
+        props.left = control.getBoundingClientRect().left + props.margin;
+
+        e.preventDefault();
+    }
+
+    control.onmouseup = (e) => {
+        props.active = false;
+        e.preventDefault();
+    }
+
+    control.onmousemove = (e) => {
+        if (!props.active) return;
+
+        const pos = (e.clientX - props.left) / props.width;
+        items.scrollLeft = pos * list.length * cellWidth;
+    }
+
+    control.onmouseenter = (e) => {
+        if (props.active && e.buttons === 0) {
+            props.active = false;
+        }
+    }
+
+    control.onwheel = (e) => {
+        if (e.deltaY !== 0 && e.deltaX === 0) {
+            items.scrollLeft -= e.wheelDeltaY;
+            e.preventDefault();
+        }
+    }
+}
+
 function createTrigger(title, value, cmdOn, cmdOff) {
     const titleElement = document.createElement("p");
     titleElement.innerText = title;
@@ -215,7 +306,7 @@ async function initialize() {
 
     createSection("General");
     createTrigger("Power", config.power, PacketType.POWER_ON, PacketType.POWER_OFF);
-    createSelect("Brightness", _256, config.maxBrightness, PacketType.MAX_BRIGHTNESS);
+    createWheel("Brightness", _256, config.maxBrightness, PacketType.MAX_BRIGHTNESS);
 
     createSection("FX");
 
@@ -229,9 +320,9 @@ async function initialize() {
     createSelect("Brightness Effect", brightnessEffects, config.brightnessEffect, PacketType.BRIGHTNESS_EFFECT);
 
     createSection("Fine Tune");
-    createSelect("Speed", _256, config.speed, PacketType.SPEED);
-    createSelect("Scale", _256, config.scale, PacketType.SCALE);
-    createSelect("Light", _256, config.light, PacketType.LIGHT);
+    createWheel("Speed", _256, config.speed, PacketType.SPEED);
+    createWheel("Scale", _256, config.scale, PacketType.SCALE);
+    createWheel("Light", _256, config.light, PacketType.LIGHT);
 
     window.__app.config = {
         config,
