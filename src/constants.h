@@ -2,12 +2,13 @@
 
 #include <FastLED.h>
 
-#define WIFI_MODE                               (0u)
+#define WIFI_MODE                               (0u)                    // 0 - AP mode, 1 - STA mode
 #define WIFI_SSID                               "ESP_LED"
 #define WIFI_PASSWORD                           "12345678"
 
-#define WIFI_CONNECTION_CHECK_INTERVAL          (5000u)
-#define WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL    (0u)
+#define WIFI_CONNECTION_CHECK_INTERVAL          (5000u)                 // Interval (ms) between Wi-Fi connection check
+#define WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL    (0u)                    // Max time (ms) to wait for Wi-Fi connection before switch to AP mode
+                                                                        // 0 - Newer switch to AP mode
 
 #define UDP_PORT                                (1423)
 #define UDP_MAX_PACKET_SIZE                     (260u)
@@ -32,6 +33,6 @@
 
 #define STORAGE_HEADER                          ((uint32_t) 0xffaabbcc)
 #define STORAGE_VERSION                         ((uint8_t) 1)
-#define STORAGE_SAVE_INTERVAL                   ((uint16_t) 300000)
+#define STORAGE_SAVE_INTERVAL                   ((uint16_t) 60000)      // Wait before commit settings to FLASH
 
 #define TIMER_GROW_AMOUNT                       (8u);

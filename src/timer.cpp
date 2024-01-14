@@ -37,7 +37,7 @@ void Timer::handle_timers() {
         auto &entry = _entries[i];
         if (!entry.active || (now - entry.created_at) < entry.interval) continue;
 
-        D_PRINTF("Call timer: %lu\n", i);
+        VERBOSE(D_PRINTF("Call timer: %lu\n", i));
 
         entry.callback(entry.parameter);
         if (entry.repeat) {
@@ -64,14 +64,7 @@ unsigned long Timer::_add(TimerFn callback, unsigned long interval, bool repeat,
 
         _free_count--;
 
-#ifdef DEBUG
-        Serial.print("Add timer: ");
-        Serial.print(i);
-        Serial.print(". Used: ");
-        Serial.print(_free_count);
-        Serial.print(" / ");
-        Serial.println(_count);
-#endif
+        D_PRINTF("Add %s: %lu. Used: %lu / %lu\n", interval ? "interval" : "timeout", i, _count - _free_count, _count);
 
         return i;
     }
@@ -81,13 +74,15 @@ unsigned long Timer::_add(TimerFn callback, unsigned long interval, bool repeat,
 }
 
 void Timer::_clear(unsigned long timer_id) {
+    if (_entries == nullptr) return;
+
     auto &entry = _entries[timer_id];
     if (!entry.active) return;
 
     entry = TimerEntry();
     _free_count++;
 
-    D_PRINTF("Remove timer: %lu. Used: %lu / %lu\n", timer_id, _free_count, _count);
+    D_PRINTF("Remove timer: %lu. Used: %lu / %lu\n", timer_id, _count - _free_count, _count);
 }
 
 void Timer::_grow() {
