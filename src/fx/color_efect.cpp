@@ -18,7 +18,7 @@ void perlin(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
 }
 
 void solid(Led &led, const CRGBPalette16 &, byte scale, byte speed) {
-    auto color = CHSV(scale, speed, 255);
+    auto color = CHSV(speed, scale, 255);
 
     fill_solid(led.data(), led.count(), color);
 }
