@@ -57,6 +57,7 @@ protected:
     Response handle_packet_data(const byte *buffer, uint16_t length);
 
     Response update_parameter(const PacketHeader &header, const void *data);
+    Response calibrate(const PacketHeader &header, const void *data);
     Response process_command(const PacketHeader &header);
     Response process_data_request(const PacketHeader &header);
 };

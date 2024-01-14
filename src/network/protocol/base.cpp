@@ -43,6 +43,16 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
         if (response.isOk()) D_PRINTF("Data request %u, size: %u \n", (uint8_t) packet->type, response.body.buffer.size);
 
         return response;
+    } else if (packet->type >= PacketType::CALIBRATION_R) {
+        auto response = calibrate(*packet, data);
+        if (response.isOk()) {
+            D_PRINTF("Color correction: %Xu\n", app_config().config.colorCorrection);
+
+            app_config().storage.save();
+            app_config().changeState(AppState::CALIBRATION);
+        }
+
+        return response;
     } else {
         auto response = update_parameter(*packet, data);
         if (response.isOk()) app_config().update();
@@ -194,6 +204,34 @@ Response ServerBase::process_data_request(const PacketHeader &header) {
         default:
             return Response{ResponseType::CODE, {.code = ResponseCode::BAD_COMMAND}};
     }
+}
+
+Response ServerBase::calibrate(const PacketHeader &header, const void *data) {
+    if (header.size != 1) {
+        return Response::code(ResponseCode::BAD_REQUEST);
+    }
+
+    switch (header.type) {
+        case PacketType::CALIBRATION_B:
+            app_config().config.colorCorrection &= ~(uint32_t) 0xff;
+            app_config().config.colorCorrection |= *((uint8_t *) data);
+            break;
+
+        case PacketType::CALIBRATION_G:
+            app_config().config.colorCorrection &= ~(uint32_t) 0xff00;
+            app_config().config.colorCorrection |= *((uint8_t *) data) << 8;
+            break;
+
+        case PacketType::CALIBRATION_R:
+            app_config().config.colorCorrection &= ~(uint32_t) 0xff0000;
+            app_config().config.colorCorrection |= *((uint8_t *) data) << 16;
+            break;
+
+        default:
+            return Response::code(ResponseCode::BAD_COMMAND);
+    }
+
+    return Response::ok();
 }
 
 const char *Response::codeString() {

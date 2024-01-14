@@ -28,3 +28,8 @@ void AppConfig::update() {
     storage.save();
     load();
 }
+
+void AppConfig::changeState(AppState s) {
+    state_change_time = millis();
+    state = s;
+}

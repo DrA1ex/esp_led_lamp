@@ -34,10 +34,9 @@ void WifiManager::handle_connection() {
         return;
     }
 
-    static unsigned long last_check = 0;
-    if (millis() - last_check < WIFI_CONNECTION_CHECK_INTERVAL) return;
+    if (millis() - _last_connection_check < WIFI_CONNECTION_CHECK_INTERVAL) return;
 
-    last_check = millis();
+    _last_connection_check = millis();
     if (WiFi.getMode() == WiFiMode::WIFI_STA && !WiFi.isConnected()) {
         D_PRINT("Wi-Fi connection lost");
 

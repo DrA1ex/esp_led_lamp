@@ -32,7 +32,9 @@
 #define FRAMES_PER_SECOND                       (60u)
 
 #define STORAGE_HEADER                          ((uint32_t) 0xffaabbcc)
-#define STORAGE_VERSION                         ((uint8_t) 1)
-#define STORAGE_SAVE_INTERVAL                   (60000u)      // Wait before commit settings to FLASH
+#define STORAGE_VERSION                         ((uint8_t) 2)
+#define STORAGE_SAVE_INTERVAL                   (60000u)                // Wait before commit settings to FLASH
 
 #define TIMER_GROW_AMOUNT                       (8u);
+
+#define CALIBRATION_TIMEOUT                     (10000u)                // Timeout for calibration mode

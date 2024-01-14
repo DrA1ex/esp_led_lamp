@@ -20,13 +20,13 @@ void perlin(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
 void solid(Led &led, const CRGBPalette16 &, byte scale, byte speed) {
     auto color = CHSV(speed, scale, 255);
 
-    fill_solid(led.data(), led.count(), color);
+    led.fillSolid(color);
 }
 
 void changeColor(Led &led, const CRGBPalette16 &palette, byte, byte speed) {
     auto color = ColorFromPalette(palette, millis() / 20 * speed / 255, 255, LINEARBLEND);
 
-    fill_solid(led.data(), led.count(), color);
+    led.fillSolid(color);
 }
 
 void gradient(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {

@@ -93,7 +93,7 @@ select.input {
     right: 0;
     top: 0;
     bottom: 0;
-    background-image: linear-gradient(to right, #3498db 10%, transparent 40%), linear-gradient(to left, #3498db 10%, transparent 40%);
+    background-image: linear-gradient(to right, #3498db 10%, transparent 30%), linear-gradient(to left, #3498db 10%, transparent 30%);
 }
 
 .wheel .option {

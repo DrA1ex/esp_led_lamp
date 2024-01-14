@@ -12,7 +12,10 @@
 #include "network/protocol/udp.h"
 #include "network/protocol/ws.h"
 
+void initialization_animation();
 void render();
+void calibration();
+
 void render_loop(void *);
 void service_loop(void *);
 
@@ -39,7 +42,7 @@ void setup() {
     appConfig.load();
 
     led.setPowerLimit(MATRIX_VOLTAGE, CURRENT_LIMIT);
-    led.setCorrection(TypicalLEDStrip);
+    led.setCorrection(appConfig.config.colorCorrection);
     led.setBrightness(appConfig.config.maxBrightness);
 
     led.clear();
@@ -64,16 +67,32 @@ void render_loop(void *) {
     ++ii;
 #endif
 
-    if (appConfig.config.power) {
-        render();
-    } else {
-        led.clear();
-        led.show();
+    led.setBrightness(appConfig.config.maxBrightness);
+
+    switch (appConfig.state) {
+        case AppState::INITIALIZATION:
+            initialization_animation();
+            break;
+
+        case AppState::NORMAL:
+            render();
+            break;
+
+        case AppState::CALIBRATION:
+            calibration();
+            break;
     }
 }
 
 
 void render() {
+    if (!appConfig.config.power) {
+        led.clear();
+        led.show();
+
+        return;
+    }
+
     const auto &effectFn = appConfig.colorEffect->value;
     const auto &brightnessFn = appConfig.brightnessEffect->value;
     const auto &palette = appConfig.palette->value;
@@ -81,9 +100,39 @@ void render() {
     led.clear();
 
     const auto &config = appConfig.config;
-    led.setBrightness(config.maxBrightness);
     effectFn(led, palette, config.scale, config.speed);
     brightnessFn(led, config.light);
+
+    led.show();
+}
+
+void calibration() {
+    led.setCorrection(appConfig.config.colorCorrection);
+    led.fillSolid(CRGB::White);
+    led.show();
+
+    if (millis() - appConfig.state_change_time > CALIBRATION_TIMEOUT) {
+        appConfig.changeState(AppState::NORMAL);
+    }
+}
+
+void initialization_animation() {
+    if (!appConfig.config.power) {
+        led.clear();
+        led.show();
+
+        return;
+    }
+
+    led.clear();
+
+    const auto t = millis() - appConfig.state_change_time;
+    for (int i = 0; i < led.width(); ++i) {
+        const auto brightness = 255 - cubicwave8((t / 8 + i * 6) % 256);
+        const auto color = CRGB(CRGB::Purple).scale8(brightness);
+
+        led.fillColumn(i, color);
+    }
 
     led.show();
 }
@@ -122,6 +171,7 @@ void service_loop(void *) {
             ArduinoOTA.setHostname(MDNS_NAME);
             ArduinoOTA.begin();
 
+            appConfig.changeState(AppState::NORMAL);
             state++;
             break;
 

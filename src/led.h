@@ -20,6 +20,7 @@ public:
 
     void setPixel(int x, int y, const CRGB &color);
     void fillColumn(int x, const CRGB &color);
+    inline void fillSolid(const CRGB &color) { fill_solid(_data, _count, color); };
 
     inline int width() const { return _width; }
     inline int height() const { return _height; }

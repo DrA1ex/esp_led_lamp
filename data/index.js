@@ -283,7 +283,9 @@ const PacketType = {
     COLOR_EFFECT: 101,
     BRIGHTNESS_EFFECT: 102,
 
-    CONFIGURE_PALETTE: 120,
+    CALIBRATION_R: 120,
+    CALIBRATION_G: 121,
+    CALIBRATION_B: 122,
 
     PALETTE_LIST: 140,
     COLOR_EFFECT_LIST: 141,
@@ -323,6 +325,11 @@ async function initialize() {
     createWheel("Speed", _256, config.speed, PacketType.SPEED);
     createWheel("Scale", _256, config.scale, PacketType.SCALE);
     createWheel("Light", _256, config.light, PacketType.LIGHT);
+
+    createSection("Color calibration");
+    createWheel("Red", _256, config.speed, PacketType.CALIBRATION_R);
+    createWheel("Green", _256, config.scale, PacketType.CALIBRATION_G);
+    createWheel("Blue", _256, config.light, PacketType.CALIBRATION_B);
 
     window.__app.config = {
         config,
