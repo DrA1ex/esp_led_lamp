@@ -54,14 +54,7 @@ void setup() {
 void render();
 
 void loop() {
-    ArduinoOTA.handle();
-    wifi_check_connection();
-
-    udpServer.handle_incoming_data();
-    wsServer.handle_incoming_data();
-
-    globalTimer.handle_timers();
-
+    const auto start_t = millis();
     if (appConfig.config.power) {
         render();
     } else {
@@ -69,7 +62,19 @@ void loop() {
         led.show();
     }
 
-    delay(1000 / FRAMES_PER_SECOND);
+    globalTimer.handle_timers();
+
+    ArduinoOTA.handle();
+    wifi_check_connection();
+
+    udpServer.handle_incoming_data();
+    wsServer.handle_incoming_data();
+
+    const auto total_t = millis() - start_t;
+    const auto target_delay = 1000 / FRAMES_PER_SECOND;
+    if (total_t < target_delay) {
+        delay(target_delay - total_t);
+    }
 }
 
 void render() {
