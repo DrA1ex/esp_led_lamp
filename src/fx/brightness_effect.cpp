@@ -53,3 +53,26 @@ void double_wave(Led &led, byte level) {
         }
     }
 }
+
+void eco(Led &led, byte level) {
+    const auto total_count = led.width() * led.height();
+    const auto active_count = (total_count * level) / 255;
+
+    if (total_count == active_count) return;
+
+    const auto invert = active_count > total_count / 2;
+    const float period = !invert ? (float) total_count / (float) (active_count + 1)
+                                 : (float) total_count / (float) (total_count - active_count + 1);
+
+    float next_index = period;
+    for (int i = 0; i < led.width(); ++i) {
+        for (int j = 0; j < led.height(); ++j) {
+            if (i < (int) next_index) {
+                if (!invert) led.setPixel(i, j, CRGB::Black);
+            } else {
+                if (invert) led.setPixel(i, j, CRGB::Black);
+                next_index += period;
+            }
+        }
+    }
+}

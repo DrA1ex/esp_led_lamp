@@ -54,6 +54,7 @@ enum class BrightnessEffectEnum : uint8_t {
     PULSE,
     WAVE,
     DOUBLE_WAVE,
+    ECO,
 };
 
 

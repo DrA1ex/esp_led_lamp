@@ -55,11 +55,12 @@ ColorEffectConfig ColorEffects = {
 };
 
 BrightnessEffectConfig BrightnessEffects = {
-        .count = 4,
+        .count = 5,
         .entries = {
                 {BrightnessEffectEnum::FIXED, "Fixed", fixed},
                 {BrightnessEffectEnum::PULSE, "Pulse", pulse},
                 {BrightnessEffectEnum::WAVE, "Wave", wave},
-                {BrightnessEffectEnum::DOUBLE_WAVE, "Double Wave", double_wave}
+                {BrightnessEffectEnum::DOUBLE_WAVE, "Double Wave", double_wave},
+                {BrightnessEffectEnum::ECO, "ECO", eco}
         }
 };
