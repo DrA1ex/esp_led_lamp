@@ -123,6 +123,8 @@ async function request_config() {
         palette: view.getUint8(offset++),
         colorEffect: view.getUint8(offset++),
         brightnessEffect: view.getUint8(offset++),
+
+        colorCorrection: view.getUint32(offset, true)
     }
 }
 
@@ -327,9 +329,9 @@ async function initialize() {
     createWheel("Light", _256, config.light, PacketType.LIGHT);
 
     createSection("Color calibration");
-    createWheel("Red", _256, config.speed, PacketType.CALIBRATION_R);
-    createWheel("Green", _256, config.scale, PacketType.CALIBRATION_G);
-    createWheel("Blue", _256, config.light, PacketType.CALIBRATION_B);
+    createWheel("Red", _256, (config.colorCorrection & 0xff0000) >> 16, PacketType.CALIBRATION_R);
+    createWheel("Green", _256, (config.colorCorrection & 0xff00) >> 8, PacketType.CALIBRATION_G);
+    createWheel("Blue", _256, config.colorCorrection & 0xff, PacketType.CALIBRATION_B);
 
     window.__app.config = {
         config,
