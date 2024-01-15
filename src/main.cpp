@@ -7,6 +7,8 @@
 #include "storage.h"
 #include "timer.h"
 
+#include "fx/fx.h"
+
 #include "network/wifi.h"
 #include "network/web.h"
 #include "network/protocol/udp.h"
@@ -58,7 +60,7 @@ void loop() {
 }
 
 void render_loop(void *) {
-#if DEBUG_LEVEL == __DEBUG_LEVEL_VERBOSE
+#if defined(DEBUG) && DEBUG_LEVEL <= __DEBUG_LEVEL_VERBOSE
     static unsigned long t = 0;
     static unsigned long ii = 0;
     if (ii % 10 == 0) D_PRINTF("Render latency: %lu\n", millis() - t);
@@ -93,14 +95,13 @@ void render() {
         return;
     }
 
-    const auto &effectFn = appConfig.colorEffect->value;
     const auto &brightnessFn = appConfig.brightnessEffect->value;
-    const auto &palette = appConfig.palette->value;
+    const auto palette = &appConfig.palette->value;
 
     led.clear();
 
     const auto &config = appConfig.config;
-    effectFn(led, palette, config.scale, config.speed);
+    ColorEffects.call(led, palette, config);
     brightnessFn(led, config.light);
 
     led.show();
@@ -138,7 +139,7 @@ void initialization_animation() {
 }
 
 void service_loop(void *) {
-#if DEBUG_LEVEL == __DEBUG_LEVEL_VERBOSE
+#if defined(DEBUG) && DEBUG_LEVEL <= __DEBUG_LEVEL_VERBOSE
     static unsigned long t = 0;
     static unsigned long ii = 0;
     if (ii % 10 == 0) D_PRINTF("Service latency: %lu\n", millis() - t);

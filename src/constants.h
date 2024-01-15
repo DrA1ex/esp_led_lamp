@@ -37,4 +37,6 @@
 
 #define TIMER_GROW_AMOUNT                       (8u);
 
-#define CALIBRATION_TIMEOUT                     (10000u)                // Timeout for calibration mode
+#define CALIBRATION_TIMEOUT                     (5000u)                 // Timeout for calibration mode
+
+#define MAX_PARTICLES_COUNT                     (50u)

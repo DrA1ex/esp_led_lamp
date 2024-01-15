@@ -28,12 +28,11 @@ struct __attribute__ ((packed)) Config {
 class AppConfig {
 public:
     Storage<Config> &storage;
-    volatile Config &config;
+    Config &config;
 
     unsigned long state_change_time = 0;
     AppState state = AppState::INITIALIZATION;
 
-    const ColorEffectEntry *colorEffect;
     const BrightnessEffectEntry *brightnessEffect;
     const PaletteEntry *palette;
 

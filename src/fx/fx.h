@@ -1,7 +1,8 @@
 #pragma once
 
 #include "type.h"
+#include "color_effect.h"
 
 extern PaletteConfig Palettes;
-extern ColorEffectConfig ColorEffects;
+extern ColorEffectManager ColorEffects;
 extern BrightnessEffectConfig BrightnessEffects;

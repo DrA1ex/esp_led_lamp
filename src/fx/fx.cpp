@@ -41,17 +41,7 @@ PaletteConfig Palettes = {
         }
 };
 
-ColorEffectConfig ColorEffects = {
-        .count = 6,
-        .entries = {
-                {ColorEffectEnum::PERLIN, "Perlin Noise", perlin},
-                {ColorEffectEnum::GRADIENT, "Gradient", gradient},
-                {ColorEffectEnum::PACIFIC, "Pacific", pacific},
-                {ColorEffectEnum::PARTICLES, "Particles", particles},
-                {ColorEffectEnum::CHANGE_COLOR, "Color Change", changeColor},
-                {ColorEffectEnum::SOLID, "Solid Color", solid},
-        }
-};
+ColorEffectManager ColorEffects;
 
 BrightnessEffectConfig BrightnessEffects = {
         .count = 5,

@@ -2,7 +2,20 @@
 
 #include "led.h"
 
-typedef void(*ColorEffectFn)(Led &led, const CRGBPalette16 &palette, byte scale, byte speed);
+struct ColorEffectState {
+    struct {
+        const CRGBPalette16 *palette = nullptr;
+        byte scale = 0;
+        byte speed = 0;
+    } params;
+
+    unsigned long time = 0;
+    unsigned long prev_time = 0;
+
+    [[nodiscard]] inline unsigned long delta() const { return time - prev_time; }
+};
+
+typedef void(*ColorEffectFn)(Led &led, ColorEffectState &state);
 typedef void (*BrightnessEffectFn)(Led &led, byte level);
 
 enum class PaletteEnum : uint8_t {
@@ -69,7 +82,7 @@ struct FxConfigEntry {
 template<typename E>
 struct FxConfig {
     uint8_t count = 0;
-    E entries[];
+    std::vector<E> entries;
 };
 
 typedef FxConfigEntry<PaletteEnum, CRGBPalette16> PaletteEntry;

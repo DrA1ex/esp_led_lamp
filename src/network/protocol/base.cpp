@@ -190,7 +190,7 @@ Response serialize_config(const Config &config) {
 Response ServerBase::process_data_request(const PacketHeader &header) {
     switch (header.type) {
         case PacketType::COLOR_EFFECT_LIST:
-            return serialize_fx_config(ColorEffects);
+            return serialize_fx_config(ColorEffects.config());
 
         case PacketType::BRIGHTNESS_EFFECT_LIST:
             return serialize_fx_config(BrightnessEffects);

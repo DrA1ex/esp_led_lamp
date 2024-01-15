@@ -5,11 +5,7 @@
 AppConfig::AppConfig(Storage<Config> &storage) : storage(storage), config(storage.get()) {}
 
 void AppConfig::load() {
-    if ((int) config.colorEffect < ColorEffects.count) {
-        colorEffect = &ColorEffects.entries[(int) config.colorEffect];
-    } else {
-        colorEffect = &ColorEffects.entries[(int) ColorEffectEnum::PERLIN];
-    }
+    ColorEffects.select(config.colorEffect);
 
     if ((int) config.brightnessEffect < BrightnessEffects.count) {
         brightnessEffect = &BrightnessEffects.entries[(int) config.brightnessEffect];

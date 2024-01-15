@@ -10,7 +10,7 @@ class Led {
 
     CRGB *_data;
 
-    inline int _get_index(int x, int y) {
+    [[nodiscard]] inline int _get_index(int x, int y) const {
         return (y & 1 ? _width - 1 - x : x) + y * _width;
     }
 
@@ -22,9 +22,9 @@ public:
     void fillColumn(int x, const CRGB &color);
     inline void fillSolid(const CRGB &color) { fill_solid(_data, _count, color); };
 
-    inline int width() const { return _width; }
-    inline int height() const { return _height; }
-    inline int count() const { return _count; }
+    [[nodiscard]] inline int width() const { return _width; }
+    [[nodiscard]] inline int height() const { return _height; }
+    [[nodiscard]] inline int count() const { return _count; }
 
     inline CRGB &getPixel(int x, int y) { return _data[_get_index(x, y)]; }
     inline CRGB *data() { return _data; }

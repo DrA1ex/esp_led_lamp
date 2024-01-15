@@ -3,9 +3,24 @@
 #include "config.h"
 #include "led.h"
 
-void perlin(Led &led, const CRGBPalette16 &palette, byte scale, byte speed);
-void gradient(Led &led, const CRGBPalette16 &palette, byte scale, byte speed);
-void pacific(Led &led, const CRGBPalette16 &palette, byte scale, byte speed);
-void particles(Led &led, const CRGBPalette16 &palette, byte scale, byte speed);
-void changeColor(Led &led, const CRGBPalette16 &palette, byte scale, byte speed);
-void solid(Led &led, const CRGBPalette16 &_, byte scale, byte speed);
+class ColorEffectManager {
+    ColorEffectConfig _config;
+    ColorEffectEnum _fx = (ColorEffectEnum) 0;
+    ColorEffectState _state;
+
+public:
+    ColorEffectManager();
+
+    void call(Led &led, const CRGBPalette16 *palette, const Config &config);
+    void select(ColorEffectEnum fx);
+
+    [[nodiscard]] inline const ColorEffectConfig &config() const { return _config; }
+
+private:
+    static void perlin(Led &led, ColorEffectState &state);
+    static void gradient(Led &led, ColorEffectState &state);
+    static void pacific(Led &led, ColorEffectState &state);
+    static void particles(Led &led, ColorEffectState &state);
+    static void changeColor(Led &led, ColorEffectState &state);
+    static void solid(Led &led, ColorEffectState &state);
+};

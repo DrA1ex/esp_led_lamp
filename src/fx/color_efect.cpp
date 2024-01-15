@@ -1,13 +1,51 @@
 #include "color_effect.h"
 
-void perlin(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
+ColorEffectManager::ColorEffectManager() {
+    _config.entries = {
+            {ColorEffectEnum::PERLIN,       "Perlin Noise", perlin},
+            {ColorEffectEnum::GRADIENT,     "Gradient",     gradient},
+            {ColorEffectEnum::PACIFIC,      "Pacific",      pacific},
+            {ColorEffectEnum::PARTICLES,    "Particles",    particles},
+            {ColorEffectEnum::CHANGE_COLOR, "Color Change", changeColor},
+            {ColorEffectEnum::SOLID,        "Solid Color",  solid},
+    };
+
+    _config.count = _config.entries.size();
+}
+
+void ColorEffectManager::select(ColorEffectEnum fx) {
+    if ((int) fx < _config.count) {
+        _fx = fx;
+    } else {
+        _fx = ColorEffectEnum::PERLIN;
+    }
+}
+
+void ColorEffectManager::call(Led &led, const CRGBPalette16 *palette, const Config &config) {
+    _state.params.speed = config.speed;
+    _state.params.scale = config.scale;
+    _state.params.palette = palette;
+    _state.time = millis();
+
+    _config.entries[(int) _fx].value(led, _state);
+
+    _state.prev_time = _state.time;
+}
+
+void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
     const auto height = led.height();
     const auto width = led.width();
 
     for (int i = 0; i < width; ++i) {
         for (int j = 0; j < height; ++j) {
             led.setPixel(i, j, ColorFromPalette(
-                    palette,
+                    *palette,
                     inoise8(
                             i * (scale / 5) - width * (scale / 5) / 2,
                             j * (scale / 5) - height * (scale / 5) / 2,
@@ -17,25 +55,48 @@ void perlin(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
     }
 }
 
-void solid(Led &led, const CRGBPalette16 &, byte scale, byte speed) {
+void ColorEffectManager::solid(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
     auto color = CHSV(speed, scale, 255);
 
     led.fillSolid(color);
 }
 
-void changeColor(Led &led, const CRGBPalette16 &palette, byte, byte speed) {
-    auto color = ColorFromPalette(palette, millis() / 20 * speed / 255, 255, LINEARBLEND);
+void ColorEffectManager::changeColor(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
 
+    static float prev_index = 0.0f;
+
+    const float next_index = prev_index + (float) state.delta() * speed / 15.f / 255.f;
+
+    auto color = ColorFromPalette(*palette, (uint32_t) next_index % 255, 255, LINEARBLEND);
     led.fillSolid(color);
+
+    prev_index = next_index;
 }
 
-void gradient(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
+void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
     auto time_factor = (millis() >> 3) * (speed - 128) / 128;
     auto scale_factor = ((float) scale * 1.9f + 25) / (float) led.width();
 
     for (int i = 0; i < led.width(); i++) {
         auto index = (long) ((float) i * scale_factor) + time_factor;
-        auto color = ColorFromPalette(palette, index, 255, LINEARBLEND);
+        auto color = ColorFromPalette(*palette, index, 255, LINEARBLEND);
         led.fillColumn(i, color);
     }
 }
@@ -44,27 +105,32 @@ struct Particle {
     int x = 0;
     int y = 0;
     byte brightness = 0;
-    CRGB color;
+    CRGB color = CRGB::Black;
 };
 
-const int MAX_PARTICLES_COUNT = 50;
 static Particle particles_store[MAX_PARTICLES_COUNT];
 
-void particles(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
+void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
     const auto height = led.height();
     const auto width = led.width();
 
-    const int particle_count = 1 + scale / 255.0 * (MAX_PARTICLES_COUNT - 1);
+    const uint16_t particle_count = 1 + scale * (MAX_PARTICLES_COUNT - 1) / 255;
     const int fade_speed = 1 + speed / 8;
 
-    for (int k = 0; k < particle_count; ++k) {
+    for (uint16_t k = 0; k < particle_count; ++k) {
         auto &particle = particles_store[k];
 
         if (particle.brightness == 0 && random8() < 32) {
             particle.x = random16() % width;
             particle.y = random16() % height;
 
-            particle.color = ColorFromPalette(palette, random8(), 255, LINEARBLEND);
+            particle.color = ColorFromPalette(*palette, random8(), 255, LINEARBLEND);
             particle.brightness = 255;
         }
 
@@ -92,24 +158,30 @@ void _pacific_wave(Led &led, CRGB color, uint16_t phase, uint16_t width) {
     }
 }
 
-void pacific(Led &led, const CRGBPalette16 &palette, byte scale, byte speed) {
+void ColorEffectManager::pacific(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
     _pacific_wave(led,
-                  ColorFromPalette(palette, beatsin8(speed / 16)),
+                  ColorFromPalette(*palette, beatsin8(speed / 16)),
                   beatsin16(speed / 8, 0, led.width(), 0),
                   scale / 8);
 
     _pacific_wave(led,
-                  ColorFromPalette(palette, beatsin8(speed / 15)),
+                  ColorFromPalette(*palette, beatsin8(speed / 15)),
                   beatsin16(speed / 8 + 2, 0, led.width()),
                   scale / 8);
 
     _pacific_wave(led,
-                  ColorFromPalette(palette, beatsin8(speed / 32)),
+                  ColorFromPalette(*palette, beatsin8(speed / 32)),
                   beatsin16(speed / 16, 0, led.width()),
                   scale / 4);
 
     _pacific_wave(led,
-                  ColorFromPalette(palette, beatsin8(speed / 64)),
+                  ColorFromPalette(*palette, beatsin8(speed / 64)),
                   beatsin16(speed / 32, 0, led.width()),
                   scale / 2);
 
