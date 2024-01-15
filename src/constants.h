@@ -40,3 +40,5 @@
 #define CALIBRATION_TIMEOUT                     (5000u)                 // Timeout for calibration mode
 
 #define MAX_PARTICLES_COUNT                     (50u)
+
+#define MAX_SAFE_FLOAT_VALUE                    (4194304)               // 2 ** 22

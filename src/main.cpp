@@ -95,14 +95,13 @@ void render() {
         return;
     }
 
-    const auto &brightnessFn = appConfig.brightnessEffect->value;
     const auto palette = &appConfig.palette->value;
 
     led.clear();
 
     const auto &config = appConfig.config;
     ColorEffects.call(led, palette, config);
-    brightnessFn(led, config.light);
+    BrightnessEffects.call(led, config);
 
     led.show();
 }
@@ -129,7 +128,8 @@ void initialization_animation() {
 
     const auto t = millis() - appConfig.state_change_time;
     for (int i = 0; i < led.width(); ++i) {
-        const auto brightness = 255 - cubicwave8((t / 8 + i * 6) % 256);
+        const auto time_factor = (t / 8 + i * 6) % 256;
+        const auto brightness = 255 - cubicwave8(time_factor);
         const auto color = CRGB(CRGB::Purple).scale8(brightness);
 
         led.fillColumn(i, color);

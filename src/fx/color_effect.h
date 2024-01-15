@@ -3,18 +3,14 @@
 #include "config.h"
 #include "led.h"
 
-class ColorEffectManager {
-    ColorEffectConfig _config;
-    ColorEffectEnum _fx = (ColorEffectEnum) 0;
-    ColorEffectState _state;
-
+class ColorEffectManager : public FxManagerBase<ColorEffectConfig, ColorEffectState> {
 public:
     ColorEffectManager();
 
     void call(Led &led, const CRGBPalette16 *palette, const Config &config);
-    void select(ColorEffectEnum fx);
 
-    [[nodiscard]] inline const ColorEffectConfig &config() const { return _config; }
+protected:
+    void _reset_state() override;
 
 private:
     static void perlin(Led &led, ColorEffectState &state);

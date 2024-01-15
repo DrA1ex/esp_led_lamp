@@ -6,12 +6,7 @@ AppConfig::AppConfig(Storage<Config> &storage) : storage(storage), config(storag
 
 void AppConfig::load() {
     ColorEffects.select(config.colorEffect);
-
-    if ((int) config.brightnessEffect < BrightnessEffects.count) {
-        brightnessEffect = &BrightnessEffects.entries[(int) config.brightnessEffect];
-    } else {
-        brightnessEffect = &BrightnessEffects.entries[(int) BrightnessEffectEnum::FIXED];
-    }
+    BrightnessEffects.select(config.brightnessEffect);
 
     if ((int) config.palette < Palettes.count) {
         palette = &Palettes.entries[(int) config.palette];

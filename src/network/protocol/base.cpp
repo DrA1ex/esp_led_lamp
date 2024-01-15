@@ -193,7 +193,7 @@ Response ServerBase::process_data_request(const PacketHeader &header) {
             return serialize_fx_config(ColorEffects.config());
 
         case PacketType::BRIGHTNESS_EFFECT_LIST:
-            return serialize_fx_config(BrightnessEffects);
+            return serialize_fx_config(BrightnessEffects.config());
 
         case PacketType::PALETTE_LIST:
             return serialize_fx_config(Palettes);

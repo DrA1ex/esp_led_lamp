@@ -13,23 +13,25 @@ ColorEffectManager::ColorEffectManager() {
     _config.count = _config.entries.size();
 }
 
-void ColorEffectManager::select(ColorEffectEnum fx) {
-    if ((int) fx < _config.count) {
-        _fx = fx;
-    } else {
-        _fx = ColorEffectEnum::PERLIN;
-    }
-}
-
 void ColorEffectManager::call(Led &led, const CRGBPalette16 *palette, const Config &config) {
+    _before_call();
+
     _state.params.speed = config.speed;
     _state.params.scale = config.scale;
     _state.params.palette = palette;
-    _state.time = millis();
 
     _config.entries[(int) _fx].value(led, _state);
 
-    _state.prev_time = _state.time;
+    _save_next_value(_state.prev_scale_value, _state.current_scale_value);
+    _save_next_value(_state.prev_speed_value, _state.current_speed_value);
+    _after_call();
+}
+
+void ColorEffectManager::_reset_state() {
+    _state.current_speed_value = 0;
+    _state.current_scale_value = 0;
+    _state.prev_speed_value = 0;
+    _state.prev_scale_value = 0;
 }
 
 void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
@@ -42,6 +44,9 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     const auto height = led.height();
     const auto width = led.width();
 
+    state.current_speed_value = state.prev_speed_value + (float) state.delta() * speed / 4 / 255;
+    const auto time_factor = _apply_period(state.current_speed_value, (1 << 16) - 1);
+
     for (int i = 0; i < width; ++i) {
         for (int j = 0; j < height; ++j) {
             led.setPixel(i, j, ColorFromPalette(
@@ -49,7 +54,7 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
                     inoise8(
                             i * (scale / 5) - width * (scale / 5) / 2,
                             j * (scale / 5) - height * (scale / 5) / 2,
-                            (millis() / 2) * speed / 255),
+                            time_factor),
                     255, LINEARBLEND));
         }
     }
@@ -74,14 +79,11 @@ void ColorEffectManager::changeColor(Led &led, ColorEffectState &state) {
             speed
     ] = state.params;
 
-    static float prev_index = 0.0f;
+    state.current_speed_value = state.prev_speed_value + (float) state.delta() * speed / 10.f / 255.f;
+    const byte value = _apply_period(state.current_speed_value, 256);
 
-    const float next_index = prev_index + (float) state.delta() * speed / 15.f / 255.f;
-
-    auto color = ColorFromPalette(*palette, (uint32_t) next_index % 255, 255, LINEARBLEND);
+    auto color = ColorFromPalette(*palette, value, 255, LINEARBLEND);
     led.fillSolid(color);
-
-    prev_index = next_index;
 }
 
 void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
@@ -91,12 +93,14 @@ void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
             speed
     ] = state.params;
 
-    auto time_factor = (millis() >> 3) * (speed - 128) / 128;
+    state.current_speed_value = state.prev_speed_value + (float) state.delta() * (speed - 128) / 8.f / 128.f;
+    const auto time_factor = _apply_period(state.current_speed_value, 256);
+
     auto scale_factor = ((float) scale * 1.9f + 25) / (float) led.width();
 
     for (int i = 0; i < led.width(); i++) {
         auto index = (long) ((float) i * scale_factor) + time_factor;
-        auto color = ColorFromPalette(*palette, index, 255, LINEARBLEND);
+        auto color = ColorFromPalette(*palette, index % 256, 255, LINEARBLEND);
         led.fillColumn(i, color);
     }
 }

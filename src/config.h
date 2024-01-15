@@ -33,7 +33,6 @@ public:
     unsigned long state_change_time = 0;
     AppState state = AppState::INITIALIZATION;
 
-    const BrightnessEffectEntry *brightnessEffect;
     const PaletteEntry *palette;
 
     explicit AppConfig(Storage<Config> &storage);

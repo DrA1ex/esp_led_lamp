@@ -1,8 +1,9 @@
 #include "fx.h"
 
-#include "brightness_effect.h"
-#include "color_effect.h"
 #include "palette.h"
+
+ColorEffectManager ColorEffects;
+BrightnessEffectManager BrightnessEffects;
 
 PaletteConfig Palettes = {
         .count = 31,
@@ -38,18 +39,5 @@ PaletteConfig Palettes = {
                 {PaletteEnum::GUMMY,          "Gummy",          Gummy_gp},
                 {PaletteEnum::LEO,            "Leo",            Leo_gp},
                 {PaletteEnum::AURORA,         "Aurora",         Aurora_gp},
-        }
-};
-
-ColorEffectManager ColorEffects;
-
-BrightnessEffectConfig BrightnessEffects = {
-        .count = 5,
-        .entries = {
-                {BrightnessEffectEnum::FIXED, "Fixed", fixed},
-                {BrightnessEffectEnum::PULSE, "Pulse", pulse},
-                {BrightnessEffectEnum::WAVE, "Wave", wave},
-                {BrightnessEffectEnum::DOUBLE_WAVE, "Double Wave", double_wave},
-                {BrightnessEffectEnum::ECO, "ECO", eco}
         }
 };
