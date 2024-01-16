@@ -10,6 +10,7 @@ body {
     padding-bottom: 4rem;
 
     overflow-x: hidden;
+    overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -149,11 +150,6 @@ p {
     margin-bottom: 0.75rem;
 }
 
-#status {
-    top: 0;
-    background: #fdfdfd;
-}
-
 #extra {
     bottom: 0;
     background: #edeaea;
@@ -161,15 +157,20 @@ p {
 
 .status {
     position: sticky;
+    top: 0;
     left: 0;
     right: 0;
+    z-index: 100;
     margin: 0;
-    padding: 0.75rem 0;
+    padding: 0.5rem 0;
 
     text-align: center;
-    font-style: italic;
-    font-size: 0.6rem;
-    font-weight: 200;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+
+    color: white;
+    background: #8f0000;
 }
 
 @keyframes saving {

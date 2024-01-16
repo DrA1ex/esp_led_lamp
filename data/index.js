@@ -1,4 +1,5 @@
 const LoaderElement = document.getElementById("loader");
+const StatusElement = document.getElementById("status");
 
 const host = window.location.hostname;
 const gateway = `ws://${host !== "localhost" ? host : "esp_lamp.local"}/ws`;
@@ -14,12 +15,14 @@ function initWebSocket() {
     ws.onopen = async () => {
         console.log("Connection established");
         window.__app.connected = true;
+        window.__app.connectionTimeout = 0;
 
         if (!window.__app.config) {
             await initialize();
         }
 
         LoaderElement.style.visibility = "collapse";
+        StatusElement.style.visibility = "collapse";
     };
 
     ws.onclose = () => {
@@ -30,9 +33,11 @@ function initWebSocket() {
 
         console.log("Connection lost");
         window.__app.connected = false;
-        LoaderElement.style.visibility = "visible";
 
-        setTimeout(initWebSocket, 2000);
+        StatusElement.style.visibility = "visible";
+
+        window.__app.connectionTimeout += 1000;
+        setTimeout(initWebSocket, window.__app.connectionTimeout);
     }
 
     ws.onerror = (e) => {
@@ -61,6 +66,10 @@ const SIGNATURE = [0x34, 0xaa];
 
 function request(cmd, buffer = null) {
     const ws = window.__app.ws;
+    if (ws.readyState !== WebSocket.OPEN) {
+        throw new Error("Not connected");
+    }
+
     if (buffer) {
         ws.send(Uint8Array.of(...SIGNATURE, cmd, buffer.byteLength, ...new Uint8Array(buffer)));
     } else {
@@ -68,7 +77,25 @@ function request(cmd, buffer = null) {
     }
 
     return new Promise((resolve, reject) => {
-        window.__app._request = {resolve, reject};
+        const timer = setTimeout(() => {
+            window.__app._request = null;
+            StatusElement.style.visibility = "visible";
+            ws.close();
+
+            reject(new Error("Timeout"));
+        }, 500);
+
+        function _ok(...args) {
+            clearTimeout(timer);
+            resolve(...args);
+        }
+
+        function _fail(...args) {
+            clearTimeout(timer);
+            reject(...args);
+        }
+
+        window.__app._request = {resolve: _ok, reject: _fail};
     })
 }
 
