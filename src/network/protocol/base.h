@@ -3,6 +3,8 @@
 #include "config.h"
 #include "../data.h"
 
+class Application;
+
 enum class ResponseType : uint8_t {
     CODE,
     STRING,
@@ -43,16 +45,16 @@ struct Response {
 };
 
 class ServerBase {
-    AppConfig &_app_config;
+    Application &_app;
 
 public:
-    explicit ServerBase(AppConfig &config);
+    explicit ServerBase(Application &app);
     virtual ~ServerBase() = default;
 
     virtual void handle_incoming_data() = 0;
 
 protected:
-    inline AppConfig &app_config() { return _app_config; }
+    inline Application &app() { return _app; }
 
     Response handle_packet_data(const byte *buffer, uint16_t length);
 

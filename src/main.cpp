@@ -1,11 +1,13 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 
+#include "application.h"
 #include "constants.h"
 #include "config.h"
 #include "led.h"
 #include "storage.h"
 #include "timer.h"
+#include "ntp_time.h"
 
 #include "fx/fx.h"
 
@@ -26,13 +28,15 @@ Led led(WIDTH, HEIGHT);
 Timer globalTimer;
 Storage<Config> configStorage(globalTimer, 0);
 
-AppConfig appConfig(configStorage);
+Application app(configStorage);
 
 WifiManager wifiManager;
 WebServer webServer(WEB_PORT);
 
-UdpServer udpServer((AppConfig &) appConfig);
-WebSocketServer wsServer((AppConfig &) appConfig);
+UdpServer udpServer(app);
+WebSocketServer wsServer(app);
+
+NtpTime ntpTime;
 
 void setup() {
 #if defined(DEBUG)
@@ -41,11 +45,11 @@ void setup() {
 #endif
 
     configStorage.begin();
-    appConfig.load();
+    app.load();
 
     led.setPowerLimit(MATRIX_VOLTAGE, CURRENT_LIMIT);
-    led.setCorrection(appConfig.config.colorCorrection);
-    led.setBrightness(appConfig.config.maxBrightness);
+    led.setCorrection(app.config.colorCorrection);
+    led.setBrightness(app.config.maxBrightness);
 
     led.clear();
     led.show();
@@ -69,9 +73,9 @@ void render_loop(void *) {
     ++ii;
 #endif
 
-    led.setBrightness(appConfig.config.maxBrightness);
+    led.setBrightness(app.config.maxBrightness);
 
-    switch (appConfig.state) {
+    switch (app.state) {
         case AppState::INITIALIZATION:
             initialization_animation();
             break;
@@ -88,38 +92,45 @@ void render_loop(void *) {
 
 
 void render() {
-    if (!appConfig.config.power) {
+    if (!app.config.power) {
         led.clear();
         led.show();
 
         return;
     }
 
-    const auto palette = &appConfig.palette->value;
+    const auto palette = &app.palette->value;
 
     led.clear();
 
-    const auto &config = appConfig.config;
+    const auto &config = app.config;
     ColorEffects.call(led, palette, config);
     BrightnessEffects.call(led, config);
 
-    BrightnessEffectManager::eco(led, config.eco);
+    const auto &nightMode = config.nightMode;
+    bool nightTime = app.isNightTime(ntpTime);
+
+    if (nightTime) {
+        app.handleNightMode(led);
+    } else {
+        BrightnessEffectManager::eco(led, config.eco);
+    }
 
     led.show();
 }
 
 void calibration() {
-    led.setCorrection(appConfig.config.colorCorrection);
+    led.setCorrection(app.config.colorCorrection);
     led.fillSolid(CRGB::White);
     led.show();
 
-    if (millis() - appConfig.state_change_time > CALIBRATION_TIMEOUT) {
-        appConfig.changeState(AppState::NORMAL);
+    if (millis() - app.state_change_time > CALIBRATION_TIMEOUT) {
+        app.changeState(AppState::NORMAL);
     }
 }
 
 void initialization_animation() {
-    if (!appConfig.config.power) {
+    if (!app.config.power) {
         led.clear();
         led.show();
 
@@ -128,7 +139,7 @@ void initialization_animation() {
 
     led.clear();
 
-    const auto t = millis() - appConfig.state_change_time;
+    const auto t = millis() - app.state_change_time;
     for (int i = 0; i < led.width(); ++i) {
         const auto time_factor = (t / 8 + i * 6) % 256;
         const auto brightness = 255 - cubicwave8(time_factor);
@@ -171,14 +182,17 @@ void service_loop(void *) {
 
             webServer.begin();
 
+            ntpTime.begin();
             ArduinoOTA.setHostname(MDNS_NAME);
             ArduinoOTA.begin();
 
-            appConfig.changeState(AppState::NORMAL);
+            app.changeState(AppState::NORMAL);
             state++;
             break;
 
         case 3: {
+            ntpTime.update();
+
             ArduinoOTA.handle();
             wifiManager.handle_connection();
 

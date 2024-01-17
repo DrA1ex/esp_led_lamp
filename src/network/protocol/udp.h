@@ -10,7 +10,7 @@ class UdpServer : ServerBase {
     byte _buffer[UDP_MAX_PACKET_SIZE];
 
 public:
-    explicit UdpServer(AppConfig &config);
+    explicit UdpServer(Application &app);
 
     void begin(uint16_t port);
 

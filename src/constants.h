@@ -10,6 +10,8 @@
 #define WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL    (0u)                    // Max time (ms) to wait for Wi-Fi connection before switch to AP mode
                                                                         // 0 - Newer switch to AP mode
 
+#define TIME_ZONE                               (5.f)                     // GMT +5:00
+
 #define UDP_PORT                                (1423)
 #define UDP_MAX_PACKET_SIZE                     (260u)
 
@@ -32,7 +34,7 @@
 #define FRAMES_PER_SECOND                       (60u)
 
 #define STORAGE_HEADER                          ((uint32_t) 0xffaabbcc)
-#define STORAGE_VERSION                         ((uint8_t) 2)
+#define STORAGE_VERSION                         ((uint8_t) 4)
 #define STORAGE_SAVE_INTERVAL                   (60000u)                // Wait before commit settings to FLASH
 
 #define TIMER_GROW_AMOUNT                       (8u);

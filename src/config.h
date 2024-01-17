@@ -3,10 +3,23 @@
 #include "fx/type.h"
 #include "storage.h"
 
+class NtpTime;
+
 enum class AppState {
     INITIALIZATION,
     NORMAL,
     CALIBRATION,
+};
+
+struct __attribute ((packed)) NightModeConfig {
+    bool enabled = false;
+
+    byte brightness = 10;
+    byte eco = 20;
+
+    uint32_t startTime = 0;
+    uint32_t endTime = (uint32_t) 10 * 60 * 60;
+    uint16_t switchInterval = (uint32_t) 15 * 60;
 };
 
 struct __attribute__ ((packed)) Config {
@@ -24,22 +37,8 @@ struct __attribute__ ((packed)) Config {
     BrightnessEffectEnum brightnessEffect = BrightnessEffectEnum::DOUBLE_WAVE;
 
     uint32_t colorCorrection = TypicalLEDStrip;
+    NightModeConfig nightMode;
 };
 
-class AppConfig {
-public:
-    Storage<Config> &storage;
-    Config &config;
 
-    unsigned long state_change_time = 0;
-    AppState state = AppState::INITIALIZATION;
-
-    const PaletteEntry *palette;
-
-    explicit AppConfig(Storage<Config> &storage);
-
-    void changeState(AppState s);
-    void load();
-    void update();
-};
 

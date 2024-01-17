@@ -83,7 +83,7 @@ function request(cmd, buffer = null) {
             ws.close();
 
             reject(new Error("Timeout"));
-        }, 500);
+        }, 1000);
 
         function _ok(...args) {
             clearTimeout(timer);
@@ -133,12 +133,12 @@ async function request_config() {
     let offset = 0;
 
     const size = view.getUint8(offset++);
-    if (size < 8) {
+    if (size < 26) {
         console.error("Invalid config response");
         return {};
     }
 
-    return {
+    const result = {
         power: view.getUint8(offset++) === 1,
 
         maxBrightness: view.getUint8(offset++),
@@ -151,9 +151,27 @@ async function request_config() {
         palette: view.getUint8(offset++),
         colorEffect: view.getUint8(offset++),
         brightnessEffect: view.getUint8(offset++),
-
-        colorCorrection: view.getUint32(offset, true)
     }
+
+    result.colorCorrection = view.getUint32(offset, true);
+    offset += 4;
+
+    result.nightMode = {
+        enabled: view.getUint8(offset++) === 1,
+        brightness: view.getUint8(offset++),
+        eco: view.getUint8(offset++),
+    }
+
+    result.nightMode.startTime = view.getUint32(offset, true);
+    offset += 4;
+
+    result.nightMode.endTime = view.getUint32(offset, true);
+    offset += 4;
+
+    result.nightMode.switchInterval = view.getUint16(offset, true);
+    offset += 2;
+
+    return result;
 }
 
 function createSelect(title, list, value, cmd) {
@@ -181,6 +199,40 @@ function createSelect(title, list, value, cmd) {
 
     control.onchange = async () => {
         await request(cmd, Uint8Array.of(Number.parseInt(control.value)).buffer);
+    }
+
+    document.body.appendChild(control);
+}
+
+function createInput(title, value, cmd, size, type) {
+    const titleElement = document.createElement("p");
+    titleElement.innerText = title;
+    document.body.appendChild(titleElement);
+
+    const control = document.createElement("input");
+    control.classList.add("input");
+    control.value = value;
+    control.__busy = false;
+
+    control.onchange = async () => {
+        if (control.__busy) return;
+
+        const parsed = Number.parseInt(control.value);
+        if (Number.isFinite(parsed)) {
+            const data = new Uint8Array(size);
+            const view = new DataView(data.buffer);
+
+            try {
+                control.__busy = true;
+                control.setAttribute("data-saving", "true");
+
+                view["set" + type](0, parsed, true);
+                await request(cmd, data);
+            } finally {
+                control.__busy = false;
+                control.setAttribute("data-saving", "false");
+            }
+        }
     }
 
     document.body.appendChild(control);
@@ -277,7 +329,7 @@ function createWheel(title, list, value, cmd) {
     }
 }
 
-function createTrigger(title, value, cmdOn, cmdOff) {
+function createTrigger(title, value, cmdOn, cmdOff = null) {
     const titleElement = document.createElement("p");
     titleElement.innerText = title;
     document.body.appendChild(titleElement);
@@ -287,10 +339,15 @@ function createTrigger(title, value, cmdOn, cmdOff) {
     control.setAttribute("data-value", value.toString());
     control.onclick = async () => {
         const value = control.getAttribute("data-value") === "true";
+        const nextValue = !value;
 
-        const cmd = value ? cmdOff : cmdOn;
-        await request(cmd);
-        control.setAttribute("data-value", (!value).toString());
+        if (cmdOff) {
+            await request(nextValue ? cmdOn : cmdOff);
+        } else {
+            await request(cmdOn, Uint8Array.of(nextValue ? 1 : 0));
+        }
+
+        control.setAttribute("data-value", nextValue.toString());
     };
 
     document.body.appendChild(control);
@@ -309,6 +366,13 @@ const PacketType = {
 
     MAX_BRIGHTNESS: 20,
     ECO_LEVEL: 21,
+
+    NIGHT_MODE_ENABLED: 40,
+    NIGHT_MODE_BRIGHTNESS: 41,
+    NIGHT_MODE_ECO: 42,
+    NIGHT_MODE_START: 43,
+    NIGHT_MODE_END: 44,
+    NIGHT_MODE_INTERVAL: 45,
 
     PALETTE: 100,
     COLOR_EFFECT: 101,
@@ -362,6 +426,14 @@ async function initialize() {
     createWheel("Red", _256, (config.colorCorrection & 0xff0000) >> 16, PacketType.CALIBRATION_R);
     createWheel("Green", _256, (config.colorCorrection & 0xff00) >> 8, PacketType.CALIBRATION_G);
     createWheel("Blue", _256, config.colorCorrection & 0xff, PacketType.CALIBRATION_B);
+
+    createSection("Night Mode");
+    createTrigger("Enabled", config.nightMode.enabled, PacketType.NIGHT_MODE_ENABLED);
+    createWheel("Brightness", _256, config.nightMode.brightness, PacketType.NIGHT_MODE_BRIGHTNESS);
+    createWheel("Eco", _256, config.nightMode.eco, PacketType.NIGHT_MODE_ECO);
+    createInput("Start time", config.nightMode.startTime, PacketType.NIGHT_MODE_START, 4, "Uint32");
+    createInput("End time", config.nightMode.endTime, PacketType.NIGHT_MODE_END, 4, "Uint32");
+    createInput("Switch interval", config.nightMode.switchInterval, PacketType.NIGHT_MODE_INTERVAL, 2, "Uint16");
 
     window.__app.config = {
         config,

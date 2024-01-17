@@ -1,8 +1,10 @@
 #include "base.h"
 
+#include "application.h"
+
 #include "fx/fx.h"
 
-ServerBase::ServerBase(AppConfig &config) : _app_config(config) {}
+ServerBase::ServerBase(Application &config) : _app(config) {}
 
 Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     D_WRITE("Packet body: ");
@@ -35,7 +37,7 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     const void *data = buffer + header_size;
     if (packet->type >= PacketType::DISCOVERY) {
         auto response = process_command(*packet);
-        if (response.isOk() && packet->type >= PacketType::POWER_OFF) app_config().update();
+        if (response.isOk() && packet->type >= PacketType::POWER_OFF) app().update();
 
         return response;
     } else if (packet->type >= PacketType::PALETTE_LIST) {
@@ -46,16 +48,16 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     } else if (packet->type >= PacketType::CALIBRATION_R) {
         auto response = calibrate(*packet, data);
         if (response.isOk()) {
-            D_PRINTF("Color correction: %Xu\n", app_config().config.colorCorrection);
+            D_PRINTF("Color correction: %Xu\n", app().config.colorCorrection);
 
-            app_config().storage.save();
-            app_config().changeState(AppState::CALIBRATION);
+            app().storage.save();
+            app().changeState(AppState::CALIBRATION);
         }
 
         return response;
     } else {
         auto response = update_parameter(*packet, data);
-        if (response.isOk()) app_config().update();
+        if (response.isOk()) app().update();
 
         return response;
     }
@@ -71,18 +73,18 @@ constexpr auto to_underlying(E e) noexcept {
 }
 
 template<typename T, typename = std::enable_if<std::is_enum<T>::value || std::is_integral<T>::value>>
-Response update_parameter_value(T &parameter, const PacketHeader &header, const void *data) {
+Response update_parameter_value(T *parameter, const PacketHeader &header, const void *data) {
     if (header.size != sizeof(T)) {
         D_PRINTF("Unable to update value, bad size. Got %u, expected %u\n", header.size, sizeof(T));
 
         return Response::code(ResponseCode::BAD_REQUEST);
     }
 
-    parameter = *((T *) data);
+    *parameter = *((T *) data);
     D_WRITE("Update parameter ");
     D_WRITE(to_underlying(header.type));
     D_WRITE(" = ");
-    D_PRINT(to_underlying(parameter));
+    D_PRINT(to_underlying(*parameter));
 
     return Response::ok();
 }
@@ -90,28 +92,46 @@ Response update_parameter_value(T &parameter, const PacketHeader &header, const 
 Response ServerBase::update_parameter(const PacketHeader &header, const void *data) {
     switch (header.type) {
         case PacketType::SPEED:
-            return update_parameter_value(app_config().config.speed, header, data);
+            return update_parameter_value(&app().config.speed, header, data);
 
         case PacketType::SCALE:
-            return update_parameter_value(app_config().config.scale, header, data);
+            return update_parameter_value(&app().config.scale, header, data);
 
         case PacketType::LIGHT:
-            return update_parameter_value(app_config().config.light, header, data);
+            return update_parameter_value(&app().config.light, header, data);
 
         case PacketType::MAX_BRIGHTNESS:
-            return update_parameter_value(app_config().config.maxBrightness, header, data);
+            return update_parameter_value(&app().config.maxBrightness, header, data);
 
         case PacketType::ECO_LEVEL:
-            return update_parameter_value(app_config().config.eco, header, data);
+            return update_parameter_value(&app().config.eco, header, data);
 
         case PacketType::PALETTE:
-            return update_parameter_value(app_config().config.palette, header, data);
+            return update_parameter_value(&app().config.palette, header, data);
 
         case PacketType::COLOR_EFFECT:
-            return update_parameter_value(app_config().config.colorEffect, header, data);
+            return update_parameter_value(&app().config.colorEffect, header, data);
 
         case PacketType::BRIGHTNESS_EFFECT:
-            return update_parameter_value(app_config().config.brightnessEffect, header, data);
+            return update_parameter_value(&app().config.brightnessEffect, header, data);
+
+        case PacketType::NIGHT_MODE_ENABLED:
+            return update_parameter_value(&app().config.nightMode.enabled, header, data);
+
+        case PacketType::NIGHT_MODE_BRIGHTNESS:
+            return update_parameter_value(&app().config.nightMode.brightness, header, data);
+
+        case PacketType::NIGHT_MODE_ECO:
+            return update_parameter_value(&app().config.nightMode.eco, header, data);
+
+        case PacketType::NIGHT_MODE_START:
+            return update_parameter_value(&app().config.nightMode.startTime, header, data);
+
+        case PacketType::NIGHT_MODE_END:
+            return update_parameter_value(&app().config.nightMode.endTime, header, data);
+
+        case PacketType::NIGHT_MODE_INTERVAL:
+            return update_parameter_value(&app().config.nightMode.switchInterval, header, data);
 
         default:
             D_PRINTF("Unable to update value, bad type: %u\n", (uint8_t) header.type);
@@ -124,15 +144,15 @@ Response ServerBase::process_command(const PacketHeader &header) {
 
     switch (header.type) {
         case PacketType::POWER_ON:
-            app_config().config.power = true;
+            app().config.power = true;
             break;
 
         case PacketType::POWER_OFF:
-            app_config().config.power = false;
+            app().config.power = false;
             break;
 
         case PacketType::RESTART:
-            app_config().storage.force_save();
+            app().storage.force_save();
             ESP.restart();
             break;
 
@@ -201,8 +221,8 @@ Response ServerBase::process_data_request(const PacketHeader &header) {
         case PacketType::PALETTE_LIST:
             return serialize_fx_config(Palettes);
 
-        case PacketType::GET_CONFIG:;
-            return serialize_config((Config &) app_config().config);
+        case PacketType::GET_CONFIG:
+            return serialize_config((Config &) app().config);
 
         default:
             return Response{ResponseType::CODE, {.code = ResponseCode::BAD_COMMAND}};
@@ -216,18 +236,18 @@ Response ServerBase::calibrate(const PacketHeader &header, const void *data) {
 
     switch (header.type) {
         case PacketType::CALIBRATION_B:
-            app_config().config.colorCorrection &= ~(uint32_t) 0xff;
-            app_config().config.colorCorrection |= *((uint8_t *) data);
+            app().config.colorCorrection &= ~(uint32_t) 0xff;
+            app().config.colorCorrection |= *((uint8_t *) data);
             break;
 
         case PacketType::CALIBRATION_G:
-            app_config().config.colorCorrection &= ~(uint32_t) 0xff00;
-            app_config().config.colorCorrection |= *((uint8_t *) data) << 8;
+            app().config.colorCorrection &= ~(uint32_t) 0xff00;
+            app().config.colorCorrection |= *((uint8_t *) data) << 8;
             break;
 
         case PacketType::CALIBRATION_R:
-            app_config().config.colorCorrection &= ~(uint32_t) 0xff0000;
-            app_config().config.colorCorrection |= *((uint8_t *) data) << 16;
+            app().config.colorCorrection &= ~(uint32_t) 0xff0000;
+            app().config.colorCorrection |= *((uint8_t *) data) << 16;
             break;
 
         default:

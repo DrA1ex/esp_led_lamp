@@ -1,9 +1,10 @@
 #include "ws.h"
 
-#include "debug.h"
 #include "functional"
 
-WebSocketServer::WebSocketServer(AppConfig &config, const char *path) : ServerBase(config), _path(path), _ws(path) {}
+#include "debug.h"
+
+WebSocketServer::WebSocketServer(Application &app, const char *path) : ServerBase(app), _path(path), _ws(path) {}
 
 
 void WebSocketServer::begin(WebServer &server) {

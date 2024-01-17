@@ -10,7 +10,7 @@ class WebSocketServer : ServerBase {
     AsyncWebSocket _ws;
 
 public:
-    explicit WebSocketServer(AppConfig &config, const char *path = "/ws");
+    explicit WebSocketServer(Application &app, const char *path = "/ws");
 
     void begin(WebServer &server);
 

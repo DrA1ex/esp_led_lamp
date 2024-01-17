@@ -3,7 +3,7 @@
 #include "constants.h"
 #include "debug.h"
 
-UdpServer::UdpServer(AppConfig &config) : ServerBase(config) {}
+UdpServer::UdpServer(Application &app) : ServerBase(app) {}
 
 void UdpServer::begin(uint16_t port) {
     _udp.begin(port);
