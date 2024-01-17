@@ -7,10 +7,12 @@ class NtpTime {
     WiFiUDP _wifi_udp;
     NTPClient _ntp_client;
 
+    int32_t _tz_offset = 0;
+
 public:
     NtpTime();
 
-    void begin();
+    void begin(float tz);
     void update();
 
     [[nodiscard]] inline bool available() const { return _ntp_client.isTimeSet(); }
@@ -20,12 +22,13 @@ public:
     [[nodiscard]] inline int hours() const { return _ntp_client.getHours(); }
     [[nodiscard]] inline int week_day() const { return _ntp_client.getDay(); }
 
-    [[nodiscard]] inline uint32_t seconds_from_midnight() const { return seconds() + minutes() * 60 + hours() * 3600; }
-    [[nodiscard]] inline unsigned long today() const { return epoch() - seconds_from_midnight(); }
+    [[nodiscard]] inline int32_t tz_offset() const { return _tz_offset; }
 
-    [[nodiscard]] inline unsigned long epoch() const { return _ntp_client.getEpochTime(); }
+    [[nodiscard]] inline uint32_t seconds_from_midnight_tz() const { return seconds() + minutes() * 60 + hours() * 3600; }
+    [[nodiscard]] inline unsigned long today_tz() const { return epoch_tz() - seconds_from_midnight_tz(); }
+    [[nodiscard]] inline unsigned long epoch_tz() const { return _ntp_client.getEpochTime(); }
 
     [[nodiscard]] tm *date() const;
 
-    static const uint32_t SECONDS_PER_DAY = (uint32_t) 24 * 60 * 60;
+    static const uint32_t SECONDS_PER_DAY;
 };

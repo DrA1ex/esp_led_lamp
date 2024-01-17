@@ -2,11 +2,15 @@
 
 #include "constants.h"
 
+const uint32_t NtpTime::SECONDS_PER_DAY = (uint32_t) 24 * 60 * 60;
+
 NtpTime::NtpTime() : _ntp_client(_wifi_udp) {}
 
-void NtpTime::begin() {
+void NtpTime::begin(float tz) {
     _ntp_client.begin();
-    _ntp_client.setTimeOffset(TIME_ZONE * 3600);
+
+    _tz_offset = (int32_t) tz * 3600;
+    _ntp_client.setTimeOffset(_tz_offset);
 }
 
 void NtpTime::update() {
@@ -14,6 +18,6 @@ void NtpTime::update() {
 }
 
 tm *NtpTime::date() const {
-    const time_t time = epoch();
+    const time_t time = epoch_tz();
     return gmtime(&time);
 }

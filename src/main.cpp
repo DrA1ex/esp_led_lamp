@@ -4,6 +4,7 @@
 #include "application.h"
 #include "constants.h"
 #include "config.h"
+#include "mode.h"
 
 #include "misc/led.h"
 #include "misc/storage.h"
@@ -28,8 +29,9 @@ Led led(WIDTH, HEIGHT);
 
 Timer global_timer;
 Storage<Config> config_storage(global_timer, 0);
+NightModeManager night_mode_manager(led, config_storage.get());
 
-Application app(config_storage);
+Application app(config_storage, night_mode_manager);
 
 WifiManager wifi_manager;
 WebServer web_server(WEB_PORT);
@@ -93,7 +95,7 @@ void render_loop(void *) {
 
 
 void render() {
-    if (!app.config.power) {
+    if (!app.config.power || app.config.maxBrightness == 0) {
         led.clear();
         led.show();
 
@@ -108,8 +110,8 @@ void render() {
     ColorEffects.call(led, palette, config);
     BrightnessEffects.call(led, config);
 
-    if (app.is_night_time(ntp_time)) {
-        app.handle_night_mode(led);
+    if (night_mode_manager.is_night_time()) {
+        night_mode_manager.apply_night_settings();
     } else {
         BrightnessEffectManager::eco(led, config.eco);
     }
@@ -180,7 +182,7 @@ void service_loop(void *) {
 
             web_server.begin();
 
-            ntp_time.begin();
+            ntp_time.begin(TIME_ZONE);
             ArduinoOTA.setHostname(MDNS_NAME);
             ArduinoOTA.begin();
 
@@ -190,6 +192,7 @@ void service_loop(void *) {
 
         case 3: {
             ntp_time.update();
+            night_mode_manager.handle_night(ntp_time);
 
             ArduinoOTA.handle();
             wifi_manager.handle_connection();

@@ -57,7 +57,13 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
         return response;
     } else {
         auto response = update_parameter(*packet, data);
-        if (response.is_ok()) app().update();
+        if (response.is_ok()) {
+            if(packet->type >= PacketType::NIGHT_MODE_ENABLED && packet->type <= PacketType::NIGHT_MODE_INTERVAL) {
+                app().night_mode_manager.reset();
+            }
+
+            app().update();
+        }
 
         return response;
     }
