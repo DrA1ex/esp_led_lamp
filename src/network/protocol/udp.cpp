@@ -23,7 +23,7 @@ void UdpServer::handle_incoming_data() {
 
         switch (response.type) {
             case ResponseType::CODE:
-                _udp.write(response.codeString());
+                _udp.write(response.code_string());
                 break;
 
             case ResponseType::STRING:
@@ -39,11 +39,11 @@ void UdpServer::handle_incoming_data() {
     }
 }
 
-Response UdpServer::handle_incoming_data_impl(unsigned int packetSize) {
+Response UdpServer::handle_incoming_data_impl(unsigned int packet_size) {
     D_WRITE("Received UDP packet, size: ");
-    D_PRINT(packetSize);
+    D_PRINT(packet_size);
 
     _udp.read(_buffer, UDP_MAX_PACKET_SIZE);
 
-    return handle_packet_data(_buffer, packetSize);
+    return handle_packet_data(_buffer, packet_size);
 }

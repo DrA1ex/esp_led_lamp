@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config.h"
-#include "../data.h"
+#include "../type.h"
 
 class Application;
 
@@ -31,9 +31,9 @@ struct Response {
         } buffer;
     } body;
 
-    const char *codeString();
+    const char *code_string();
 
-    inline bool isOk() { return type != ResponseType::CODE || body.code == ResponseCode::OK; }
+    inline bool is_ok() { return type != ResponseType::CODE || body.code == ResponseCode::OK; }
 
     inline static Response ok() {
         return code(ResponseCode::OK);

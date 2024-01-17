@@ -26,18 +26,18 @@ void service_loop(void *);
 
 Led led(WIDTH, HEIGHT);
 
-Timer globalTimer;
-Storage<Config> configStorage(globalTimer, 0);
+Timer global_timer;
+Storage<Config> config_storage(global_timer, 0);
 
-Application app(configStorage);
+Application app(config_storage);
 
-WifiManager wifiManager;
-WebServer webServer(WEB_PORT);
+WifiManager wifi_manager;
+WebServer web_server(WEB_PORT);
 
-UdpServer udpServer(app);
-WebSocketServer wsServer(app);
+UdpServer udp_server(app);
+WebSocketServer ws_server(app);
 
-NtpTime ntpTime;
+NtpTime ntp_time;
 
 void setup() {
 #if defined(DEBUG)
@@ -45,7 +45,7 @@ void setup() {
     delay(2000);
 #endif
 
-    configStorage.begin();
+    config_storage.begin();
     app.load();
 
     led.setPowerLimit(MATRIX_VOLTAGE, CURRENT_LIMIT);
@@ -55,13 +55,13 @@ void setup() {
     led.clear();
     led.show();
 
-    globalTimer.add_interval(render_loop, 1000 / FRAMES_PER_SECOND);
-    globalTimer.add_interval(service_loop, 20);
+    global_timer.add_interval(render_loop, 1000 / FRAMES_PER_SECOND);
+    global_timer.add_interval(service_loop, 20);
 }
 
 
 void loop() {
-    globalTimer.handle_timers();
+    global_timer.handle_timers();
 }
 
 void render_loop(void *) {
@@ -108,11 +108,8 @@ void render() {
     ColorEffects.call(led, palette, config);
     BrightnessEffects.call(led, config);
 
-    const auto &nightMode = config.nightMode;
-    bool nightTime = app.isNightTime(ntpTime);
-
-    if (nightTime) {
-        app.handleNightMode(led);
+    if (app.is_night_time(ntp_time)) {
+        app.handle_night_mode(led);
     } else {
         BrightnessEffectManager::eco(led, config.eco);
     }
@@ -126,7 +123,7 @@ void calibration() {
     led.show();
 
     if (millis() - app.state_change_time > CALIBRATION_TIMEOUT) {
-        app.changeState(AppState::NORMAL);
+        app.change_state(AppState::NORMAL);
     }
 }
 
@@ -165,40 +162,40 @@ void service_loop(void *) {
     static int state = 0;
     switch (state) {
         case 0:
-            wifiManager.connect(WIFI_MODE, WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL);
+            wifi_manager.connect(WIFI_MODE, WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL);
             state++;
 
             break;
 
         case 1:
-            wifiManager.handle_connection();
-            if (wifiManager.state() == WifiManagerState::CONNECTED)
+            wifi_manager.handle_connection();
+            if (wifi_manager.state() == WifiManagerState::CONNECTED)
                 state++;
 
             break;
 
         case 2:
-            udpServer.begin(UDP_PORT);
-            wsServer.begin(webServer);
+            udp_server.begin(UDP_PORT);
+            ws_server.begin(web_server);
 
-            webServer.begin();
+            web_server.begin();
 
-            ntpTime.begin();
+            ntp_time.begin();
             ArduinoOTA.setHostname(MDNS_NAME);
             ArduinoOTA.begin();
 
-            app.changeState(AppState::NORMAL);
+            app.change_state(AppState::NORMAL);
             state++;
             break;
 
         case 3: {
-            ntpTime.update();
+            ntp_time.update();
 
             ArduinoOTA.handle();
-            wifiManager.handle_connection();
+            wifi_manager.handle_connection();
 
-            udpServer.handle_incoming_data();
-            wsServer.handle_incoming_data();
+            udp_server.handle_incoming_data();
+            ws_server.handle_incoming_data();
             break;
         }
 

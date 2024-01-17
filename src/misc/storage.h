@@ -24,11 +24,11 @@ public:
 
     void begin();
 
-    inline T &get() { return _data; }
-    inline const T &get() const { return _data; }
-    inline uint16_t size() const { return sizeof(_header) + sizeof(_version) + sizeof(T); }
-    inline Timer &timer() { return _timer; }
-    inline bool is_pending_commit() const { return _save_timer_id != -1; }
+    [[nodiscard]] inline T &get() { return _data; }
+    [[nodiscard]] inline const T &get() const { return _data; }
+    [[nodiscard]] inline uint16_t size() const { return sizeof(_header) + sizeof(_version) + sizeof(T); }
+    [[nodiscard]] inline Timer &timer() { return _timer; }
+    [[nodiscard]] inline bool is_pending_commit() const { return _save_timer_id != -1; }
 
     void reset();
     void save();

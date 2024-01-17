@@ -15,10 +15,16 @@ public:
 
     explicit Application(Storage<Config> &storage);
 
-    void changeState(AppState s);
+    void change_state(AppState s);
     void load();
     void update();
 
-    [[nodiscard]] bool isNightTime(const NtpTime &ntpTime);
-    void handleNightMode(Led &led);
+    [[nodiscard]] bool is_night_time(const NtpTime &ntp_time);
+    void handle_night_mode(Led &led);
+};
+
+class NightModeManager {
+    unsigned long _next_start_time = 0;
+    unsigned long _next_end_time = 0;
+
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "c_types.h"
+#include <cctype>
 
 enum class PacketType : uint8_t {
     SPEED = 0,
@@ -36,10 +36,4 @@ enum class PacketType : uint8_t {
     POWER_OFF = 220,
     POWER_ON = 221,
     RESTART = 222,
-};
-
-struct __attribute__ ((packed))  PacketHeader {
-    uint16_t signature;
-    PacketType type;
-    uint8_t size;
 };

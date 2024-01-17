@@ -23,17 +23,17 @@ void Application::update() {
     load();
 }
 
-void Application::changeState(AppState s) {
+void Application::change_state(AppState s) {
     state_change_time = millis();
     state = s;
 }
 
-bool Application::isNightTime(const NtpTime &ntpTime) {
+bool Application::is_night_time(const NtpTime &ntp_time) {
     const auto &nightMode = config.nightMode;
     if (!nightMode.enabled) return false;
 
-    const auto now = ntpTime.epoch();
-    const auto md_secs = ntpTime.seconds_from_midnight();
+    const auto now = ntp_time.epoch();
+    const auto md_secs = ntp_time.seconds_from_midnight();
     const auto today = now - md_secs;
 
     unsigned long start_day = today;
@@ -49,7 +49,7 @@ bool Application::isNightTime(const NtpTime &ntpTime) {
     return now > start_time && now < end_time;
 }
 
-void Application::handleNightMode(Led &led) {
+void Application::handle_night_mode(Led &led) {
     const auto &nightMode = config.nightMode;
 
     led.setBrightness(nightMode.brightness);

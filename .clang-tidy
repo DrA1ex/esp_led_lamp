@@ -145,7 +145,21 @@ readability-static-accessed-through-instance,
 readability-static-definition-in-anonymous-namespace,
 readability-string-compare,
 readability-uniqueptr-delete-release,
-readability-use-anyofallof'
+readability-use-anyofallof
+readability-identifier-naming'
 
 CheckOptions:
   cppcoreguidelines-narrowing-conversions.WarnOnIntegerToFloatingPointNarrowingConversion: false
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+  readability-identifier-naming.EnumConstantCase: UPPER_CASE
+  readability-identifier-naming.GlobalConstantCase: UPPER_CASE
+  readability-identifier-naming.StaticConstantCase: UPPER_CASE
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.TemplateParameterCase: CamelCase
+  readability-identifier-naming.VariableCase: lower_case
+  readability-identifier-naming.FunctionCase: lower_case
+  readability-identifier-naming.StaticVariableCase: lower_case
+  readability-identifier-naming.ParameterCase: lower_case
+  readability-identifier-naming.ClassMemberPrefix: _
+  readability-identifier-naming.PrivateMemberPrefix: _
+  readability-identifier-naming.PrivateMethodPrefix: _

@@ -17,6 +17,6 @@ public:
     void handle_incoming_data() override;
 
 protected:
-    Response handle_incoming_data_impl(unsigned int packetSize);
+    Response handle_incoming_data_impl(unsigned int packet_size);
 };
 

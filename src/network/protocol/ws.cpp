@@ -45,7 +45,7 @@ void WebSocketServer::on_event(AsyncWebSocket *server,
 
             switch (response.type) {
                 case ResponseType::CODE:
-                    _ws.text(client->id(), response.codeString());
+                    _ws.text(client->id(), response.code_string());
                     break;
 
                 case ResponseType::STRING:

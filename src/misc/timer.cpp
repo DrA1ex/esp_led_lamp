@@ -64,7 +64,7 @@ unsigned long Timer::_add(TimerFn callback, unsigned long interval, bool repeat,
 
         _free_count--;
 
-        D_PRINTF("Add %s: %lu. Used: %lu / %lu\n", interval ? "interval" : "timeout", i, _count - _free_count, _count);
+        VERBOSE(D_PRINTF("Add %s: %lu. Used: %lu / %lu\n", interval ? "interval" : "timeout", i, _count - _free_count, _count));
 
         return i;
     }
@@ -82,7 +82,7 @@ void Timer::_clear(unsigned long timer_id) {
     entry = TimerEntry();
     _free_count++;
 
-    D_PRINTF("Remove timer: %lu. Used: %lu / %lu\n", timer_id, _count - _free_count, _count);
+    VERBOSE(D_PRINTF("Remove timer: %lu. Used: %lu / %lu\n", timer_id, _count - _free_count, _count));
 }
 
 void Timer::_grow() {

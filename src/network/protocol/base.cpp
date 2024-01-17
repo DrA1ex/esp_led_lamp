@@ -37,27 +37,27 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     const void *data = buffer + header_size;
     if (packet->type >= PacketType::DISCOVERY) {
         auto response = process_command(*packet);
-        if (response.isOk() && packet->type >= PacketType::POWER_OFF) app().update();
+        if (response.is_ok() && packet->type >= PacketType::POWER_OFF) app().update();
 
         return response;
     } else if (packet->type >= PacketType::PALETTE_LIST) {
         auto response = process_data_request(*packet);
-        if (response.isOk()) D_PRINTF("Data request %u, size: %u \n", (uint8_t) packet->type, response.body.buffer.size);
+        if (response.is_ok()) D_PRINTF("Data request %u, size: %u \n", (uint8_t) packet->type, response.body.buffer.size);
 
         return response;
     } else if (packet->type >= PacketType::CALIBRATION_R) {
         auto response = calibrate(*packet, data);
-        if (response.isOk()) {
+        if (response.is_ok()) {
             D_PRINTF("Color correction: %Xu\n", app().config.colorCorrection);
 
             app().storage.save();
-            app().changeState(AppState::CALIBRATION);
+            app().change_state(AppState::CALIBRATION);
         }
 
         return response;
     } else {
         auto response = update_parameter(*packet, data);
-        if (response.isOk()) app().update();
+        if (response.is_ok()) app().update();
 
         return response;
     }
@@ -257,7 +257,7 @@ Response ServerBase::calibrate(const PacketHeader &header, const void *data) {
     return Response::ok();
 }
 
-const char *Response::codeString() {
+const char *Response::code_string() {
     if (type != ResponseType::CODE) return nullptr;
 
     switch (body.code) {
