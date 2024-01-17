@@ -11,6 +11,8 @@ public:
 
     void call(Led &led, const Config &config);
 
+    static void eco(Led &led, byte level);
+
 protected:
     void _reset_state() override;
 
@@ -19,5 +21,4 @@ private:
     static void pulse(Led &led, BrightnessEffectState &state);
     static void wave(Led &led, BrightnessEffectState &state);
     static void double_wave(Led &led, BrightnessEffectState &state);
-    static void eco(Led &led, BrightnessEffectState &state);
 };

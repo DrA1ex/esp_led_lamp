@@ -36,8 +36,8 @@ function initWebSocket() {
 
         StatusElement.style.visibility = "visible";
 
-        window.__app.connectionTimeout += 1000;
         setTimeout(initWebSocket, window.__app.connectionTimeout);
+        window.__app.connectionTimeout += 1000;
     }
 
     ws.onerror = (e) => {
@@ -146,6 +146,7 @@ async function request_config() {
         speed: view.getUint8(offset++),
         scale: view.getUint8(offset++),
         light: view.getUint8(offset++),
+        eco: view.getUint8(offset++),
 
         palette: view.getUint8(offset++),
         colorEffect: view.getUint8(offset++),
@@ -307,6 +308,7 @@ const PacketType = {
     LIGHT: 2,
 
     MAX_BRIGHTNESS: 20,
+    ECO_LEVEL: 21,
 
     PALETTE: 100,
     COLOR_EFFECT: 101,
@@ -338,6 +340,7 @@ async function initialize() {
     createSection("General");
     createTrigger("Power", config.power, PacketType.POWER_ON, PacketType.POWER_OFF);
     createWheel("Brightness", _256, config.maxBrightness, PacketType.MAX_BRIGHTNESS);
+    createWheel("ECO", _256, config.eco, PacketType.ECO_LEVEL);
 
     createSection("FX");
 

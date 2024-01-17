@@ -101,6 +101,9 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
         case PacketType::MAX_BRIGHTNESS:
             return update_parameter_value(app_config().config.maxBrightness, header, data);
 
+        case PacketType::ECO_LEVEL:
+            return update_parameter_value(app_config().config.eco, header, data);
+
         case PacketType::PALETTE:
             return update_parameter_value(app_config().config.palette, header, data);
 

@@ -17,6 +17,7 @@ struct __attribute__ ((packed)) Config {
     byte speed = 180;
     byte scale = 64;
     byte light = 180;
+    byte eco = 255;
 
     PaletteEnum palette = PaletteEnum::SUNSET;
     ColorEffectEnum colorEffect = ColorEffectEnum::GRADIENT;

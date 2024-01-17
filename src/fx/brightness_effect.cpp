@@ -5,8 +5,7 @@ BrightnessEffectManager::BrightnessEffectManager() {
             {BrightnessEffectEnum::FIXED,       "Fixed",       fixed},
             {BrightnessEffectEnum::PULSE,       "Pulse",       pulse},
             {BrightnessEffectEnum::WAVE,        "Wave",        wave},
-            {BrightnessEffectEnum::DOUBLE_WAVE, "Double Wave", double_wave},
-            {BrightnessEffectEnum::ECO,         "ECO",         eco}
+            {BrightnessEffectEnum::DOUBLE_WAVE, "Double Wave", double_wave}
     };
 
     _config.count = _config.entries.size();
@@ -92,9 +91,7 @@ void BrightnessEffectManager::double_wave(Led &led, BrightnessEffectState &state
     }
 }
 
-void BrightnessEffectManager::eco(Led &led, BrightnessEffectState &state) {
-    const auto &[level] = state.params;
-
+void BrightnessEffectManager::eco(Led &led, byte level) {
     const auto total_count = led.width() * led.height();
     const auto active_count = (total_count * level) / 255;
 

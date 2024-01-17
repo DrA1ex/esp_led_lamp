@@ -103,6 +103,8 @@ void render() {
     ColorEffects.call(led, palette, config);
     BrightnessEffects.call(led, config);
 
+    BrightnessEffectManager::eco(led, config.eco);
+
     led.show();
 }
 

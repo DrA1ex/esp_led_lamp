@@ -8,6 +8,7 @@ enum class PacketType : uint8_t {
     LIGHT = 2,
 
     MAX_BRIGHTNESS = 20,
+    ECO_LEVEL = 21,
 
     PALETTE = 100,
     COLOR_EFFECT = 101,
