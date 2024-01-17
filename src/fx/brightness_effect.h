@@ -2,7 +2,6 @@
 
 #include "config.h"
 #include "debug.h"
-#include "led.h"
 #include "type.h"
 
 class BrightnessEffectManager : public FxManagerBase<BrightnessEffectConfig, BrightnessEffectState> {

@@ -1,6 +1,7 @@
 #include "application.h"
 
-#include "ntp_time.h"
+#include "misc/led.h"
+#include "misc/ntp_time.h"
 
 #include "fx/fx.h"
 

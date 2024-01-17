@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cctype>
+#include <FastLED.h>
+
 #include "fx/type.h"
-#include "storage.h"
 
 class NtpTime;
 
@@ -14,8 +16,8 @@ enum class AppState {
 struct __attribute ((packed)) NightModeConfig {
     bool enabled = false;
 
-    byte brightness = 10;
-    byte eco = 20;
+    uint8_t brightness = 10;
+    uint8_t eco = 20;
 
     uint32_t startTime = 0;
     uint32_t endTime = (uint32_t) 10 * 60 * 60;
@@ -25,12 +27,12 @@ struct __attribute ((packed)) NightModeConfig {
 struct __attribute__ ((packed)) Config {
     bool power = true;
 
-    byte maxBrightness = 128;
+    uint8_t maxBrightness = 128;
 
-    byte speed = 180;
-    byte scale = 64;
-    byte light = 180;
-    byte eco = 255;
+    uint8_t speed = 180;
+    uint8_t scale = 64;
+    uint8_t light = 180;
+    uint8_t eco = 255;
 
     PaletteEnum palette = PaletteEnum::SUNSET;
     ColorEffectEnum colorEffect = ColorEffectEnum::GRADIENT;

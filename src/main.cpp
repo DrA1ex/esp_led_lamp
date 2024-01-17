@@ -4,10 +4,11 @@
 #include "application.h"
 #include "constants.h"
 #include "config.h"
-#include "led.h"
-#include "storage.h"
-#include "timer.h"
-#include "ntp_time.h"
+
+#include "misc/led.h"
+#include "misc/storage.h"
+#include "misc/timer.h"
+#include "misc/ntp_time.h"
 
 #include "fx/fx.h"
 

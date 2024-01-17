@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config.h"
-#include "storage.h"
+#include "misc/storage.h"
 
 class Application {
 public:

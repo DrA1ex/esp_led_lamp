@@ -1,5 +1,7 @@
 #include "color_effect.h"
 
+#include "misc/led.h"
+
 ColorEffectManager::ColorEffectManager() {
     _config.entries = {
             {ColorEffectEnum::PERLIN,       "Perlin Noise", perlin},

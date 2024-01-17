@@ -1,7 +1,6 @@
 #pragma once
 
 #include "config.h"
-#include "led.h"
 
 class ColorEffectManager : public FxManagerBase<ColorEffectConfig, ColorEffectState> {
 public:

@@ -1,5 +1,7 @@
 #include "brightness_effect.h"
 
+#include "misc/led.h"
+
 BrightnessEffectManager::BrightnessEffectManager() {
     _config.entries = {
             {BrightnessEffectEnum::FIXED,       "Fixed",       fixed},
