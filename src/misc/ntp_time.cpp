@@ -11,6 +11,9 @@ void NtpTime::begin(float tz) {
 
     _tz_offset = (int32_t) tz * 3600;
     _ntp_client.setTimeOffset(_tz_offset);
+
+    //TODO: Switch to async lib
+    _ntp_client.setUpdateInterval(24ul * 3600 * 1000);
 }
 
 void NtpTime::update() {
