@@ -58,7 +58,7 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     } else {
         auto response = update_parameter(*packet, data);
         if (response.is_ok()) {
-            if(packet->type >= PacketType::NIGHT_MODE_ENABLED && packet->type <= PacketType::NIGHT_MODE_INTERVAL) {
+            if (packet->type >= PacketType::NIGHT_MODE_ENABLED && packet->type <= PacketType::NIGHT_MODE_INTERVAL) {
                 app().night_mode_manager.reset();
             }
 
@@ -86,7 +86,8 @@ Response update_parameter_value(T *parameter, const PacketHeader &header, const 
         return Response::code(ResponseCode::BAD_REQUEST);
     }
 
-    *parameter = *((T *) data);
+    memcpy(parameter, data, sizeof(T));
+
     D_WRITE("Update parameter ");
     D_WRITE(to_underlying(header.type));
     D_WRITE(" = ");

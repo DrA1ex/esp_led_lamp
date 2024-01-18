@@ -13,8 +13,8 @@ void NightModeManager::handle_night(const NtpTime &ntp_time) {
     _update_night_flag(now);
 
     if (is_night_time()) {
-        const int32_t update_factor_interval = now >= _next_start_time && now <= _next_end_time
-                                               ? FACTOR_UPDATE_PERIOD_MS : FACTOR_FADE_UPDATE_PERIOD_MS;
+        const uint32_t update_factor_interval = now >= _next_start_time && now <= _next_end_time
+                                                ? FACTOR_UPDATE_PERIOD_MS : FACTOR_FADE_UPDATE_PERIOD_MS;
 
         if (millis() - _last_fade_factor_update > update_factor_interval) {
             _update_fade_factor(now);
@@ -24,8 +24,8 @@ void NightModeManager::handle_night(const NtpTime &ntp_time) {
     }
 }
 
-uint8_t _smooth(uint8_t a, uint8_t b, float factor) {
-    return a - (a - b) * factor;
+uint8_t _smooth(uint8_t from, uint8_t to, float factor) {
+    return from - ((int16_t) from - to) * factor;
 }
 
 void NightModeManager::apply_night_settings() {
@@ -84,11 +84,11 @@ void NightModeManager::_update_night_flag(unsigned long now) {
 
 void NightModeManager::_update_fade_factor(unsigned long now) {
     if (now < _next_start_time) {
-        _fade_factor = (float) (_next_start_time - now) / _config.nightMode.switchInterval;
+        _fade_factor = (float) (now - _next_start_fade_time) / _config.nightMode.switchInterval;
     } else if (now < _next_end_time) {
         _fade_factor = 1;
     } else if (now < _next_end_fade_time) {
-        _fade_factor = (float) (now - _next_end_time) / _config.nightMode.switchInterval;
+        _fade_factor = (float) (_next_end_fade_time - now) / _config.nightMode.switchInterval;
     } else {
         _fade_factor = 0;
     }
