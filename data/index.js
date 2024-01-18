@@ -238,7 +238,7 @@ function createInput(title, value, cmd, size, type) {
     document.body.appendChild(control);
 }
 
-function createWheel(title, list, value, cmd) {
+function createWheel(title, value, limit, cmd) {
     const titleElement = document.createElement("p");
     titleElement.innerText = title;
     document.body.appendChild(titleElement);
@@ -247,84 +247,76 @@ function createWheel(title, list, value, cmd) {
     control.classList.add("input");
     control.classList.add("wheel");
 
-    const items = document.createElement("div");
-    control.appendChild(items);
-
-    const opt1 = document.createElement("div");
-    opt1.classList.add("option");
-    items.appendChild(opt1);
-
-    for (let i = 0; i < list.length; i++) {
-        const opt = document.createElement("div");
-        opt.classList.add("option");
-        opt.innerText = list[i].name;
-        items.appendChild(opt);
-    }
-
-    const opt2 = document.createElement("div");
-    opt2.classList.add("option");
-    items.appendChild(opt2);
-
     document.body.appendChild(control);
 
-    const cellWidth = opt1.getBoundingClientRect().width
-    items.scrollLeft = list.findIndex(v => v.code === value) * cellWidth;
     control.__busy = false;
     control.__value = value;
+    control.__pos = (value / limit);
+    control.innerText = (control.__pos * 100).toFixed(0);
+    control.style.setProperty("--pos", control.__pos);
 
-    setTimeout(() => {
-        items.onscroll = async (e) => {
-            if (control.__busy) return;
+    // setTimeout(() => {
+    //     items.onscroll = async (e) => {
+    //         if (control.__busy) return;
+    //
+    //         const i = Math.round(items.scrollLeft / cellWidth);
+    //         if (i < limit) {
+    //             const newValue = i;
+    //             if (newValue === control.__value) return;
+    //
+    //             try {
+    //                 control.__busy = true;
+    //                 await request(cmd, Uint8Array.of(newValue).buffer);
+    //                 control.__value = newValue;
+    //             } finally {
+    //                 control.__busy = false;
+    //             }
+    //         }
+    //     }
+    // }, 100);
 
-            const i = Math.round(items.scrollLeft / cellWidth);
-            if (i < list.length) {
-                const newValue = list[i].code;
-                if (newValue === control.__value) return;
-
-                try {
-                    control.__busy = true;
-                    await request(cmd, Uint8Array.of(newValue).buffer);
-                    control.__value = newValue;
-                } finally {
-                    control.__busy = false;
-                }
-            }
-        }
-    }, 100);
-
-    const props = {};
-    control.onmousedown = (e) => {
+    const props = {margin: 20};
+    control.onmousedown = control.ontouchstart = (e) => {
         props.active = true;
-        props.margin = 20;
-
         props.width = control.getBoundingClientRect().width - props.margin * 2;
         props.left = control.getBoundingClientRect().left + props.margin;
 
         e.preventDefault();
     }
 
-    control.onmouseup = (e) => {
+    control.onmouseup = control.ontouchend = (e) => {
+        if (!props.active) return;
+
         props.active = false;
         e.preventDefault();
     }
 
-    control.onmousemove = (e) => {
+    control.onmousemove = control.ontouchmove = async (e) => {
         if (!props.active) return;
 
-        const pos = (e.clientX - props.left) / props.width;
-        items.scrollLeft = pos * list.length * cellWidth;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const pos = (clientX - props.left) / props.width;
+
+        control.__pos = Math.max(0, Math.min(1, pos));
+        control.__value = Math.round(control.__pos * limit);
+        control.innerText = (control.__pos * 100).toFixed(0);
+        control.style.setProperty("--pos", control.__pos.toString());
+
+        if (!control.__busy) {
+            control.__busy = true;
+            try {
+                await request(cmd, Uint8Array.of(control.__value));
+            } finally {
+                control.__busy = false;
+            }
+        }
+
+        e.preventDefault();
     }
 
     control.onmouseenter = (e) => {
         if (props.active && e.buttons === 0) {
             props.active = false;
-        }
-    }
-
-    control.onwheel = (e) => {
-        if (e.deltaY !== 0 && e.deltaX === 0) {
-            items.scrollLeft -= e.wheelDeltaY;
-            e.preventDefault();
         }
     }
 }
@@ -399,12 +391,10 @@ async function initialize() {
     const config = await request_config();
     console.log("Config", config);
 
-    const _256 = Array.from({length: 256}, (_, i) => ({code: i, name: i}));
-
     createSection("General");
     createTrigger("Power", config.power, PacketType.POWER_ON, PacketType.POWER_OFF);
-    createWheel("Brightness", _256, config.maxBrightness, PacketType.MAX_BRIGHTNESS);
-    createWheel("ECO", _256, config.eco, PacketType.ECO_LEVEL);
+    createWheel("Brightness", config.maxBrightness, 255, PacketType.MAX_BRIGHTNESS);
+    createWheel("ECO", config.eco, 255, PacketType.ECO_LEVEL);
 
     createSection("FX");
 
@@ -418,19 +408,19 @@ async function initialize() {
     createSelect("Brightness Effect", brightnessEffects, config.brightnessEffect, PacketType.BRIGHTNESS_EFFECT);
 
     createSection("Fine Tune");
-    createWheel("Speed", _256, config.speed, PacketType.SPEED);
-    createWheel("Scale", _256, config.scale, PacketType.SCALE);
-    createWheel("Light", _256, config.light, PacketType.LIGHT);
+    createWheel("Speed", config.speed, 255, PacketType.SPEED);
+    createWheel("Scale", config.scale, 255, PacketType.SCALE);
+    createWheel("Light", config.light, 255, PacketType.LIGHT);
 
     createSection("Color calibration");
-    createWheel("Red", _256, (config.colorCorrection & 0xff0000) >> 16, PacketType.CALIBRATION_R);
-    createWheel("Green", _256, (config.colorCorrection & 0xff00) >> 8, PacketType.CALIBRATION_G);
-    createWheel("Blue", _256, config.colorCorrection & 0xff, PacketType.CALIBRATION_B);
+    createWheel("Red", (config.colorCorrection & 0xff0000) >> 16, 255, PacketType.CALIBRATION_R);
+    createWheel("Green", (config.colorCorrection & 0xff00) >> 8, 255, PacketType.CALIBRATION_G);
+    createWheel("Blue", config.colorCorrection & 0xff, 255, PacketType.CALIBRATION_B);
 
     createSection("Night Mode");
     createTrigger("Enabled", config.nightMode.enabled, PacketType.NIGHT_MODE_ENABLED);
-    createWheel("Brightness", _256, config.nightMode.brightness, PacketType.NIGHT_MODE_BRIGHTNESS);
-    createWheel("Eco", _256, config.nightMode.eco, PacketType.NIGHT_MODE_ECO);
+    createWheel("Brightness", config.nightMode.brightness, 255, PacketType.NIGHT_MODE_BRIGHTNESS);
+    createWheel("Eco", config.nightMode.eco, 255, PacketType.NIGHT_MODE_ECO);
     createInput("Start time", config.nightMode.startTime, PacketType.NIGHT_MODE_START, 4, "Uint32");
     createInput("End time", config.nightMode.endTime, PacketType.NIGHT_MODE_END, 4, "Uint32");
     createInput("Switch interval", config.nightMode.switchInterval, PacketType.NIGHT_MODE_INTERVAL, 2, "Uint16");

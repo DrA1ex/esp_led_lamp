@@ -65,36 +65,24 @@ select.input {
 }
 
 .input.wheel {
+    --pos: 0;
+
     position: relative;
-    padding: 0 1rem;
-}
-
-.input.wheel > div {
+    height: 2.4rem;
     user-select: none;
-
-    overflow-x: scroll;
-    overflow-y: hidden;
-
-    scroll-snap-type: x mandatory;
-
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 33%;
+    z-index: 1;
 }
 
-.wheel > div::-webkit-scrollbar {
-    display: none;
-}
-
-.wheel:after {
+.wheel::before {
     content: '';
     pointer-events: none;
     position: absolute;
     left: 0;
-    right: 0;
     top: 0;
     bottom: 0;
-    background-image: linear-gradient(to right, #3498db 10%, transparent 30%), linear-gradient(to left, #3498db 10%, transparent 30%);
+    right: calc(100% * (1 - var(--pos)));
+    background: #2980b9;
+    z-index: -1;
 }
 
 .wheel .option {
