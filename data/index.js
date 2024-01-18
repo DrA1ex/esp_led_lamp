@@ -179,27 +179,55 @@ function createSelect(title, list, value, cmd) {
     titleElement.innerText = title;
     document.body.appendChild(titleElement);
 
-    const control = document.createElement("select");
+    const control = document.createElement("div");
     control.classList.add("input");
+
+    const select = document.createElement("select")
+    control.appendChild(select);
 
     const dOpt = document.createElement("option");
     dOpt.innerText = "...";
     dOpt.setAttribute("hidden", "");
     dOpt.setAttribute("disabled", "");
-    control.appendChild(dOpt);
+    select.appendChild(dOpt);
 
     for (let i = 0; i < list.length; i++) {
         const opt = document.createElement("option");
         opt.value = list[i].code;
         opt.innerText = list[i].name;
-        control.appendChild(opt);
+        select.appendChild(opt);
     }
 
-    control.value = value;
-
-    control.onchange = async () => {
-        await request(cmd, Uint8Array.of(Number.parseInt(control.value)).buffer);
+    select.value = value;
+    select.onchange = async () => {
+        await request(cmd, Uint8Array.of(Number.parseInt(select.value)).buffer);
     }
+
+    control.onclick = (e => {
+        const selectRect = select.getBoundingClientRect()
+
+        let direction = 0;
+        if (e.clientX < selectRect.left) {
+            direction = -1;
+        } else if (e.clientX > selectRect.right) {
+            direction = 1;
+        }
+
+        if (direction === 0) return;
+
+        const value = Number.parseInt(select.value);
+        if (!Number.isFinite(value)) return;
+
+        let index = list.findIndex(e => e.code === value);
+        if (index >= 0) {
+            index = (list.length + index + direction) % list.length;
+            select.value = list[index].code.toString();
+
+            select.dispatchEvent(new Event("change"));
+        }
+
+        e.preventDefault();
+    });
 
     document.body.appendChild(control);
 }

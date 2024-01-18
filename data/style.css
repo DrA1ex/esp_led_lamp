@@ -51,17 +51,43 @@ h3 {
     background-color: #3498db;
     border: none;
     color: #fff;
-    padding: 1rem 1rem;
+    padding: 1rem;
     font-size: 2rem;
     margin: 0 auto 2rem;
     text-align: center;
     cursor: pointer;
-    border-radius: .25rem
+    border-radius: .25rem;
+    user-select: none;
 }
 
-select.input {
+.input:has(select) {
+    padding: 0 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.input:has(select)::before {
+    content: "<";
+}
+
+.input:has(select)::after {
+    content: ">";
+}
+
+.input > select {
+    padding: 1rem;
+
+    cursor: pointer;
     appearance: none;
-    text-align-last: center;
+    outline: none;
+    border: none;
+    color: white;
+    background: none;
+
+    font-size: 2rem;
+    font-family: inherit;
+    text-align: center;
 }
 
 .input.wheel {
