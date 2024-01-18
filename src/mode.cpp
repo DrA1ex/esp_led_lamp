@@ -9,6 +9,11 @@ NightModeManager::NightModeManager(Led &led, const Config &config) : _led(led), 
 void NightModeManager::handle_night(const NtpTime &ntp_time) {
     if (!_config.nightMode.enabled || !ntp_time.available()) return;
 
+    if (_need_update_parameters) {
+        _update_next_night_time(ntp_time);
+        _need_update_parameters = false;
+    }
+
     const auto now = ntp_time.epoch_tz();
     _update_night_flag(now);
 
@@ -37,16 +42,7 @@ void NightModeManager::apply_night_settings() {
 }
 
 void NightModeManager::reset() {
-    _next_start_fade_time = 0;
-    _next_start_time = 0;
-
-    _next_end_time = 0;
-    _next_end_fade_time = 0;
-
-    _is_night = false;
-
-    _last_fade_factor_update = 0;
-    _fade_factor = 0;
+    _need_update_parameters = true;
 }
 
 void NightModeManager::_update_next_night_time(const NtpTime &ntp_time) {

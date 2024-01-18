@@ -23,6 +23,8 @@ class NightModeManager {
     unsigned long _last_fade_factor_update = 0;
     float _fade_factor;
 
+    bool _need_update_parameters = false;
+
 public:
     explicit NightModeManager(Led &led, const Config &config);
 
