@@ -124,6 +124,20 @@ h3 {
     user-select: none;
 }
 
+.input[type="time"] {
+    appearance: none;
+    height: 2.4rem;
+    font-family: inherit;
+}
+
+.input[type="time"]::-webkit-calendar-picker-indicator {
+    display: none;
+}
+
+.input[type="time"]::-webkit-clear-button {
+    display: none;
+}
+
 .button[disabled] {
     pointer-events: none;
 }

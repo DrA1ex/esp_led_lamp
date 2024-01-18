@@ -232,21 +232,40 @@ function createSelect(title, list, value, cmd) {
     document.body.appendChild(control);
 }
 
-function createInput(title, value, cmd, size, type) {
+function createInput(title, type, value, cmd, size, valueType) {
     const titleElement = document.createElement("p");
     titleElement.innerText = title;
     document.body.appendChild(titleElement);
 
     const control = document.createElement("input");
     control.classList.add("input");
-    control.value = value;
+    control.type = type;
     control.__busy = false;
+
+    switch (type) {
+        case "time":
+            control.valueAsNumber = value * 1000;
+            control.onfocus = () => control.showPicker();
+            break;
+
+        default:
+            control.value = value.toString();
+    }
 
     control.onchange = async () => {
         if (control.__busy) return;
 
-        const parsed = Number.parseInt(control.value);
-        if (Number.isFinite(parsed)) {
+        let parsedValue;
+        switch (type) {
+            case "time":
+                parsedValue = control.valueAsNumber / 1000;
+                break;
+
+            default:
+                parsedValue = Number.parseInt(control.value);
+        }
+
+        if (Number.isFinite(parsedValue)) {
             const data = new Uint8Array(size);
             const view = new DataView(data.buffer);
 
@@ -254,7 +273,7 @@ function createInput(title, value, cmd, size, type) {
                 control.__busy = true;
                 control.setAttribute("data-saving", "true");
 
-                view["set" + type](0, parsed, true);
+                view["set" + valueType](0, parsedValue, true);
                 await request(cmd, data);
             } finally {
                 control.__busy = false;
@@ -449,9 +468,9 @@ async function initialize() {
     createTrigger("Enabled", config.nightMode.enabled, PacketType.NIGHT_MODE_ENABLED);
     createWheel("Brightness", config.nightMode.brightness, 255, PacketType.NIGHT_MODE_BRIGHTNESS);
     createWheel("Eco", config.nightMode.eco, 255, PacketType.NIGHT_MODE_ECO);
-    createInput("Start time", config.nightMode.startTime, PacketType.NIGHT_MODE_START, 4, "Uint32");
-    createInput("End time", config.nightMode.endTime, PacketType.NIGHT_MODE_END, 4, "Uint32");
-    createInput("Switch interval", config.nightMode.switchInterval, PacketType.NIGHT_MODE_INTERVAL, 2, "Uint16");
+    createInput("Start time", "time", config.nightMode.startTime, PacketType.NIGHT_MODE_START, 4, "Uint32");
+    createInput("End time", "time", config.nightMode.endTime, PacketType.NIGHT_MODE_END, 4, "Uint32");
+    createInput("Switch interval", "time", config.nightMode.switchInterval, PacketType.NIGHT_MODE_INTERVAL, 2, "Uint16");
 
     window.__app.config = {
         config,

@@ -9,8 +9,7 @@ ServerBase::ServerBase(Application &config) : _app(config) {}
 Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     D_WRITE("Packet body: ");
     for (unsigned int i = 0; i < length; ++i) {
-        D_WRITE(String(buffer[i], HEX));
-        D_WRITE(" ");
+        D_PRINTF("%02X ", buffer[i]);
     }
     D_PRINT();
 

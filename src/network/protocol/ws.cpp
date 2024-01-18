@@ -8,9 +8,10 @@ WebSocketServer::WebSocketServer(Application &app, const char *path) : ServerBas
 
 
 void WebSocketServer::begin(WebServer &server) {
-    auto event_handler = std::bind(&WebSocketServer::on_event, this,
-                                   std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
-                                   std::placeholders::_4, std::placeholders::_5, std::placeholders::_6);
+    auto event_handler =
+            [this](auto _1, auto _2, auto _3, auto _4, auto _5, auto _6) {
+                on_event(_1, _2, _3, _4, _5, _6);
+            };
 
     _ws.onEvent(event_handler);
     server.add_handler(&_ws);
