@@ -61,10 +61,12 @@ h3 {
 }
 
 .input:has(select) {
-    padding: 0 1rem;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto fit-content(100%) auto;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline;
+
+    padding: 0 1rem;
 }
 
 .input:has(select)::before {
@@ -76,7 +78,8 @@ h3 {
 }
 
 .input > select {
-    padding: 1rem;
+    width: 100%;
+    padding: 1rem 0.5rem;
 
     cursor: pointer;
     appearance: none;
@@ -87,7 +90,11 @@ h3 {
 
     font-size: 2rem;
     font-family: inherit;
-    text-align: center;
+    text-align-last: center;
+
+    overflow: hidden !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .input.wheel {
