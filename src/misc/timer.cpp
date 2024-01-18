@@ -32,9 +32,10 @@ void Timer::clear_interval(unsigned long timer_id) {
 void Timer::handle_timers() {
     if (_entries == nullptr || _count == _free_count) return;
 
-    const auto now = millis();
     for (unsigned long i = 0; i < _count; ++i) {
         auto &entry = _entries[i];
+
+        const auto now = millis();
         if (!entry.active || (now - entry.created_at) < entry.interval) continue;
 
         VERBOSE(D_PRINTF("Call timer: %lu\n", i));
