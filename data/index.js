@@ -174,11 +174,7 @@ async function request_config() {
     return result;
 }
 
-function createSelect(title, list, value, cmd) {
-    const titleElement = document.createElement("p");
-    titleElement.innerText = title;
-    document.body.appendChild(titleElement);
-
+function createSelect(list, value, cmd) {
     const control = document.createElement("div");
     control.classList.add("input");
 
@@ -229,14 +225,10 @@ function createSelect(title, list, value, cmd) {
         e.preventDefault();
     });
 
-    document.body.appendChild(control);
+    return control;
 }
 
-function createInput(title, type, value, cmd, size, valueType) {
-    const titleElement = document.createElement("p");
-    titleElement.innerText = title;
-    document.body.appendChild(titleElement);
-
+function createInput(type, value, cmd, size, valueType) {
     const control = document.createElement("input");
     control.classList.add("input");
     control.type = type;
@@ -282,45 +274,19 @@ function createInput(title, type, value, cmd, size, valueType) {
         }
     }
 
-    document.body.appendChild(control);
+    return control;
 }
 
-function createWheel(title, value, limit, cmd) {
-    const titleElement = document.createElement("p");
-    titleElement.innerText = title;
-    document.body.appendChild(titleElement);
-
+function createWheel(value, limit, cmd) {
     const control = document.createElement("div");
     control.classList.add("input");
     control.classList.add("wheel");
-
-    document.body.appendChild(control);
 
     control.__busy = false;
     control.__value = value;
     control.__pos = (value / limit);
     control.innerText = (control.__pos * 100).toFixed(0);
     control.style.setProperty("--pos", control.__pos);
-
-    // setTimeout(() => {
-    //     items.onscroll = async (e) => {
-    //         if (control.__busy) return;
-    //
-    //         const i = Math.round(items.scrollLeft / cellWidth);
-    //         if (i < limit) {
-    //             const newValue = i;
-    //             if (newValue === control.__value) return;
-    //
-    //             try {
-    //                 control.__busy = true;
-    //                 await request(cmd, Uint8Array.of(newValue).buffer);
-    //                 control.__value = newValue;
-    //             } finally {
-    //                 control.__busy = false;
-    //             }
-    //         }
-    //     }
-    // }, 100);
 
     const props = {margin: 20};
     control.onmousedown = control.ontouchstart = (e) => {
@@ -366,13 +332,11 @@ function createWheel(title, value, limit, cmd) {
             props.active = false;
         }
     }
+
+    return control;
 }
 
-function createTrigger(title, value, cmdOn, cmdOff = null) {
-    const titleElement = document.createElement("p");
-    titleElement.innerText = title;
-    document.body.appendChild(titleElement);
-
+function createTrigger(value, cmdOn, cmdOff = null) {
     const control = document.createElement("a");
     control.classList.add("button");
     control.setAttribute("data-value", value.toString());
@@ -389,13 +353,26 @@ function createTrigger(title, value, cmdOn, cmdOff = null) {
         control.setAttribute("data-value", nextValue.toString());
     };
 
-    document.body.appendChild(control);
+    return control;
 }
 
-function createSection(title) {
+function startSection(title) {
+    const section = document.createElement("div");
+    section.classList.add("section");
+
     const sectionTitle = document.createElement("h3");
     sectionTitle.innerText = title;
-    document.body.appendChild(sectionTitle);
+
+    section.appendChild(sectionTitle);
+    document.body.appendChild(section);
+
+    return section;
+}
+
+function createTitle(title) {
+    const titleElement = document.createElement("p");
+    titleElement.innerText = title;
+    return titleElement;
 }
 
 const PacketType = {
@@ -438,39 +415,74 @@ async function initialize() {
     const config = await request_config();
     console.log("Config", config);
 
-    createSection("General");
-    createTrigger("Power", config.power, PacketType.POWER_ON, PacketType.POWER_OFF);
-    createWheel("Brightness", config.maxBrightness, 255, PacketType.MAX_BRIGHTNESS);
-    createWheel("ECO", config.eco, 255, PacketType.ECO_LEVEL);
-
-    createSection("FX");
-
     const palette = await request_fx(PacketType.PALETTE_LIST);
-    createSelect("Palette", palette, config.palette, PacketType.PALETTE);
-
     const colorEffects = await request_fx(PacketType.COLOR_EFFECT_LIST);
-    createSelect("Color Effect", colorEffects, config.colorEffect, PacketType.COLOR_EFFECT);
-
     const brightnessEffects = await request_fx(PacketType.BRIGHTNESS_EFFECT_LIST);
-    createSelect("Brightness Effect", brightnessEffects, config.brightnessEffect, PacketType.BRIGHTNESS_EFFECT);
 
-    createSection("Fine Tune");
-    createWheel("Speed", config.speed, 255, PacketType.SPEED);
-    createWheel("Scale", config.scale, 255, PacketType.SCALE);
-    createWheel("Light", config.light, 255, PacketType.LIGHT);
 
-    createSection("Color calibration");
-    createWheel("Red", (config.colorCorrection & 0xff0000) >> 16, 255, PacketType.CALIBRATION_R);
-    createWheel("Green", (config.colorCorrection & 0xff00) >> 8, 255, PacketType.CALIBRATION_G);
-    createWheel("Blue", config.colorCorrection & 0xff, 255, PacketType.CALIBRATION_B);
+    startSection("General").append(
+        createTitle("Power"),
+        createTrigger(config.power, PacketType.POWER_ON, PacketType.POWER_OFF),
 
-    createSection("Night Mode");
-    createTrigger("Enabled", config.nightMode.enabled, PacketType.NIGHT_MODE_ENABLED);
-    createWheel("Brightness", config.nightMode.brightness, 255, PacketType.NIGHT_MODE_BRIGHTNESS);
-    createWheel("Eco", config.nightMode.eco, 255, PacketType.NIGHT_MODE_ECO);
-    createInput("Start time", "time", config.nightMode.startTime, PacketType.NIGHT_MODE_START, 4, "Uint32");
-    createInput("End time", "time", config.nightMode.endTime, PacketType.NIGHT_MODE_END, 4, "Uint32");
-    createInput("Switch interval", "time", config.nightMode.switchInterval, PacketType.NIGHT_MODE_INTERVAL, 2, "Uint16");
+        createTitle("Brightness"),
+        createWheel(config.maxBrightness, 255, PacketType.MAX_BRIGHTNESS),
+
+        createTitle("ECO"),
+        createWheel(config.eco, 255, PacketType.ECO_LEVEL),
+    );
+
+    startSection("FX").append(
+        createTitle("Palette"),
+        createSelect(palette, config.palette, PacketType.PALETTE),
+
+        createTitle("Color Effect"),
+        createSelect(colorEffects, config.colorEffect, PacketType.COLOR_EFFECT),
+
+        createTitle("Brightness Effect"),
+        createSelect(brightnessEffects, config.brightnessEffect, PacketType.BRIGHTNESS_EFFECT),
+    );
+
+    startSection("Fine Tune").append(
+        createTitle("Speed"),
+        createWheel(config.speed, 255, PacketType.SPEED),
+
+        createTitle("Scale"),
+        createWheel(config.scale, 255, PacketType.SCALE),
+
+        createTitle("Light"),
+        createWheel(config.light, 255, PacketType.LIGHT),
+    );
+
+    startSection("Color calibration").append(
+        createTitle("Red"),
+        createWheel((config.colorCorrection & 0xff0000) >> 16, 255, PacketType.CALIBRATION_R),
+
+        createTitle("Green"),
+        createWheel((config.colorCorrection & 0xff00) >> 8, 255, PacketType.CALIBRATION_G),
+
+        createTitle("Blue"),
+        createWheel(config.colorCorrection & 0xff, 255, PacketType.CALIBRATION_B)
+    );
+
+    startSection("Night Mode").append(
+        createTitle("Enabled"),
+        createTrigger(config.nightMode.enabled, PacketType.NIGHT_MODE_ENABLED),
+
+        createTitle("Brightness"),
+        createWheel(config.nightMode.brightness, 255, PacketType.NIGHT_MODE_BRIGHTNESS),
+
+        createTitle("ECO"),
+        createWheel(config.nightMode.eco, 255, PacketType.NIGHT_MODE_ECO),
+
+        createTitle("Start Time"),
+        createInput("time", config.nightMode.startTime, PacketType.NIGHT_MODE_START, 4, "Uint32"),
+
+        createTitle("End Time"),
+        createInput("time", config.nightMode.endTime, PacketType.NIGHT_MODE_END, 4, "Uint32"),
+
+        createTitle("Switch Interval"),
+        createInput("time", config.nightMode.switchInterval, PacketType.NIGHT_MODE_INTERVAL, 2, "Uint16"),
+    );
 
     window.__app.config = {
         config,

@@ -1,12 +1,19 @@
 html {
+    --control-color-active: #633757;
+    --control-color-accent: #4a3c62;
+    --control-color-inactive: #392f4b;
+    --control-color-disabled: #30293e;
+
     margin: 0 auto;
-    text-align: center
+    text-align: center;
+
+    font-size: 12px;
 }
 
 body {
     margin: 0;
-    color: #555;
-    font: 14px Helvetica Neue, Lucida Grande, Arial;
+    color: #fff;
+    font-family: Helvetica Neue, Lucida Grande, Arial, sans-serif;
     padding-bottom: 4rem;
 
     overflow-x: hidden;
@@ -15,7 +22,7 @@ body {
 }
 
 .bg {
-    background: #ece9e9 linear-gradient(180deg, #fff, #ece9e9) no-repeat;
+    background: #614462 linear-gradient(300deg, #7e304a, #2b4371) no-repeat;
     position: fixed;
     inset: 0;
     z-index: -1;
@@ -24,23 +31,22 @@ body {
 h1, h2, h3 {
     text-transform: uppercase;
     font-weight: 300;
+    color: #fff;
 }
 
 h1 {
-    font-size: 3rem;
-    color: #34495e;
+    font-size: 2.5rem;
     margin: 1rem auto 1rem;
 }
 
 h2 {
     font-size: 2rem;
-    color: #145d8d;
     margin: 2rem auto 1rem auto;
 }
 
 h3 {
     font-size: 1.5rem;
-    margin: 0 auto 1.5rem auto;
+    margin: 0 auto 2rem auto;
 }
 
 .button, .input {
@@ -48,7 +54,7 @@ h3 {
     width: 70vw;
     max-width: 20rem;
     box-sizing: content-box;
-    background-color: #3498db;
+    background-color: var(--control-color-active);
     border: none;
     color: #fff;
     padding: 1rem;
@@ -56,8 +62,21 @@ h3 {
     margin: 0 auto 2rem;
     text-align: center;
     cursor: pointer;
-    border-radius: .25rem;
+    border-radius: 0.75rem;
     user-select: none;
+}
+
+.section {
+    box-sizing: border-box;
+
+    background: rgba(30, 16, 30, 0.22);
+    border: rgba(17, 17, 17, 0.01) solid 0.1rem;
+    border-radius: 2rem;
+
+    padding: 1.5rem;
+    margin: 2rem auto;
+
+    max-width: 28rem;
 }
 
 .input:has(select) {
@@ -80,6 +99,8 @@ h3 {
 .input > select {
     width: 100%;
     padding: 1rem 0.5rem;
+
+    border-radius: 0.75rem;
 
     cursor: pointer;
     appearance: none;
@@ -114,7 +135,8 @@ h3 {
     top: 0;
     bottom: 0;
     right: calc(100% * (1 - var(--pos)));
-    background: #2980b9;
+    background: var(--control-color-accent);
+    border-radius: 0.75rem;
     z-index: -1;
 }
 
@@ -147,7 +169,7 @@ h3 {
 }
 
 .button[data-value=true] {
-    background-color: #3498db
+    background-color: var(--control-color-active)
 }
 
 .button[data-value=true]::before {
@@ -155,11 +177,11 @@ h3 {
 }
 
 .button[data-value=true]:not([disabled]):active {
-    background-color: #2980b9
+    background-color: var(--control-color-accent)
 }
 
 .button[data-value=false] {
-    background-color: #34495e
+    background-color: var(--control-color-inactive)
 }
 
 .button[data-value=false]::before {
@@ -167,7 +189,7 @@ h3 {
 }
 
 .button[data-value=false]:not([disabled]):active {
-    background-color: #2c3e50
+    background-color: var(--control-color-disabled)
 }
 
 .button-danger {
@@ -205,7 +227,7 @@ p {
     text-transform: uppercase;
 
     color: white;
-    background: #8f0000;
+    background: #3f385b;
 }
 
 @keyframes saving {
