@@ -21,13 +21,7 @@ void BrightnessEffectManager::call(Led &led, const Config &config) {
     const auto fx_function = _config.entries[(int) _fx].value;
     fx_function(led, _state);
 
-    _save_next_value(_state.prev_level_value, _state.current_level_value);
     _after_call();
-}
-
-void BrightnessEffectManager::_reset_state() {
-    _state.current_level_value = 0;
-    _state.prev_level_value = 0;
 }
 
 void BrightnessEffectManager::fixed(Led &led, BrightnessEffectState &state) {}
@@ -35,8 +29,8 @@ void BrightnessEffectManager::fixed(Led &led, BrightnessEffectState &state) {}
 void BrightnessEffectManager::pulse(Led &led, BrightnessEffectState &state) {
     const auto &[level] = state.params;
 
-    state.current_level_value = state.prev_level_value + (float) state.delta() * level / 2.f / 255.f;
-    const auto value = _apply_period(state.current_level_value, 768);
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * level / 2.f / 255.f;
+    const auto value = _apply_period(state.current_time_factor, 768);
 
     byte phase;
     if (value < 256) { // Fade out
@@ -54,8 +48,8 @@ void BrightnessEffectManager::pulse(Led &led, BrightnessEffectState &state) {
 void BrightnessEffectManager::wave(Led &led, BrightnessEffectState &state) {
     const auto &[level] = state.params;
 
-    state.current_level_value = state.prev_level_value + (float) state.delta() * level / 2.f / 255.f;
-    const auto value = _apply_period(state.current_level_value, 256);
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (level - 128) / 2.f / 255.f;
+    const auto value = _apply_period(state.current_time_factor, 256);
 
     for (int i = 0; i < led.width(); ++i) {
         const auto brightness = cubicwave8((value + i * 6) % 256);
@@ -70,8 +64,8 @@ void BrightnessEffectManager::wave(Led &led, BrightnessEffectState &state) {
 void BrightnessEffectManager::double_wave(Led &led, BrightnessEffectState &state) {
     const auto &[level] = state.params;
 
-    state.current_level_value = state.prev_level_value + (float) state.delta() * level / 2.f / 255.f;
-    const auto value = _apply_period(state.current_level_value, 512);
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * level / 2.f / 255.f;
+    const auto value = _apply_period(state.current_time_factor, 512);
 
     const auto &width = led.width();
     const int half_width = ceil(width / 2.0f);

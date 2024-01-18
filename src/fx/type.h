@@ -11,6 +11,9 @@ struct FxStateBase {
     unsigned long time = 0;
     unsigned long prev_time = 0;
 
+    float prev_time_factor = 0;
+    float current_time_factor = 0;
+
     [[nodiscard]] inline unsigned long delta() const { return time - prev_time; }
 };
 
@@ -20,12 +23,6 @@ struct ColorEffectState : FxStateBase {
         byte scale = 0;
         byte speed = 0;
     } params;
-
-    float current_scale_value = 0;
-    float current_speed_value = 0;
-
-    float prev_scale_value = 0;
-    float prev_speed_value = 0;
 };
 
 typedef void(*ColorEffectFn)(Led &led, ColorEffectState &state);
@@ -34,9 +31,6 @@ struct BrightnessEffectState : FxStateBase {
     struct {
         byte level = 0;
     } params;
-
-    float current_level_value = 0;
-    float prev_level_value = 0;
 };
 
 typedef void (*BrightnessEffectFn)(Led &led, BrightnessEffectState &state);
@@ -83,6 +77,7 @@ protected:
 
     void _after_call() {
         _state.prev_time = _state.time;
+        _save_next_value(_state.prev_time_factor, _state.current_time_factor);
     }
 
     void static _save_next_value(float &prev, float &current) {
@@ -100,7 +95,10 @@ protected:
         return (uint32_t) value % period;
     }
 
-    virtual void _reset_state() = 0;
+    virtual void _reset_state()  {
+        _state.prev_time_factor = 0;
+        _state.current_time_factor = 0;
+    };
 
 public:
     void select(CodeT fx) {

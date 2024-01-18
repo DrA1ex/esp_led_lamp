@@ -23,17 +23,7 @@ void ColorEffectManager::call(Led &led, const CRGBPalette16 *palette, const Conf
     _state.params.palette = palette;
 
     _config.entries[(int) _fx].value(led, _state);
-
-    _save_next_value(_state.prev_scale_value, _state.current_scale_value);
-    _save_next_value(_state.prev_speed_value, _state.current_speed_value);
     _after_call();
-}
-
-void ColorEffectManager::_reset_state() {
-    _state.current_speed_value = 0;
-    _state.current_scale_value = 0;
-    _state.prev_speed_value = 0;
-    _state.prev_scale_value = 0;
 }
 
 void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
@@ -46,8 +36,8 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     const auto height = led.height();
     const auto width = led.width();
 
-    state.current_speed_value = state.prev_speed_value + (float) state.delta() * speed / 4 / 255;
-    const auto time_factor = _apply_period(state.current_speed_value, (1 << 16) - 1);
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 4 / 255;
+    const auto time_factor = _apply_period(state.current_time_factor, (1 << 16) - 1);
 
     for (int i = 0; i < width; ++i) {
         for (int j = 0; j < height; ++j) {
@@ -81,8 +71,8 @@ void ColorEffectManager::changeColor(Led &led, ColorEffectState &state) {
             speed
     ] = state.params;
 
-    state.current_speed_value = state.prev_speed_value + (float) state.delta() * speed / 10.f / 255.f;
-    const byte value = _apply_period(state.current_speed_value, 256);
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 10.f / 255.f;
+    const byte value = _apply_period(state.current_time_factor, 256);
 
     auto color = ColorFromPalette(*palette, value, 255, LINEARBLEND);
     led.fillSolid(color);
@@ -95,8 +85,8 @@ void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
             speed
     ] = state.params;
 
-    state.current_speed_value = state.prev_speed_value + (float) state.delta() * (speed - 128) / 8.f / 128.f;
-    const auto time_factor = _apply_period(state.current_speed_value, 256);
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (speed - 128) / 8.f / 128.f;
+    const auto time_factor = _apply_period(state.current_time_factor, 256);
 
     auto scale_factor = ((float) scale * 1.9f + 25) / (float) led.width();
 

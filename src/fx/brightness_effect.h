@@ -12,9 +12,6 @@ public:
 
     static void eco(Led &led, byte level);
 
-protected:
-    void _reset_state() override;
-
 private:
     static void fixed(Led &led, BrightnessEffectState &state);
     static void pulse(Led &led, BrightnessEffectState &state);

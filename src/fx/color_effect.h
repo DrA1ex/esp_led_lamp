@@ -8,9 +8,6 @@ public:
 
     void call(Led &led, const CRGBPalette16 *palette, const Config &config);
 
-protected:
-    void _reset_state() override;
-
 private:
     static void perlin(Led &led, ColorEffectState &state);
     static void gradient(Led &led, ColorEffectState &state);
