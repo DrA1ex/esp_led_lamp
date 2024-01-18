@@ -1,8 +1,8 @@
 html {
-    --control-color-active: #633757;
-    --control-color-accent: #4a3c62;
-    --control-color-inactive: #392f4b;
-    --control-color-disabled: #30293e;
+    --control-color-active: #1d2030;
+    --control-color-accent: #f97601;
+    --control-color-inactive: #22232b;
+
 
     margin: 0 auto;
     text-align: center;
@@ -22,7 +22,7 @@ body {
 }
 
 .bg {
-    background: #614462 linear-gradient(300deg, #7e304a, #2b4371) no-repeat;
+    background: #33394d linear-gradient(173deg, #33394d, #1f2230) no-repeat;
     position: fixed;
     inset: 0;
     z-index: -1;
@@ -69,7 +69,7 @@ h3 {
 .section {
     box-sizing: border-box;
 
-    background: rgba(30, 16, 30, 0.22);
+    background: rgba(23, 16, 30, 0.22);
     border: rgba(17, 17, 17, 0.01) solid 0.1rem;
     border-radius: 2rem;
 
@@ -132,11 +132,11 @@ h3 {
     pointer-events: none;
     position: absolute;
     left: 0;
-    top: 0;
+    top: 4rem;
     bottom: 0;
     right: calc(100% * (1 - var(--pos)));
     background: var(--control-color-accent);
-    border-radius: 0.75rem;
+    border-radius: 0 0 0.75rem 0.75rem;
     z-index: -1;
 }
 
@@ -177,11 +177,11 @@ h3 {
 }
 
 .button[data-value=true]:not([disabled]):active {
-    background-color: var(--control-color-accent)
+    background-color: var(--control-color-inactive)
 }
 
 .button[data-value=false] {
-    background-color: var(--control-color-inactive)
+    background-color: var(--control-color-active)
 }
 
 .button[data-value=false]::before {
@@ -189,7 +189,7 @@ h3 {
 }
 
 .button[data-value=false]:not([disabled]):active {
-    background-color: var(--control-color-disabled)
+    background-color: var(--control-color-inactive)
 }
 
 .button-danger {
@@ -227,7 +227,7 @@ p {
     text-transform: uppercase;
 
     color: white;
-    background: #3f385b;
+    background: #2b2d3e;
 }
 
 @keyframes saving {
