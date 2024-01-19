@@ -37,7 +37,7 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     const auto width = led.width();
 
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 4 / 255;
-    const auto time_factor = _apply_period(state.current_time_factor, (1 << 16) - 1);
+    const auto time_factor = apply_period(state.current_time_factor, (1 << 16) - 1);
 
     for (int i = 0; i < width; ++i) {
         for (int j = 0; j < height; ++j) {
@@ -72,7 +72,7 @@ void ColorEffectManager::changeColor(Led &led, ColorEffectState &state) {
     ] = state.params;
 
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 10.f / 255.f;
-    const byte value = _apply_period(state.current_time_factor, 256);
+    const byte value = apply_period(state.current_time_factor, 256);
 
     auto color = ColorFromPalette(*palette, value, 255, LINEARBLEND);
     led.fillSolid(color);
@@ -86,7 +86,7 @@ void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
     ] = state.params;
 
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * (speed - 128) / 8.f / 128.f;
-    const auto time_factor = _apply_period(state.current_time_factor, 256);
+    const auto time_factor = apply_period(state.current_time_factor, 256);
 
     auto scale_factor = ((float) scale * 1.9f + 25) / (float) led.width();
 

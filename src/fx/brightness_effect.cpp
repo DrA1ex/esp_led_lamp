@@ -7,7 +7,8 @@ BrightnessEffectManager::BrightnessEffectManager() {
             {BrightnessEffectEnum::FIXED,       "Fixed",       fixed},
             {BrightnessEffectEnum::PULSE,       "Pulse",       pulse},
             {BrightnessEffectEnum::WAVE,        "Wave",        wave},
-            {BrightnessEffectEnum::DOUBLE_WAVE, "Double Wave", double_wave}
+            {BrightnessEffectEnum::DOUBLE_WAVE, "Double Wave", double_wave},
+            {BrightnessEffectEnum::OSCILLATOR,  "Oscillator",  oscillator},
     };
 
     _config.count = _config.entries.size();
@@ -29,27 +30,35 @@ void BrightnessEffectManager::fixed(Led &led, BrightnessEffectState &state) {}
 void BrightnessEffectManager::pulse(Led &led, BrightnessEffectState &state) {
     const auto &[level] = state.params;
 
-    state.current_time_factor = state.prev_time_factor + (float) state.delta() * level / 2.f / 255.f;
-    const auto value = _apply_period(state.current_time_factor, 768);
+    const auto phase = _pulse_phase(state, level);
+    auto brightness = ease8InOutQuad(phase);
+
+    led.fadeToBlack(255 - brightness);
+}
+
+uint8_t BrightnessEffectManager::_pulse_phase(BrightnessEffectState &state, uint8_t scale, uint16_t offset) {
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * scale / 2.f / 255.f;
+    const auto value = (offset + apply_period(state.current_time_factor, 1024)) % 1024;
 
     byte phase;
-    if (value < 256) { // Fade out
+    if (value < 256) {              // Fade out
         phase = 255 - value;
-    } else if (value < 512) { // Fade in
-        phase = value - 256;
-    } else { // Active out
+    } else if (value < 512) {       // Inactive
+        phase = 0;
+    } else if (value < 768) {       // Fade in
+        phase = value - 512;
+    } else {                        // Active
         phase = 255;
     }
 
-    auto brightness = ease8InOutQuad(phase);
-    led.fadeToBlack(255 - brightness);
+    return phase;
 }
 
 void BrightnessEffectManager::wave(Led &led, BrightnessEffectState &state) {
     const auto &[level] = state.params;
 
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * (level - 128) / 2.f / 255.f;
-    const auto value = _apply_period(state.current_time_factor, 256);
+    const auto value = apply_period(state.current_time_factor, 256);
 
     for (int i = 0; i < led.width(); ++i) {
         const auto brightness = cubicwave8((value + i * 6) % 256);
@@ -64,8 +73,8 @@ void BrightnessEffectManager::wave(Led &led, BrightnessEffectState &state) {
 void BrightnessEffectManager::double_wave(Led &led, BrightnessEffectState &state) {
     const auto &[level] = state.params;
 
-    state.current_time_factor = state.prev_time_factor + (float) state.delta() * level / 2.f / 255.f;
-    const auto value = _apply_period(state.current_time_factor, 512);
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (level - 128) / 255.f;
+    const auto value = apply_period(state.current_time_factor, 512);
 
     const auto &width = led.width();
     const int half_width = ceil(width / 2.0f);
@@ -106,6 +115,28 @@ void BrightnessEffectManager::eco(Led &led, byte level) {
                 if (invert) led.setPixel(i, j, CRGB::Black);
                 next_index += period;
             }
+        }
+    }
+}
+
+void BrightnessEffectManager::oscillator(Led &led, BrightnessEffectState &state) {
+    const auto &[level] = state.params;
+
+    const auto phase1 = _pulse_phase(state, 32);
+    const auto phase2 = _pulse_phase(state, 32, 512);
+
+    const auto brightness1 = ease8InOutQuad(phase1);
+    const auto brightness2 = ease8InOutQuad(phase2);
+
+    const auto period = max(1, led.count() * max<int>(1, level) / 255);
+
+    int k = 0;
+    for (int i = 0; i < led.width(); ++i) {
+        for (int j = 0; j < led.height(); ++j) {
+            const auto group = (k++ / period) % 2;
+
+            auto &color = led.getPixel(i, j);
+            color.fadeToBlackBy(group ? brightness1 : brightness2);
         }
     }
 }

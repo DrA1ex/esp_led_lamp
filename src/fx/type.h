@@ -90,12 +90,12 @@ protected:
         prev = current;
     }
 
-    uint32_t static _apply_period(float &value, uint32_t period) {
+    uint32_t static apply_period(float &value, uint32_t period) {
         if (value >= period) value -= period;
         return (uint32_t) value % period;
     }
 
-    virtual void _reset_state()  {
+    virtual void reset_state() {
         _state.prev_time_factor = 0;
         _state.current_time_factor = 0;
     };
@@ -111,7 +111,7 @@ public:
 
         if (_fx != next_fx) {
             _fx = next_fx;
-            _reset_state();
+            reset_state();
         }
     };
 
