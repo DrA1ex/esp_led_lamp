@@ -15,6 +15,9 @@
 #define UDP_PORT                                (1423)
 #define UDP_MAX_PACKET_SIZE                     (260u)
 
+#define WS_MAX_PACKET_SIZE                      (260u)
+#define WS_MAX_PACKET_QUEUE                     (10u)
+
 #define PACKET_SIGNATURE                        ((uint16_t) 0xAA34)
 
 #define MDNS_NAME                               "esp_lamp"
