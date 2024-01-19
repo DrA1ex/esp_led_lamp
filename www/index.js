@@ -78,6 +78,7 @@ function request(cmd, buffer = null) {
     return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
             window.__app._request = null;
+            StatusElement.innerText = "NOT CONNECTED";
             StatusElement.style.visibility = "visible";
             ws.close();
 
