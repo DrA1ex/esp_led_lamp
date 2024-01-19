@@ -17,7 +17,7 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
     if (length < header_size) {
         D_PRINTF("Wrong packet size. Expected at least: %u\n", header_size);
 
-        return Response::code(ResponseCode::BAD_REQUEST);
+        return Response::code(ResponseCode::PACKET_LENGTH_EXCEEDED);
     }
 
     auto *packet = (PacketHeader *) buffer;
@@ -275,6 +275,12 @@ const char *Response::code_string() {
 
         case ResponseCode::BAD_COMMAND:
             return "BAD COMMAND";
+
+        case ResponseCode::TOO_MANY_REQUEST:
+            return "TOO MANY REQUESTS";
+
+        case ResponseCode::PACKET_LENGTH_EXCEEDED:
+            return "PACKET LENGTH EXCEEDED";
 
         case ResponseCode::INTERNAL_ERROR:
         default:

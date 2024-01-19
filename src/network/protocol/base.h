@@ -15,6 +15,10 @@ enum class ResponseCode : uint8_t {
     OK,
     BAD_REQUEST,
     BAD_COMMAND,
+
+    TOO_MANY_REQUEST,
+    PACKET_LENGTH_EXCEEDED,
+
     INTERNAL_ERROR
 };
 
