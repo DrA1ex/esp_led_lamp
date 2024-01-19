@@ -453,17 +453,6 @@ async function initialize() {
         createWheel(config.light, 255, PacketType.LIGHT),
     );
 
-    startSection("Color calibration").append(
-        createTitle("Red"),
-        createWheel((config.colorCorrection & 0xff0000) >> 16, 255, PacketType.CALIBRATION_R),
-
-        createTitle("Green"),
-        createWheel((config.colorCorrection & 0xff00) >> 8, 255, PacketType.CALIBRATION_G),
-
-        createTitle("Blue"),
-        createWheel(config.colorCorrection & 0xff, 255, PacketType.CALIBRATION_B)
-    );
-
     startSection("Night Mode").append(
         createTitle("Enabled"),
         createTrigger(config.nightMode.enabled, PacketType.NIGHT_MODE_ENABLED),
@@ -482,6 +471,17 @@ async function initialize() {
 
         createTitle("Switch Interval"),
         createInput("time", config.nightMode.switchInterval, PacketType.NIGHT_MODE_INTERVAL, 2, "Uint16"),
+    );
+
+    startSection("Color calibration").append(
+        createTitle("Red"),
+        createWheel((config.colorCorrection & 0xff0000) >> 16, 255, PacketType.CALIBRATION_R),
+
+        createTitle("Green"),
+        createWheel((config.colorCorrection & 0xff00) >> 8, 255, PacketType.CALIBRATION_G),
+
+        createTitle("Blue"),
+        createWheel(config.colorCorrection & 0xff, 255, PacketType.CALIBRATION_B)
     );
 
     window.__app.config = {
