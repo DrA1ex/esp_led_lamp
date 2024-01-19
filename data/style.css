@@ -1,3 +1,28 @@
+@media screen and (min-width: 1024px) and (max-width: 1440px) {
+    html {
+        font-size: 18px;
+    }
+}
+
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    html {
+        font-size: 10px;
+    }
+}
+
+@media screen and (min-resolution: 280dpi) {
+    html {
+        font-size: 12px;
+    }
+}
+
+
 html {
     --control-color-active: #1d2030;
     --control-color-accent: #f97601;
@@ -6,8 +31,6 @@ html {
 
     margin: 0 auto;
     text-align: center;
-
-    font-size: 12px;
 }
 
 body {
@@ -32,6 +55,7 @@ h1, h2, h3 {
     text-transform: uppercase;
     font-weight: 300;
     color: #fff;
+    letter-spacing: 0.25rem;
 }
 
 h1 {
