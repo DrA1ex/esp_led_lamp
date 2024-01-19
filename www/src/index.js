@@ -417,84 +417,113 @@ const PacketType = {
     RESTART: 222,
 };
 
+const Config = [{
+    section: "General", props: [
+        {key: "power", title: "Power", type: "trigger", cmd: [PacketType.POWER_ON, PacketType.POWER_OFF]},
+        {key: "maxBrightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.MAX_BRIGHTNESS},
+        {key: "eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.ECO_LEVEL},
+    ],
+}, {
+    section: "FX", props: [
+        {key: "palette", title: "Palette", type: "select", list: "palette", cmd: PacketType.PALETTE},
+        {key: "colorEffect", title: "Color Effect", type: "select", list: "colorEffects", cmd: PacketType.COLOR_EFFECT},
+        {key: "brightnessEffect", title: "Brightness Effect", type: "select", list: "brightnessEffects", cmd: PacketType.BRIGHTNESS_EFFECT},
+    ],
+}, {
+    section: "Fine Tune", props: [
+        {key: "speed", title: "Speed", type: "wheel", limit: 255, cmd: PacketType.SPEED},
+        {key: "scale", title: "Scale", type: "wheel", limit: 255, cmd: PacketType.SCALE},
+        {key: "light", title: "Light", type: "wheel", limit: 255, cmd: PacketType.LIGHT},
+    ],
+}, {
+    section: "Night Mode", props: [
+        {key: "nightMode.enabled", title: "Enabled", type: "trigger", cmd: PacketType.NIGHT_MODE_ENABLED},
+        {key: "nightMode.brightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_BRIGHTNESS},
+        {key: "nightMode.eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_ECO},
+        {key: "nightMode.startTime", title: "Start Time", type: "time", size: 4, kind: "Uint32", cmd: PacketType.NIGHT_MODE_START},
+        {key: "nightMode.endTime", title: "End Time", type: "time", size: 4, kind: "Uint32", cmd: PacketType.NIGHT_MODE_END},
+        {key: "nightMode.switchInterval", title: "Switch Interval", type: "time", size: 2, kind: "Uint16", cmd: PacketType.NIGHT_MODE_INTERVAL},
+    ]
+}, {
+    section: "Calibration", props: [
+        {
+            key: "colorCorrection",
+            title: "Red",
+            transform: (v) => (v & 0xff0000) >> 16,
+            type: "wheel",
+            limit: 255,
+            cmd: PacketType.CALIBRATION_R
+        },
+        {
+            key: "colorCorrection",
+            title: "Green",
+            transform: (v) => (v & 0xff00) >> 8,
+            type: "wheel",
+            limit: 255,
+            cmd: PacketType.CALIBRATION_G
+        },
+        {
+            key: "colorCorrection",
+            title: "Blue",
+            transform: (v) => v & 0xff,
+            type: "wheel",
+            limit: 255,
+            cmd: PacketType.CALIBRATION_B
+        },
+    ]
+}]
+
 async function initialize() {
     const config = await request_config();
     console.log("Config", config);
 
-    const palette = await request_fx(PacketType.PALETTE_LIST);
-    const colorEffects = await request_fx(PacketType.COLOR_EFFECT_LIST);
-    const brightnessEffects = await request_fx(PacketType.BRIGHTNESS_EFFECT_LIST);
+    const Lists = {
+        palette: await request_fx(PacketType.PALETTE_LIST),
+        colorEffects: await request_fx(PacketType.COLOR_EFFECT_LIST),
+        brightnessEffects: await request_fx(PacketType.BRIGHTNESS_EFFECT_LIST),
+    }
 
+    for (const cfg of Config) {
+        const section = startSection(cfg.section);
 
-    startSection("General").append(
-        createTitle("Power"),
-        createTrigger(config.power, PacketType.POWER_ON, PacketType.POWER_OFF),
+        for (const prop of cfg.props) {
+            section.appendChild(
+                createTitle(prop.title)
+            );
 
-        createTitle("Brightness"),
-        createWheel(config.maxBrightness, 255, PacketType.MAX_BRIGHTNESS),
+            let value = prop.key.split(".")
+                .reduce((obj, key) => obj[key], config);
 
-        createTitle("ECO"),
-        createWheel(config.eco, 255, PacketType.ECO_LEVEL),
-    );
+            if (prop.transform) {
+                value = prop.transform(value);
+            }
 
-    startSection("FX").append(
-        createTitle("Palette"),
-        createSelect(palette, config.palette, PacketType.PALETTE),
+            let control = null;
+            switch (prop.type) {
+                case "trigger":
+                    control = createTrigger(value, ...(Array.isArray(prop.cmd) ? prop.cmd : [prop.cmd]));
+                    break;
 
-        createTitle("Color Effect"),
-        createSelect(colorEffects, config.colorEffect, PacketType.COLOR_EFFECT),
+                case "wheel":
+                    control = createWheel(value, prop.limit, prop.cmd);
+                    break;
 
-        createTitle("Brightness Effect"),
-        createSelect(brightnessEffects, config.brightnessEffect, PacketType.BRIGHTNESS_EFFECT),
-    );
+                case "time":
+                    control = createInput("time", value, prop.cmd, prop.size, prop.kind);
+                    break;
 
-    startSection("Fine Tune").append(
-        createTitle("Speed"),
-        createWheel(config.speed, 255, PacketType.SPEED),
+                case "select":
+                    control = createSelect(Lists[prop.list], value, prop.cmd);
+                    break;
+            }
 
-        createTitle("Scale"),
-        createWheel(config.scale, 255, PacketType.SCALE),
-
-        createTitle("Light"),
-        createWheel(config.light, 255, PacketType.LIGHT),
-    );
-
-    startSection("Night Mode").append(
-        createTitle("Enabled"),
-        createTrigger(config.nightMode.enabled, PacketType.NIGHT_MODE_ENABLED),
-
-        createTitle("Brightness"),
-        createWheel(config.nightMode.brightness, 255, PacketType.NIGHT_MODE_BRIGHTNESS),
-
-        createTitle("ECO"),
-        createWheel(config.nightMode.eco, 255, PacketType.NIGHT_MODE_ECO),
-
-        createTitle("Start Time"),
-        createInput("time", config.nightMode.startTime, PacketType.NIGHT_MODE_START, 4, "Uint32"),
-
-        createTitle("End Time"),
-        createInput("time", config.nightMode.endTime, PacketType.NIGHT_MODE_END, 4, "Uint32"),
-
-        createTitle("Switch Interval"),
-        createInput("time", config.nightMode.switchInterval, PacketType.NIGHT_MODE_INTERVAL, 2, "Uint16"),
-    );
-
-    startSection("Color calibration").append(
-        createTitle("Red"),
-        createWheel((config.colorCorrection & 0xff0000) >> 16, 255, PacketType.CALIBRATION_R),
-
-        createTitle("Green"),
-        createWheel((config.colorCorrection & 0xff00) >> 8, 255, PacketType.CALIBRATION_G),
-
-        createTitle("Blue"),
-        createWheel(config.colorCorrection & 0xff, 255, PacketType.CALIBRATION_B)
-    );
+            if (control) section.appendChild(control);
+        }
+    }
 
     window.__app.config = {
         config,
-        palette,
-        colorEffects,
-        brightnessEffects
+        lists: Lists
     };
 }
 
