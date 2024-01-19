@@ -1,0 +1,11 @@
+{
+  "name": "www",
+  "author": "DrA1ex",
+  "scripts": {
+    "build": "rm -rf ./data/ && esbuild index.js --bundle --format=esm --outdir=../data --minify && npm run static",
+    "static": "cp ./index.html ../data/ && cp ./style.css ../data/"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.11"
+  }
+}
