@@ -65,12 +65,12 @@ h1 {
 
 h2 {
     font-size: 2rem;
-    margin: 2rem auto 1rem auto;
+    margin: 2rem auto 1rem;
 }
 
 h3 {
     font-size: 1.5rem;
-    margin: 0 auto 2rem auto;
+    margin: 0 auto 2rem;
 }
 
 .button, .input {
@@ -83,6 +83,7 @@ h3 {
     color: #fff;
     padding: 1rem;
     font-size: 2rem;
+    font-weight: 300;
     margin: 0 auto 2rem;
     text-align: center;
     cursor: pointer;
@@ -137,6 +138,7 @@ h3 {
 
     font-size: 2rem;
     font-family: inherit;
+    font-weight: 300;
     text-align-last: center;
 
     overflow: hidden !important;
@@ -158,9 +160,9 @@ h3 {
     pointer-events: none;
     position: absolute;
     left: 0;
-    top: 4rem;
     bottom: 0;
     right: calc(100% * (1 - var(--pos)));
+    height: 0.25rem;
     background: var(--control-color-accent);
     border-radius: 0 0 0.75rem 0.75rem;
     z-index: -1;
@@ -170,6 +172,10 @@ h3 {
     padding: 1rem;
     scroll-snap-align: center;
     user-select: none;
+}
+
+.wheel .fraction {
+    font-size: 0.5em;
 }
 
 .input[type="time"] {

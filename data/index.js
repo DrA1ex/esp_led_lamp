@@ -1,4 +1,3 @@
-const LoaderElement = document.getElementById("loader");
 const StatusElement = document.getElementById("status");
 
 const host = window.location.hostname;
@@ -21,7 +20,6 @@ function initWebSocket() {
             await initialize();
         }
 
-        LoaderElement.style.visibility = "collapse";
         StatusElement.style.visibility = "collapse";
     };
 
@@ -34,6 +32,7 @@ function initWebSocket() {
         console.log("Connection lost");
         window.__app.connected = false;
 
+        StatusElement.innerText = "NOT CONNECTED";
         StatusElement.style.visibility = "visible";
 
         setTimeout(initWebSocket, window.__app.connectionTimeout);
@@ -285,7 +284,10 @@ function createWheel(value, limit, cmd) {
     control.__busy = false;
     control.__value = value;
     control.__pos = (value / limit);
-    control.innerText = (control.__pos * 100).toFixed(0);
+
+    const textValue = (control.__pos * 100).toFixed(1).split(".");
+    control.innerHTML = textValue[0] + `<span class='fraction'>.${textValue[1]}</span>`;
+
     control.style.setProperty("--pos", control.__pos);
 
     const props = {margin: 20};
@@ -312,7 +314,10 @@ function createWheel(value, limit, cmd) {
 
         control.__pos = Math.max(0, Math.min(1, pos));
         control.__value = Math.round(control.__pos * limit);
-        control.innerText = (control.__pos * 100).toFixed(0);
+
+        const textValue = (control.__pos * 100).toFixed(1).split(".");
+        control.innerHTML = textValue[0] + `<span class='fraction'>.${textValue[1]}</span>`;
+
         control.style.setProperty("--pos", control.__pos.toString());
 
         if (!control.__busy) {
