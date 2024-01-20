@@ -18,6 +18,8 @@ ws.subscribe(this, WebSocketInteraction.CONNECTED, async () => {
     if (!initialized) {
         initialized = true;
         await initialize();
+    } else {
+        await refresh();
     }
 });
 
@@ -101,9 +103,13 @@ function createSelect(list, value, cmd) {
         select.appendChild(opt);
     }
 
-    select.value = value;
-    select.__value = value;
+    control.__setValue = (v) => {
+        select.value = v;
+        select.__value = v;
+    }
+
     select.__busy = false;
+    control.__setValue(value);
 
     select.onchange = async () => {
         if (select.__busy) return;
@@ -159,17 +165,20 @@ function createInput(type, value, cmd, size, valueType) {
     control.type = type;
     control.__busy = false;
 
-    switch (type) {
-        case "time":
-            control.valueAsNumber = value * 1000;
-            control.onfocus = () => control.showPicker();
-            break;
+    control.__setValue = (v) => {
+        switch (type) {
+            case "time":
+                control.valueAsNumber = v * 1000;
+                control.onfocus = () => control.showPicker();
+                break;
 
-        default:
-            control.value = value.toString();
+            default:
+                control.value = v.toString();
+        }
+        control.__value = control.value;
     }
 
-    control.__value = control.value;
+    control.__setValue(value);
 
     control.onchange = async () => {
         if (control.__busy) return;
@@ -214,7 +223,7 @@ function createWheel(value, limit, cmd) {
     control.classList.add("input");
     control.classList.add("wheel");
 
-    function _applyValue(v) {
+    control.__setValue = (v) => {
         control.__value = v;
         control.__pos = (v / limit);
 
@@ -234,7 +243,7 @@ function createWheel(value, limit, cmd) {
         control.style.setProperty("--pos", control.__pos);
     }
 
-    _applyValue(value);
+    control.__setValue(value);
     control.__busy = false;
 
     const props = {margin: 20};
@@ -264,7 +273,7 @@ function createWheel(value, limit, cmd) {
         const newPos = Math.max(0, Math.min(1, pos));
         const newValue = Math.round(newPos * limit);
 
-        _applyValue(newValue);
+        control.__setValue(newValue);
 
         if (!control.__busy) {
             control.__busy = true;
@@ -272,7 +281,7 @@ function createWheel(value, limit, cmd) {
                 await ws.request(cmd, Uint8Array.of(control.__value).buffer);
             } catch (e) {
                 console.error("Value save error", e);
-                _applyValue(oldValue);
+                control.__setValue(oldValue);
             } finally {
                 control.__busy = false;
             }
@@ -293,22 +302,28 @@ function createWheel(value, limit, cmd) {
 function createTrigger(value, cmdOn, cmdOff = null) {
     const control = document.createElement("a");
     control.classList.add("button");
-    control.setAttribute("data-value", value.toString());
+
+    control.__setValue = (v) => {
+        control.setAttribute("data-value", v.toString());
+    }
+
+    control.__setValue(value);
+
     control.onclick = async () => {
         const value = control.getAttribute("data-value") === "true";
         const nextValue = !value;
 
         try {
+            control.__setValue(nextValue);
+
             if (cmdOff) {
                 await ws.request(nextValue ? cmdOn : cmdOff);
             } else {
                 await ws.request(cmdOn, Uint8Array.of(nextValue ? 1 : 0).buffer);
             }
-
-            control.setAttribute("data-value", nextValue.toString());
         } catch (e) {
             console.error("Value save error", e);
-            control.setAttribute("data-value", value.toString());
+            control.__setValue(value);
         }
     };
 
@@ -334,6 +349,13 @@ function createTitle(title) {
     return titleElement;
 }
 
+function _getValue(config, prop) {
+    let value = prop.key.split(".")
+        .reduce((obj, key) => obj[key], config);
+
+    return prop.transform ? prop.transform(value) : value;
+}
+
 async function initialize() {
     const config = await request_config();
     console.log("Config", config);
@@ -345,21 +367,18 @@ async function initialize() {
     ])
 
     const Lists = {palette, colorEffects, brightnessEffects};
+    const App = {};
 
     for (const cfg of PropertyConfig) {
         const section = startSection(cfg.section);
 
+        App[cfg.section] = {section, cfg, props: {}};
+
         for (const prop of cfg.props) {
-            section.appendChild(
-                createTitle(prop.title)
-            );
+            const title = createTitle(prop.title);
+            section.appendChild(title);
 
-            let value = prop.key.split(".")
-                .reduce((obj, key) => obj[key], config);
-
-            if (prop.transform) {
-                value = prop.transform(value);
-            }
+            const value = _getValue(config, prop);
 
             let control = null;
             switch (prop.type) {
@@ -378,11 +397,36 @@ async function initialize() {
                 case "select":
                     control = createSelect(Lists[prop.list], value, prop.cmd);
                     break;
+
+                default:
+                    console.error("Invalid prop type.", prop)
             }
 
             if (control) section.appendChild(control);
+
+            App[cfg.section].props[prop.key] = {cfg: prop, title, control};
         }
     }
+
+    window.__app = {
+        App,
+        Config: config,
+        Lists
+    };
+}
+
+async function refresh() {
+    const config = await request_config();
+    console.log("New config", config);
+
+    for (const cfg of PropertyConfig) {
+        const section = window.__app.App[cfg.section];
+        for (const prop of cfg.props) {
+            section.props[prop.key].control.__setValue(_getValue(config, prop));
+        }
+    }
+
+    window.__app.Config = config;
 }
 
 ws.begin();

@@ -273,7 +273,7 @@ p {
     text-transform: uppercase;
 
     color: white;
-    background: #2b2d3e;
+    background: var(--control-color-accent);
 }
 
 @keyframes saving {
