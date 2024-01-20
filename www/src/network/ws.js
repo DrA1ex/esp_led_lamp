@@ -35,7 +35,7 @@ export class WebSocketInteraction extends EventEmitter {
 
     /**
      * @param {PacketType} cmd
-     * @param {Uint8Array} [buffer=null]
+     * @param {ArrayBuffer} [buffer=null]
      * @returns {Promise<ArrayBuffer|*>}
      */
     async request(cmd, buffer = null) {

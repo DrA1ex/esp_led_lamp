@@ -1,6 +1,7 @@
+import {PropertyConfig} from "./config.js";
 import {PacketType} from "./network/cmd.js";
 import {WebSocketInteraction} from "./network/ws.js";
-import {PropertyConfig} from "./config.js";
+import {BinaryParser} from "./misc/binary_parser.js";
 
 const StatusElement = document.getElementById("status");
 
@@ -27,26 +28,16 @@ ws.subscribe(this, WebSocketInteraction.DISCONNECTED, () => {
 
 async function request_fx(cmd) {
     const buffer = await ws.request(cmd);
-    const view = new DataView(buffer);
+    const parser = new BinaryParser(buffer);
 
-    let offset = 0;
-    const count = view.getUint8(offset++);
+    const count = parser.readUInt8();
 
     const result = new Array(count);
     for (let i = 0; i < count; i++) {
-        const code = view.getUint8(offset++);
-        let nameLength = 0;
-
-        while (view.getUint8(offset + nameLength) !== 0) {
-            ++nameLength;
-        }
-
         result[i] = {
-            code: code,
-            name: new TextDecoder().decode(buffer.slice(offset, offset + nameLength))
+            code: parser.readUInt8(),
+            name: parser.readNullTerminatedString()
         }
-
-        offset += nameLength + 1;
     }
 
     return result;
@@ -54,50 +45,40 @@ async function request_fx(cmd) {
 
 async function request_config() {
     const buffer = await ws.request(PacketType.GET_CONFIG);
-    const view = new DataView(buffer);
+    const parser = new BinaryParser(buffer);
 
-    let offset = 0;
-
-    const size = view.getUint8(offset++);
+    const size = parser.readUInt8();
     if (size < 26) {
         console.error("Invalid config response");
         return {};
     }
 
-    const result = {
-        power: view.getUint8(offset++) === 1,
+    return {
+        power: parser.readBoolean(),
 
-        maxBrightness: view.getUint8(offset++),
+        maxBrightness: parser.readUInt8(),
 
-        speed: view.getUint8(offset++),
-        scale: view.getUint8(offset++),
-        light: view.getUint8(offset++),
-        eco: view.getUint8(offset++),
+        speed: parser.readUInt8(),
+        scale: parser.readUInt8(),
+        light: parser.readUInt8(),
+        eco: parser.readUInt8(),
 
-        palette: view.getUint8(offset++),
-        colorEffect: view.getUint8(offset++),
-        brightnessEffect: view.getUint8(offset++),
-    }
+        palette: parser.readUInt8(),
+        colorEffect: parser.readUInt8(),
+        brightnessEffect: parser.readUInt8(),
 
-    result.colorCorrection = view.getUint32(offset, true);
-    offset += 4;
+        colorCorrection: parser.readUInt32(),
 
-    result.nightMode = {
-        enabled: view.getUint8(offset++) === 1,
-        brightness: view.getUint8(offset++),
-        eco: view.getUint8(offset++),
-    }
+        nightMode: {
+            enabled: parser.readBoolean(),
+            brightness: parser.readUInt8(),
+            eco: parser.readUInt8(),
 
-    result.nightMode.startTime = view.getUint32(offset, true);
-    offset += 4;
-
-    result.nightMode.endTime = view.getUint32(offset, true);
-    offset += 4;
-
-    result.nightMode.switchInterval = view.getUint16(offset, true);
-    offset += 2;
-
-    return result;
+            startTime: parser.readUInt32(),
+            endTime: parser.readUInt32(),
+            switchInterval: parser.readUInt16(),
+        }
+    };
 }
 
 function createSelect(list, value, cmd) {
@@ -121,8 +102,26 @@ function createSelect(list, value, cmd) {
     }
 
     select.value = value;
+    select.__value = value;
+    select.__busy = false;
+
     select.onchange = async () => {
-        await ws.request(cmd, Uint8Array.of(Number.parseInt(select.value)).buffer);
+        if (select.__busy) return;
+
+        const savingValue = select.value;
+
+        try {
+            select.__busy = true;
+            await ws.request(cmd, Uint8Array.of(Number.parseInt(savingValue)).buffer);
+
+            select.value = savingValue;
+            select.__value = select.value;
+        } catch (e) {
+            console.error("Value save error", e);
+            select.value = select.__value;
+        } finally {
+            select.__busy = false;
+        }
     }
 
     control.onclick = (e => {
@@ -170,6 +169,8 @@ function createInput(type, value, cmd, size, valueType) {
             control.value = value.toString();
     }
 
+    control.__value = control.value;
+
     control.onchange = async () => {
         if (control.__busy) return;
 
@@ -192,7 +193,12 @@ function createInput(type, value, cmd, size, valueType) {
                 control.setAttribute("data-saving", "true");
 
                 view["set" + valueType](0, parsedValue, true);
-                await ws.request(cmd, data);
+                await ws.request(cmd, data.buffer);
+
+                control.__value = control.value;
+            } catch (e) {
+                console.error("Value save error", e);
+                control.value = control.__value;
             } finally {
                 control.__busy = false;
                 control.setAttribute("data-saving", "false");
@@ -208,14 +214,28 @@ function createWheel(value, limit, cmd) {
     control.classList.add("input");
     control.classList.add("wheel");
 
+    function _applyValue(v) {
+        control.__value = v;
+        control.__pos = (v / limit);
+
+        const percent = (control.__pos * 100);
+
+        if (percent === 0 || percent === 100) {
+            control.innerText = percent.toString();
+        } else {
+            const textValue = percent.toFixed(1).split(".");
+            if (textValue[1] === "0") {
+                control.innerText = textValue[0];
+            } else {
+                control.innerHTML = textValue[0] + `<span class='fraction'>.${textValue[1]}</span>`;
+            }
+        }
+
+        control.style.setProperty("--pos", control.__pos);
+    }
+
+    _applyValue(value);
     control.__busy = false;
-    control.__value = value;
-    control.__pos = (value / limit);
-
-    const textValue = (control.__pos * 100).toFixed(1).split(".");
-    control.innerHTML = textValue[0] + `<span class='fraction'>.${textValue[1]}</span>`;
-
-    control.style.setProperty("--pos", control.__pos);
 
     const props = {margin: 20};
     control.onmousedown = control.ontouchstart = (e) => {
@@ -239,18 +259,20 @@ function createWheel(value, limit, cmd) {
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const pos = (clientX - props.left) / props.width;
 
-        control.__pos = Math.max(0, Math.min(1, pos));
-        control.__value = Math.round(control.__pos * limit);
+        const oldValue = control.__value;
 
-        const textValue = (control.__pos * 100).toFixed(1).split(".");
-        control.innerHTML = textValue[0] + `<span class='fraction'>.${textValue[1]}</span>`;
+        const newPos = Math.max(0, Math.min(1, pos));
+        const newValue = Math.round(newPos * limit);
 
-        control.style.setProperty("--pos", control.__pos.toString());
+        _applyValue(newValue);
 
         if (!control.__busy) {
             control.__busy = true;
             try {
-                await ws.request(cmd, Uint8Array.of(control.__value));
+                await ws.request(cmd, Uint8Array.of(control.__value).buffer);
+            } catch (e) {
+                console.error("Value save error", e);
+                _applyValue(oldValue);
             } finally {
                 control.__busy = false;
             }
@@ -276,13 +298,18 @@ function createTrigger(value, cmdOn, cmdOff = null) {
         const value = control.getAttribute("data-value") === "true";
         const nextValue = !value;
 
-        if (cmdOff) {
-            await ws.request(nextValue ? cmdOn : cmdOff);
-        } else {
-            await ws.request(cmdOn, Uint8Array.of(nextValue ? 1 : 0));
-        }
+        try {
+            if (cmdOff) {
+                await ws.request(nextValue ? cmdOn : cmdOff);
+            } else {
+                await ws.request(cmdOn, Uint8Array.of(nextValue ? 1 : 0).buffer);
+            }
 
-        control.setAttribute("data-value", nextValue.toString());
+            control.setAttribute("data-value", nextValue.toString());
+        } catch (e) {
+            console.error("Value save error", e);
+            control.setAttribute("data-value", value.toString());
+        }
     };
 
     return control;
