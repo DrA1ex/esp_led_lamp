@@ -2,6 +2,7 @@ import {PropertyConfig} from "./config.js";
 import {PacketType} from "./network/cmd.js";
 import {WebSocketInteraction} from "./network/ws.js";
 import {BinaryParser} from "./misc/binary_parser.js";
+import * as FunctionUtils from "./utils/function.js"
 
 const StatusElement = document.getElementById("status");
 
@@ -111,8 +112,8 @@ function createSelect(list, value, cmd) {
     select.__busy = false;
     control.__setValue(value);
 
-    select.onchange = async () => {
-        if (select.__busy) return;
+    select.onchange = FunctionUtils.throttle(async () => {
+        if (select.__busy) return FunctionUtils.ThrottleDelay;
 
         const savingValue = select.value;
 
@@ -128,7 +129,7 @@ function createSelect(list, value, cmd) {
         } finally {
             select.__busy = false;
         }
-    }
+    }, 1000 / 60);
 
     control.onclick = (e => {
         const selectRect = select.getBoundingClientRect()
@@ -180,8 +181,8 @@ function createInput(type, value, cmd, size, valueType) {
 
     control.__setValue(value);
 
-    control.onchange = async () => {
-        if (control.__busy) return;
+    control.onchange = FunctionUtils.throttle(async () => {
+        if (control.__busy) return FunctionUtils.ThrottleDelay;
 
         let parsedValue;
         switch (type) {
@@ -213,7 +214,7 @@ function createInput(type, value, cmd, size, valueType) {
                 control.setAttribute("data-saving", "false");
             }
         }
-    }
+    }, 1000 / 60);
 
     return control;
 }
@@ -262,6 +263,23 @@ function createWheel(value, limit, cmd) {
         e.preventDefault();
     }
 
+    const _sendRequest = FunctionUtils.throttle(async (newValue, oldValue) => {
+        if (!control.__busy) {
+            control.__busy = true;
+
+            try {
+                await ws.request(cmd, Uint8Array.of(newValue).buffer);
+            } catch (e) {
+                console.error("Value save error", e);
+                control.__setValue(oldValue);
+            } finally {
+                control.__busy = false;
+            }
+        } else {
+            return FunctionUtils.ThrottleDelay;
+        }
+    }, 1000 / 60);
+
     control.onmousemove = control.ontouchmove = async (e) => {
         if (!props.active) return;
 
@@ -274,21 +292,10 @@ function createWheel(value, limit, cmd) {
         const newValue = Math.round(newPos * limit);
 
         control.__setValue(newValue);
-
-        if (!control.__busy) {
-            control.__busy = true;
-            try {
-                await ws.request(cmd, Uint8Array.of(control.__value).buffer);
-            } catch (e) {
-                console.error("Value save error", e);
-                control.__setValue(oldValue);
-            } finally {
-                control.__busy = false;
-            }
-        }
-
         e.preventDefault();
-    }
+
+        await _sendRequest(newValue, oldValue);
+    };
 
     control.onmouseenter = (e) => {
         if (props.active && e.buttons === 0) {
