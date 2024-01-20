@@ -1,7 +1,16 @@
 import {PropertyConfig} from "./config.js";
+
+import {TriggerControl} from "./control/trigger.js";
+import {FrameControl} from "./control/frame.js";
+import {TextControl} from "./control/text.js";
+import {WheelControl} from "./control/wheel.js";
+import {SelectControl} from "./control/select.js";
+import {InputControl, InputType} from "./control/input.js";
+
 import {PacketType} from "./network/cmd.js";
 import {WebSocketInteraction} from "./network/ws.js";
 import {BinaryParser} from "./misc/binary_parser.js";
+
 import * as FunctionUtils from "./utils/function.js"
 
 const StatusElement = document.getElementById("status");
@@ -85,274 +94,125 @@ async function request_config() {
 }
 
 function createSelect(list, value, cmd) {
-    const control = document.createElement("div");
-    control.classList.add("input");
+    const control = new SelectControl(document.createElement("div"));
+    control.setOptions(list.map(v => ({key: v.code, label: v.name})));
+    control.setValue(value);
 
-    const select = document.createElement("select")
-    control.appendChild(select);
-
-    const dOpt = document.createElement("option");
-    dOpt.innerText = "...";
-    dOpt.setAttribute("hidden", "");
-    dOpt.setAttribute("disabled", "");
-    select.appendChild(dOpt);
-
-    for (let i = 0; i < list.length; i++) {
-        const opt = document.createElement("option");
-        opt.value = list[i].code;
-        opt.innerText = list[i].name;
-        select.appendChild(opt);
-    }
-
-    control.__setValue = (v) => {
-        select.value = v;
-        select.__value = v;
-    }
-
-    select.__busy = false;
-    control.__setValue(value);
-
-    select.onchange = FunctionUtils.throttle(async () => {
-        if (select.__busy) return FunctionUtils.ThrottleDelay;
-
-        const savingValue = select.value;
+    control.__busy = false;
+    control.setOnChange(FunctionUtils.throttle(async (value, prevValue) => {
+        if (control.__busy) return FunctionUtils.ThrottleDelay;
 
         try {
-            select.__busy = true;
-            await ws.request(cmd, Uint8Array.of(Number.parseInt(savingValue)).buffer);
-
-            select.value = savingValue;
-            select.__value = select.value;
+            control.__busy = true;
+            await ws.request(cmd, Uint8Array.of(Number.parseInt(value)).buffer);
         } catch (e) {
             console.error("Value save error", e);
-            select.value = select.__value;
+            control.select(prevValue);
         } finally {
-            select.__busy = false;
+            control.__busy = false;
         }
-    }, 1000 / 60);
-
-    control.onclick = (e => {
-        const selectRect = select.getBoundingClientRect()
-
-        let direction = 0;
-        if (e.clientX < selectRect.left) {
-            direction = -1;
-        } else if (e.clientX > selectRect.right) {
-            direction = 1;
-        }
-
-        if (direction === 0) return;
-
-        const value = Number.parseInt(select.value);
-        if (!Number.isFinite(value)) return;
-
-        let index = list.findIndex(e => e.code === value);
-        if (index >= 0) {
-            index = (list.length + index + direction) % list.length;
-            select.value = list[index].code.toString();
-
-            select.dispatchEvent(new Event("change"));
-        }
-
-        e.preventDefault();
-    });
+    }, 1000 / 60));
 
     return control;
 }
 
 function createInput(type, value, cmd, size, valueType) {
-    const control = document.createElement("input");
-    control.classList.add("input");
-    control.type = type;
+    const control = new InputControl(document.createElement("input"), type);
+
+    control.setValue(value);
+
     control.__busy = false;
-
-    control.__setValue = (v) => {
-        switch (type) {
-            case "time":
-                control.valueAsNumber = v * 1000;
-                control.onfocus = () => control.showPicker();
-                break;
-
-            default:
-                control.value = v.toString();
-        }
-        control.__value = control.value;
-    }
-
-    control.__setValue(value);
-
-    control.onchange = FunctionUtils.throttle(async () => {
+    control.setOnChange(FunctionUtils.throttle(async (value, oldValue) => {
         if (control.__busy) return FunctionUtils.ThrottleDelay;
+        if (!ws.connected) return;
 
-        let parsedValue;
-        switch (type) {
-            case "time":
-                parsedValue = control.valueAsNumber / 1000;
-                break;
-
-            default:
-                parsedValue = Number.parseInt(control.value);
-        }
-
-        if (Number.isFinite(parsedValue)) {
+        if (Number.isFinite(value)) {
             const data = new Uint8Array(size);
             const view = new DataView(data.buffer);
 
             try {
                 control.__busy = true;
-                control.setAttribute("data-saving", "true");
+                control.element.setAttribute("data-saving", "true");
 
-                view["set" + valueType](0, parsedValue, true);
+                view["set" + valueType](0, value, true);
                 await ws.request(cmd, data.buffer);
-
-                control.__value = control.value;
             } catch (e) {
                 console.error("Value save error", e);
-                control.value = control.__value;
+                control.setValue(oldValue)
             } finally {
                 control.__busy = false;
-                control.setAttribute("data-saving", "false");
+                control.element.setAttribute("data-saving", "false");
             }
         }
-    }, 1000 / 60);
+    }, 1000 / 60))
 
     return control;
 }
 
 function createWheel(value, limit, cmd) {
-    const control = document.createElement("div");
-    control.classList.add("input");
-    control.classList.add("wheel");
+    const control = new WheelControl(document.createElement("div"), limit);
 
-    control.__setValue = (v) => {
-        control.__value = v;
-        control.__pos = (v / limit);
-
-        const percent = (control.__pos * 100);
-
-        if (percent === 0 || percent === 100) {
-            control.innerText = percent.toString();
-        } else {
-            const textValue = percent.toFixed(1).split(".");
-            if (textValue[1] === "0") {
-                control.innerText = textValue[0];
-            } else {
-                control.innerHTML = textValue[0] + `<span class='fraction'>.${textValue[1]}</span>`;
-            }
-        }
-
-        control.style.setProperty("--pos", control.__pos);
-    }
-
-    control.__setValue(value);
+    control.setValue(value);
     control.__busy = false;
 
-    const props = {margin: 20};
-    control.onmousedown = control.ontouchstart = (e) => {
-        props.active = true;
-        props.width = control.getBoundingClientRect().width - props.margin * 2;
-        props.left = control.getBoundingClientRect().left + props.margin;
-
-        e.preventDefault();
-    }
-
-    control.onmouseup = control.ontouchend = (e) => {
-        if (!props.active) return;
-
-        props.active = false;
-        e.preventDefault();
-    }
-
     const _sendRequest = FunctionUtils.throttle(async (newValue, oldValue) => {
-        if (!control.__busy) {
-            control.__busy = true;
+        if (control.__busy) return FunctionUtils.ThrottleDelay;
+        if (!ws.connected) return;
 
-            try {
-                await ws.request(cmd, Uint8Array.of(newValue).buffer);
-            } catch (e) {
-                console.error("Value save error", e);
-                control.__setValue(oldValue);
-            } finally {
-                control.__busy = false;
-            }
-        } else {
-            return FunctionUtils.ThrottleDelay;
+        control.__busy = true;
+
+        try {
+            await ws.request(cmd, Uint8Array.of(newValue).buffer);
+        } catch (e) {
+            console.error("Value save error", e);
+            control.setValue(oldValue);
+        } finally {
+            control.__busy = false;
         }
     }, 1000 / 60);
 
-    control.onmousemove = control.ontouchmove = async (e) => {
-        if (!props.active) return;
-
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const pos = (clientX - props.left) / props.width;
-
-        const oldValue = control.__value;
-
-        const newPos = Math.max(0, Math.min(1, pos));
-        const newValue = Math.round(newPos * limit);
-
-        control.__setValue(newValue);
-        e.preventDefault();
-
-        await _sendRequest(newValue, oldValue);
-    };
-
-    control.onmouseenter = (e) => {
-        if (props.active && e.buttons === 0) {
-            props.active = false;
-        }
-    }
+    control.setOnChange(_sendRequest);
 
     return control;
 }
 
 function createTrigger(value, cmdOn, cmdOff = null) {
-    const control = document.createElement("a");
-    control.classList.add("button");
+    const control = new TriggerControl(document.createElement("a"));
+    control.setValue(value);
 
-    control.__setValue = (v) => {
-        control.setAttribute("data-value", v.toString());
-    }
-
-    control.__setValue(value);
-
-    control.onclick = async () => {
-        const value = control.getAttribute("data-value") === "true";
-        const nextValue = !value;
-
+    control.setOnChange(async (value, oldValue) => {
         try {
-            control.__setValue(nextValue);
-
             if (cmdOff) {
-                await ws.request(nextValue ? cmdOn : cmdOff);
+                await ws.request(value ? cmdOn : cmdOff);
             } else {
-                await ws.request(cmdOn, Uint8Array.of(nextValue ? 1 : 0).buffer);
+                await ws.request(cmdOn, Uint8Array.of(value ? 1 : 0).buffer);
             }
         } catch (e) {
             console.error("Value save error", e);
-            control.__setValue(value);
+            control.setValue(oldValue);
         }
-    };
+    });
 
     return control;
 }
 
 function startSection(title) {
-    const section = document.createElement("div");
-    section.classList.add("section");
+    const frame = new FrameControl(document.createElement("div"));
+    frame.addClass("section");
 
-    const sectionTitle = document.createElement("h3");
-    sectionTitle.innerText = title;
+    const sectionTitle = new TextControl(document.createElement("h3"));
+    sectionTitle.setText(title);
 
-    section.appendChild(sectionTitle);
-    document.body.appendChild(section);
+    frame.appendChild(sectionTitle);
+    document.body.appendChild(frame.element);
 
-    return section;
+    return frame;
 }
 
 function createTitle(title) {
-    const titleElement = document.createElement("p");
-    titleElement.innerText = title;
+    const titleElement = new TextControl(document.createElement("p"));
+    titleElement.setText(title);
+
     return titleElement;
 }
 
@@ -398,11 +258,15 @@ async function initialize() {
                     break;
 
                 case "time":
-                    control = createInput("time", value, prop.cmd, prop.size, prop.kind);
+                    control = createInput(InputType.time, value, prop.cmd, prop.size, prop.kind);
                     break;
 
                 case "select":
                     control = createSelect(Lists[prop.list], value, prop.cmd);
+                    break;
+
+                case "int":
+                    control = createInput(InputType.int, value, prop.cmd, prop.size, prop.kind);
                     break;
 
                 default:
@@ -429,7 +293,7 @@ async function refresh() {
     for (const cfg of PropertyConfig) {
         const section = window.__app.App[cfg.section];
         for (const prop of cfg.props) {
-            section.props[prop.key].control.__setValue(_getValue(config, prop));
+            section.props[prop.key].control.setValue(_getValue(config, prop));
         }
     }
 
