@@ -1,106 +1,32 @@
+import {PacketType} from "./network/cmd.js";
+import {WebSocketInteraction} from "./network/ws.js";
+import {PropertyConfig} from "./config.js";
+
 const StatusElement = document.getElementById("status");
 
 const host = window.location.hostname;
 const gateway = `ws://${host !== "localhost" ? host : "esp_lamp.local"}/ws`;
-window.__app = {};
 
-function initWebSocket() {
-    console.log("Connecting to", gateway);
-    const ws = new WebSocket(gateway);
+const ws = new WebSocketInteraction(gateway);
 
-    window.__app.ws = ws;
-    window.__app.connected = false;
+let initialized = false;
 
-    ws.onopen = async () => {
-        console.log("Connection established");
-        window.__app.connected = true;
-        window.__app.connectionTimeout = 0;
+ws.subscribe(this, WebSocketInteraction.CONNECTED, async () => {
+    StatusElement.style.visibility = "collapse";
 
-        if (!window.__app.config) {
-            await initialize();
-        }
-
-        StatusElement.style.visibility = "collapse";
-    };
-
-    ws.onclose = () => {
-        if (window.__app._request) {
-            window.__app._request.reject(new Error("Connection closed"));
-            window.__app._request = null;
-        }
-
-        console.log("Connection lost");
-        window.__app.connected = false;
-
-        StatusElement.innerText = "NOT CONNECTED";
-        StatusElement.style.visibility = "visible";
-
-        setTimeout(initWebSocket, window.__app.connectionTimeout);
-        window.__app.connectionTimeout += 1000;
+    if (!initialized) {
+        initialized = true;
+        await initialize();
     }
+});
 
-    ws.onerror = (e) => {
-        console.log("WebSocket error", e);
-        ws.close();
-    }
-
-    ws.onmessage = async (e) => {
-        if (!window.__app._request) {
-            console.error("Unexpected message", e);
-            return;
-        }
-
-        if (e.data instanceof Blob) {
-            const buffer = await e.data.arrayBuffer()
-            window.__app._request.resolve(buffer);
-        } else {
-            window.__app._request.resolve(e.data);
-        }
-
-        window.__app._request = null;
-    }
-}
-
-const SIGNATURE = [0x34, 0xaa];
-
-function request(cmd, buffer = null) {
-    const ws = window.__app.ws;
-    if (ws.readyState !== WebSocket.OPEN) {
-        throw new Error("Not connected");
-    }
-
-    if (buffer) {
-        ws.send(Uint8Array.of(...SIGNATURE, cmd, buffer.byteLength, ...new Uint8Array(buffer)));
-    } else {
-        ws.send(Uint8Array.of(...SIGNATURE, cmd, 0x00));
-    }
-
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-            window.__app._request = null;
-            StatusElement.innerText = "NOT CONNECTED";
-            StatusElement.style.visibility = "visible";
-            ws.close();
-
-            reject(new Error("Timeout"));
-        }, 1000);
-
-        function _ok(...args) {
-            clearTimeout(timer);
-            resolve(...args);
-        }
-
-        function _fail(...args) {
-            clearTimeout(timer);
-            reject(...args);
-        }
-
-        window.__app._request = {resolve: _ok, reject: _fail};
-    })
-}
+ws.subscribe(this, WebSocketInteraction.DISCONNECTED, () => {
+    StatusElement.innerText = "NOT CONNECTED";
+    StatusElement.style.visibility = "visible";
+});
 
 async function request_fx(cmd) {
-    const buffer = await request(cmd);
+    const buffer = await ws.request(cmd);
     const view = new DataView(buffer);
 
     let offset = 0;
@@ -127,7 +53,7 @@ async function request_fx(cmd) {
 }
 
 async function request_config() {
-    const buffer = await request(PacketType.GET_CONFIG);
+    const buffer = await ws.request(PacketType.GET_CONFIG);
     const view = new DataView(buffer);
 
     let offset = 0;
@@ -196,7 +122,7 @@ function createSelect(list, value, cmd) {
 
     select.value = value;
     select.onchange = async () => {
-        await request(cmd, Uint8Array.of(Number.parseInt(select.value)).buffer);
+        await ws.request(cmd, Uint8Array.of(Number.parseInt(select.value)).buffer);
     }
 
     control.onclick = (e => {
@@ -266,7 +192,7 @@ function createInput(type, value, cmd, size, valueType) {
                 control.setAttribute("data-saving", "true");
 
                 view["set" + valueType](0, parsedValue, true);
-                await request(cmd, data);
+                await ws.request(cmd, data);
             } finally {
                 control.__busy = false;
                 control.setAttribute("data-saving", "false");
@@ -324,7 +250,7 @@ function createWheel(value, limit, cmd) {
         if (!control.__busy) {
             control.__busy = true;
             try {
-                await request(cmd, Uint8Array.of(control.__value));
+                await ws.request(cmd, Uint8Array.of(control.__value));
             } finally {
                 control.__busy = false;
             }
@@ -351,9 +277,9 @@ function createTrigger(value, cmdOn, cmdOff = null) {
         const nextValue = !value;
 
         if (cmdOff) {
-            await request(nextValue ? cmdOn : cmdOff);
+            await ws.request(nextValue ? cmdOn : cmdOff);
         } else {
-            await request(cmdOn, Uint8Array.of(nextValue ? 1 : 0));
+            await ws.request(cmdOn, Uint8Array.of(nextValue ? 1 : 0));
         }
 
         control.setAttribute("data-value", nextValue.toString());
@@ -381,109 +307,19 @@ function createTitle(title) {
     return titleElement;
 }
 
-const PacketType = {
-    SPEED: 0,
-    SCALE: 1,
-    LIGHT: 2,
-
-    MAX_BRIGHTNESS: 20,
-    ECO_LEVEL: 21,
-
-    NIGHT_MODE_ENABLED: 40,
-    NIGHT_MODE_START: 41,
-    NIGHT_MODE_END: 42,
-    NIGHT_MODE_INTERVAL: 43,
-    NIGHT_MODE_BRIGHTNESS: 44,
-    NIGHT_MODE_ECO: 45,
-
-    PALETTE: 100,
-    COLOR_EFFECT: 101,
-    BRIGHTNESS_EFFECT: 102,
-
-    CALIBRATION_R: 120,
-    CALIBRATION_G: 121,
-    CALIBRATION_B: 122,
-
-    PALETTE_LIST: 140,
-    COLOR_EFFECT_LIST: 141,
-    BRIGHTNESS_EFFECT_LIST: 142,
-
-    GET_CONFIG: 160,
-
-    DISCOVERY: 200,
-
-    POWER_OFF: 220,
-    POWER_ON: 221,
-    RESTART: 222,
-};
-
-const Config = [{
-    section: "General", props: [
-        {key: "power", title: "Power", type: "trigger", cmd: [PacketType.POWER_ON, PacketType.POWER_OFF]},
-        {key: "maxBrightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.MAX_BRIGHTNESS},
-        {key: "eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.ECO_LEVEL},
-    ],
-}, {
-    section: "FX", props: [
-        {key: "palette", title: "Palette", type: "select", list: "palette", cmd: PacketType.PALETTE},
-        {key: "colorEffect", title: "Color Effect", type: "select", list: "colorEffects", cmd: PacketType.COLOR_EFFECT},
-        {key: "brightnessEffect", title: "Brightness Effect", type: "select", list: "brightnessEffects", cmd: PacketType.BRIGHTNESS_EFFECT},
-    ],
-}, {
-    section: "Fine Tune", props: [
-        {key: "speed", title: "Speed", type: "wheel", limit: 255, cmd: PacketType.SPEED},
-        {key: "scale", title: "Scale", type: "wheel", limit: 255, cmd: PacketType.SCALE},
-        {key: "light", title: "Light", type: "wheel", limit: 255, cmd: PacketType.LIGHT},
-    ],
-}, {
-    section: "Night Mode", props: [
-        {key: "nightMode.enabled", title: "Enabled", type: "trigger", cmd: PacketType.NIGHT_MODE_ENABLED},
-        {key: "nightMode.brightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_BRIGHTNESS},
-        {key: "nightMode.eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_ECO},
-        {key: "nightMode.startTime", title: "Start Time", type: "time", size: 4, kind: "Uint32", cmd: PacketType.NIGHT_MODE_START},
-        {key: "nightMode.endTime", title: "End Time", type: "time", size: 4, kind: "Uint32", cmd: PacketType.NIGHT_MODE_END},
-        {key: "nightMode.switchInterval", title: "Switch Interval", type: "time", size: 2, kind: "Uint16", cmd: PacketType.NIGHT_MODE_INTERVAL},
-    ]
-}, {
-    section: "Calibration", props: [
-        {
-            key: "colorCorrection",
-            title: "Red",
-            transform: (v) => (v & 0xff0000) >> 16,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_R
-        },
-        {
-            key: "colorCorrection",
-            title: "Green",
-            transform: (v) => (v & 0xff00) >> 8,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_G
-        },
-        {
-            key: "colorCorrection",
-            title: "Blue",
-            transform: (v) => v & 0xff,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_B
-        },
-    ]
-}]
-
 async function initialize() {
     const config = await request_config();
     console.log("Config", config);
 
-    const Lists = {
-        palette: await request_fx(PacketType.PALETTE_LIST),
-        colorEffects: await request_fx(PacketType.COLOR_EFFECT_LIST),
-        brightnessEffects: await request_fx(PacketType.BRIGHTNESS_EFFECT_LIST),
-    }
+    const [palette, colorEffects, brightnessEffects] = await Promise.all([
+        request_fx(PacketType.PALETTE_LIST),
+        request_fx(PacketType.COLOR_EFFECT_LIST),
+        request_fx(PacketType.BRIGHTNESS_EFFECT_LIST)
+    ])
 
-    for (const cfg of Config) {
+    const Lists = {palette, colorEffects, brightnessEffects};
+
+    for (const cfg of PropertyConfig) {
         const section = startSection(cfg.section);
 
         for (const prop of cfg.props) {
@@ -520,11 +356,6 @@ async function initialize() {
             if (control) section.appendChild(control);
         }
     }
-
-    window.__app.config = {
-        config,
-        lists: Lists
-    };
 }
 
-initWebSocket();
+ws.begin();
