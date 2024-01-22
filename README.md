@@ -1,14 +1,34 @@
-# ESP LED LAMP
-
-Beautifull ambient lighting for LED strips and matrices.
-
 ## Application UI
 
 <p align="center">
   <img alt="UI" height="480" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/2528b31c-21ac-4806-b7c1-755c0d8b66e1">
 </p>
 
-## Installation
+### Instruction for PWA installation (Web as Application)
+For Android:
+1. Open Chrome.
+2. Navigate to [http://esp_lamp.local](http://esp_lamp.local).
+3. Tap "Add to Home screen."
+
+For iOS:
+1. Open Safari.
+2. Navigate to [http://esp_lamp.local](http://esp_lamp.local).
+3. Tap the "Share" button.
+4. Select "Add to Home Screen."
+
+## Configuration
+
+Customize the application for your specific settings by editing [src/constants.h](src/constants.h).
+
+- `WIFI_MODE` (0 - AP mode, 1 - STA mode)
+- `WIFI_SSID` and `WIFI_PASSWORD`
+- `TIME_ZONE` (hour offset for correct work of Night Mode)
+- `MDNS_NAME` (mDNS for local network, default address [http://esp_lamp.local](http://esp_lamp.local))
+- `LED_PIN` and `LED_TYPE` for your LED strip/matrix configuration
+- `WIDTH` and `HEIGHT` for your configuration (count of LEDs for vertical and horizontal)
+- `MATRIX_VOLTAGE` and `CURRENT_LIMIT` for your specific power supply
+
+## Firmware Installation
 
 ### Prerequisites
 
