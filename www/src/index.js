@@ -301,3 +301,14 @@ async function refresh() {
 }
 
 ws.begin();
+window.__ws = ws;
+
+document.addEventListener("visibilitychange", (e) => {
+    console.log("Hidden", document.hidden);
+
+    if (document.hidden) {
+        ws.close();
+    } else {
+        ws.connect();
+    }
+})

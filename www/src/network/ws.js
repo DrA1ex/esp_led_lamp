@@ -9,8 +9,8 @@ export class WebSocketInteraction extends EventEmitter {
     static ERROR = "ws_interaction_error";
     static MESSAGE = "ws_interaction_message";
 
-    #connected;
-    #ws;
+    #connected = false;
+    #ws = null;
 
     #connectionTimeout = 0;
     #requestQueue = [];
@@ -30,7 +30,19 @@ export class WebSocketInteraction extends EventEmitter {
     begin() {
         if (this.#ws) throw new Error("Already initialized");
 
-        this.#init();
+        this.connect();
+    }
+
+    connect() {
+        if (!this.connected) {
+            this.#init();
+        }
+    }
+
+    close() {
+        if (this.connected) {
+            this.#closeConnection(false);
+        }
     }
 
     /**
@@ -116,7 +128,7 @@ export class WebSocketInteraction extends EventEmitter {
         }
     }
 
-    #closeConnection() {
+    #closeConnection(reconnect = true) {
         console.log("Connection closed");
 
         this.#connected = false;
@@ -133,7 +145,11 @@ export class WebSocketInteraction extends EventEmitter {
 
         this.emitEvent(WebSocketInteraction.DISCONNECTED);
 
-        setTimeout(() => this.#init(), this.#connectionTimeout);
-        this.#connectionTimeout += 1000;
+        if (reconnect) {
+            setTimeout(() => this.#init(), this.#connectionTimeout);
+            this.#connectionTimeout += 1000;
+        } else {
+            this.#connectionTimeout = 0;
+        }
     }
 }
