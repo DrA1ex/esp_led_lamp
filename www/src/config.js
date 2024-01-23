@@ -24,18 +24,14 @@ class Preset {
     }
 
     async load() {
-        const [cfg, list] = await Promise.all([this.#request_preset_config(), this.#request_presets()]);
-
-        this.current = cfg;
-        this.list.splice(0);
-        this.list.push(...list);
+        await Promise.all([this.loadPresetConfig(), this.loadPresets()]);
     }
 
-    async #request_preset_config() {
+    async loadPresetConfig() {
         const buffer = await this.#ws.request(PacketType.GET_PRESET_CONFIG);
         const parser = new BinaryParser(buffer);
 
-        return {
+        const cfg = {
             speed: parser.readUInt8(),
             scale: parser.readUInt8(),
             light: parser.readUInt8(),
@@ -44,9 +40,12 @@ class Preset {
             colorEffect: parser.readUInt8(),
             brightnessEffect: parser.readUInt8(),
         };
+
+        this.current = cfg;
+        return cfg;
     }
 
-    async #request_presets() {
+    async loadPresets() {
         const buffer = await this.#ws.request(PacketType.PRESET_LIST);
         const parser = new BinaryParser(buffer);
 
@@ -60,6 +59,9 @@ class Preset {
                 name: parser.readFixedString(length)
             }
         }
+
+        this.list.splice(0);
+        this.list.push(...result);
 
         return result;
     }

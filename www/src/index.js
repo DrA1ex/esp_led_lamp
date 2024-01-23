@@ -168,13 +168,13 @@ async function initialize() {
 
     window.__app.Lists = Lists;
 
-    config.subscribe(this, Config.LOADED, onConfigLoaded);
+    config.subscribe(this, Config.LOADED, refreshConfig);
     config.subscribe(this, Config.PROPERTY_CHANGED, onConfigPropChanged);
 
-    onConfigLoaded();
+    refreshConfig();
 }
 
-function onConfigLoaded() {
+function refreshConfig() {
     const config = window.__app.Config;
     const lists = window.__app.Lists;
 
@@ -215,6 +215,8 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
     const control = window.__app.Properties[prop.key].control;
     prop.__busy = true;
     try {
+        if (prop.type !== "wheel") control.element.setAttribute("data-saving", "true");
+
         let response;
         if (Array.isArray(prop.cmd)) {
             response = await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
@@ -240,7 +242,8 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
         }
 
         if (prop.key === "presetId") {
-            window.__app.Properties["preset.name"].control.setValue(config.preset.name);
+            await config.preset.loadPresetConfig();
+            refreshConfig();
         }
 
         console.log(`Changed '${prop.key}': '${oldValue}' -> '${value}'`);
@@ -249,6 +252,7 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
         control.setValue(oldValue);
     } finally {
         prop.__busy = false;
+        if (prop.type !== "wheel") control.element.setAttribute("data-saving", "false");
     }
 }, 1000 / 60);
 

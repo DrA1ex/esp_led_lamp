@@ -28,6 +28,9 @@ html {
     --control-color-accent: #f97601;
     --control-color-inactive: #22232b;
 
+    --theme-color: #262b3b;
+    --gradiet-1: #33394d;
+    --gradiet-2: #1f2230;
 
     margin: 0 auto;
     text-align: center;
@@ -39,13 +42,15 @@ body {
     font-family: Helvetica Neue, Lucida Grande, Arial, sans-serif;
     padding-bottom: 4rem;
 
+    background: var(--theme-color);
+
     overflow-x: hidden;
     overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
 }
 
 .bg {
-    background: #33394d linear-gradient(173deg, #33394d, #1f2230) no-repeat;
+    background: var(--theme-color) linear-gradient(173deg, var(--gradiet-1), var(--gradiet-2)) no-repeat;
     position: fixed;
     inset: 0;
     z-index: -1;
@@ -280,14 +285,14 @@ p {
 
 @keyframes saving {
     0% {
-        background-color: #5e646d;
+        background-color: var(--control-color-active);
     }
 
     50% {
-        background-color: #858c9a;
+        background-color: var(--gradiet-1);
     }
 
     100% {
-        background-color: #5e646d;
+        background-color: var(--control-color-active);
     }
 }
