@@ -24,7 +24,7 @@ struct __attribute ((packed)) NightModeConfig {
     uint16_t switch_interval = (uint32_t) 15 * 60;
 };
 
-struct __attribute__ ((packed)) Config {
+struct __attribute ((packed)) Config {
     bool power = true;
 
     uint8_t max_brightness = 128;
@@ -34,8 +34,6 @@ struct __attribute__ ((packed)) Config {
 
     uint32_t color_correction = TypicalLEDStrip;
     NightModeConfig night_mode;
-
-    uint8_t size = sizeof(Config);
 };
 
 template<uint8_t N, uint8_t S>
@@ -44,8 +42,6 @@ struct __attribute ((packed)) __PresetNames {
     uint8_t length = S;
 
     char names[N][S] = {};
-
-    uint16_t size = sizeof(count) + sizeof(length) + sizeof(names);
 
     __PresetNames() {
         for (int i = 0; i < N; ++i) {
@@ -62,12 +58,10 @@ struct __attribute ((packed)) PresetConfig {
     PaletteEnum palette = PaletteEnum::SUNSET;
     ColorEffectEnum color_effect = ColorEffectEnum::GRADIENT;
     BrightnessEffectEnum brightness_effect = BrightnessEffectEnum::DOUBLE_WAVE;
-
-    uint8_t size = sizeof(PresetConfig);
 };
 
 template<uint8_t N>
-struct __PresetConfigs {
+struct __attribute ((packed)) __PresetConfigs {
     PresetConfig presets[N] = {};
 };
 

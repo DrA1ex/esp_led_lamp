@@ -62,6 +62,14 @@ export class SelectControl extends InputControlBase {
         this.select(selectedKey);
     }
 
+    updateOption(key, label) {
+        const option = this.options.find(o => o.key === key || o.strKey === key);
+        if (!option) return;
+
+        option.label = label;
+        option.e.innerText = label;
+    }
+
     select(key) {
         if (this.#selected) {
             this.#selected.e.removeAttribute("selected");

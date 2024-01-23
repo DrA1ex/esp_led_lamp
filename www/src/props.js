@@ -1,14 +1,15 @@
 import {PacketType} from "./network/cmd.js";
 
 export const PropertyConfig = [{
-    section: "General", props: [
+    key: "general", section: "General", props: [
         {key: "power", title: "Power", type: "trigger", cmd: [PacketType.POWER_ON, PacketType.POWER_OFF]},
         {key: "presetId", title: "Preset", type: "select", list: "presets", cmd: PacketType.PRESET_ID},
         {key: "maxBrightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.MAX_BRIGHTNESS},
         {key: "eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.ECO_LEVEL},
     ],
 }, {
-    section: "FX", props: [
+    key: "fx", section: "FX", props: [
+        {key: "preset.name", title: "Preset name", type: "text", default: "Unnamed", maxLength: 20, cmd: PacketType.PRESET_NAME},
         {key: "preset.current.palette", title: "Palette", type: "select", list: "palette", cmd: PacketType.PALETTE},
         {key: "preset.current.colorEffect", title: "Color Effect", type: "select", list: "colorEffects", cmd: PacketType.COLOR_EFFECT},
         {
@@ -18,14 +19,13 @@ export const PropertyConfig = [{
 
     ],
 }, {
-    section: "Fine Tune", props: [
+    key: "tune", section: "Fine Tune", props: [
         {key: "preset.current.speed", title: "Speed", type: "wheel", limit: 255, cmd: PacketType.SPEED},
         {key: "preset.current.scale", title: "Scale", type: "wheel", limit: 255, cmd: PacketType.SCALE},
         {key: "preset.current.light", title: "Light", type: "wheel", limit: 255, cmd: PacketType.LIGHT},
-        {key: "preset.name", title: "Preset name", type: "text", default: "Unnamed", maxLength: 20, cmd: PacketType.PRESET_NAME},
     ],
 }, {
-    section: "Night Mode", props: [
+    key: "night_mode", section: "Night Mode", props: [
         {key: "nightMode.enabled", title: "Enabled", type: "trigger", cmd: PacketType.NIGHT_MODE_ENABLED},
         {key: "nightMode.brightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_BRIGHTNESS},
         {key: "nightMode.eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_ECO},
@@ -37,30 +37,22 @@ export const PropertyConfig = [{
         },
     ]
 }, {
-    section: "Calibration", props: [
-        {
-            key: "colorCorrection",
-            title: "Red",
-            transform: (v) => (v & 0xff0000) >> 16,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_R
-        },
-        {
-            key: "colorCorrection",
-            title: "Green",
-            transform: (v) => (v & 0xff00) >> 8,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_G
-        },
-        {
-            key: "colorCorrection",
-            title: "Blue",
-            transform: (v) => v & 0xff,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_B
-        },
+    key: "calibration", section: "Calibration", props: [
+        {key: "colorCorrection.r", title: "Red", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_R},
+        {key: "colorCorrection.g", title: "Green", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_G},
+        {key: "colorCorrection.b", title: "Blue", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_B},
     ]
-}]
+}];
+
+export const Properties = PropertyConfig.reduce((res, section) => {
+    for (const prop of section.props) {
+        if (res[prop.key]) {
+            console.warn(`Key ${prop.key} already exist`);
+            continue;
+        }
+
+        res[prop.key] = prop;
+    }
+
+    return res;
+}, {});

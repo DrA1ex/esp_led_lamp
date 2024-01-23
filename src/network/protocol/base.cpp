@@ -90,7 +90,7 @@ Response update_parameter_value(T *parameter, const PacketHeader &header, const 
     D_WRITE("Update parameter ");
     D_WRITE(to_underlying(header.type));
     D_WRITE(" = ");
-    D_PRINT(to_underlying(*parameter));
+    D_PRINT(to_underlying(*(T *) data));
 
     return Response::ok();
 }
@@ -235,7 +235,7 @@ Response serialize_fx_config(const FxConfig<FxConfigEntry<C, V>> &config) {
 
 template<typename T>
 Response serialize(const T &obj) {
-    return Response{ResponseType::BINARY, {.buffer = {.size = obj.size, .data=(uint8_t *) &obj}}};
+    return Response{ResponseType::BINARY, {.buffer = {.size = sizeof(obj), .data=(uint8_t *) &obj}}};
 }
 
 Response ServerBase::process_data_request(const PacketHeader &header) {

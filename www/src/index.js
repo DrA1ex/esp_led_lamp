@@ -1,4 +1,4 @@
-import {PropertyConfig} from "./props.js";
+import {Properties, PropertyConfig} from "./props.js";
 import {Config} from "./config.js";
 
 import {TriggerControl} from "./control/trigger.js";
@@ -211,8 +211,8 @@ function createTitle(title) {
 
 function createButton(label, cmd) {
     const control = new ButtonControl(document.createElement("a"));
-    control.setLabel(label);
     control.addClass("m-top");
+    control.setLabel(label);
 
     control.setOnClick(async () => {
         await ws.request(cmd);
@@ -221,39 +221,14 @@ function createButton(label, cmd) {
     return control;
 }
 
-function _getValue(config, prop) {
-    if (!prop.key) return null;
-
-    let value = prop.key.split(".")
-        .reduce((obj, key) => obj[key], config);
-
-    return prop.transform ? prop.transform(value) : value;
-}
-
 async function initialize() {
-    const config = new Config(ws);
-
-    const [_, palette, colorEffects, brightnessEffects] = await Promise.all([
-        config.load(),
-        request_fx(PacketType.PALETTE_LIST),
-        request_fx(PacketType.COLOR_EFFECT_LIST),
-        request_fx(PacketType.BRIGHTNESS_EFFECT_LIST),
-    ]);
-
-    console.log("Config", config);
-
-    const Lists = {
-        palette, colorEffects, brightnessEffects, presets: config.preset.list,
-    };
-
-    console.log("Lists", Lists);
-
-    const App = {};
+    const Sections = {};
+    const Properties = {};
 
     for (const cfg of PropertyConfig) {
         const section = startSection(cfg.section);
 
-        App[cfg.section] = {section, cfg, props: {}};
+        Sections[cfg.key] = {section, cfg, props: {}};
 
         for (const prop of cfg.props) {
             let title = null
@@ -262,53 +237,150 @@ async function initialize() {
                 section.appendChild(title);
             }
 
-            const value = _getValue(config, prop) ?? prop.default;
-
             let control = null;
             switch (prop.type) {
                 case "trigger":
-                    control = createTrigger(value, ...(Array.isArray(prop.cmd) ? prop.cmd : [prop.cmd]));
+                    control = new TriggerControl(document.createElement("a"));
                     break;
 
                 case "wheel":
-                    control = createWheel(value, prop.limit, prop.cmd);
+                    control = new WheelControl(document.createElement("div"), prop.limit);
                     break;
 
                 case "time":
-                    control = createNumericInput(InputType.time, value, prop.cmd, prop.size, prop.kind);
+                    control = new InputControl(document.createElement("input"), InputType.time);
                     break;
 
                 case "select":
-                    control = createSelect(Lists[prop.list], value, prop.cmd);
+                    control = new SelectControl(document.createElement("div"));
                     break;
 
                 case "int":
-                    control = createNumericInput(InputType.int, value, prop.cmd, prop.size, prop.kind);
+                    control = control = new InputControl(document.createElement("input"), InputType.int);
                     break;
 
                 case "text":
-                    control = createTextInput(value, prop.cmd, prop.maxLength);
+                    control = new InputControl(document.createElement("input"), InputType.text);
+                    control.setMaxLength(prop.maxLength ?? 255);
                     break;
 
                 case "button":
-                    control = createButton(prop.label, prop.cmd);
+                    control = new ButtonControl(document.createElement("a"));
+                    control.addClass("m-top");
+                    control.setLabel(prop.label);
                     break;
 
                 default:
                     console.error("Invalid prop type.", prop)
             }
 
-            if (control) section.appendChild(control);
+            if (control) {
+                if ("setOnChange" in control) control.setOnChange((value) => config.setProperty(prop.key, value));
 
-            App[cfg.section].props[prop.key] = {cfg: prop, title, control};
+                section.appendChild(control);
+            }
+
+            const entry = {prop, title, control};
+            Sections[cfg.key].props[prop.key] = entry;
+            Properties[prop.key] = entry;
         }
     }
 
+    const config = new Config(ws);
+
     window.__app = {
-        App,
+        Sections,
+        Properties,
         Config: config,
-        Lists
+    }
+
+    const [_, palette, colorEffects, brightnessEffects] = await Promise.all([
+        config.load(),
+        request_fx(PacketType.PALETTE_LIST),
+        request_fx(PacketType.COLOR_EFFECT_LIST),
+        request_fx(PacketType.BRIGHTNESS_EFFECT_LIST),
+    ]);
+
+    const Lists = {
+        palette, colorEffects, brightnessEffects, presets: config.preset.list,
     };
+
+
+    console.log("Config", config);
+    console.log("Lists", Lists);
+
+    window.__app.Lists = Lists;
+
+    config.subscribe(this, Config.LOADED, onConfigLoaded);
+    config.subscribe(this, Config.PROPERTY_CHANGED, onConfigPropChanged);
+
+    onConfigLoaded();
+}
+
+function onConfigLoaded() {
+    const config = window.__app.Config;
+    const lists = window.__app.Lists;
+
+    for (const cfg of PropertyConfig) {
+        const section = window.__app.Sections[cfg.key];
+        for (const prop of cfg.props) {
+            if (!prop.key) continue;
+
+            const control = section.props[prop.key].control;
+
+            if (prop.type === "select") {
+                control.setOptions(lists[prop.list].map(v => ({key: v.code, label: v.name})));
+            }
+
+            const value = config.getProperty(prop.key);
+            control.setValue(value);
+        }
+    }
+}
+
+async function onConfigPropChanged(config, {key, value, oldValue}) {
+    const prop = Properties[key];
+    if (!prop) {
+        console.error(`Unknown property ${key}`);
+        return;
+    }
+
+    console.log(`Changed '${key}': '${oldValue}' -> '${value}'`);
+
+    if (Array.isArray(prop.cmd)) {
+        await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
+    } else {
+        if (!prop.__busy) {
+            prop.__busy = true;
+
+            try {
+                if (Array.isArray(prop.cmd)) {
+                    await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
+                } else if (prop.type === "text") {
+                    await window.__ws.request(prop.cmd, new TextEncoder().encode(value).buffer);
+                } else {
+                    const size = prop.size ?? 1;
+                    const kind = prop.kind ?? "Uint8";
+
+                    const req = new Uint8Array(size);
+                    const view = new DataView(req.buffer);
+                    view[`set${kind}`](0, value, true);
+
+                    await window.__ws.request(prop.cmd, req.buffer);
+                }
+
+                if (key === "preset.name") {
+                    window.__app.Properties["presetId"].control.updateOption(config.presetId, value);
+                }
+
+                if (key === "presetId") {
+                    window.__app.Properties["preset.name"].control.setValue(config.preset.name);
+                }
+            } finally {
+                prop.__busy = false;
+            }
+        }
+    }
 }
 
 async function refresh() {
@@ -316,16 +388,6 @@ async function refresh() {
     await config.load();
 
     console.log("New config", config);
-
-    for (const cfg of PropertyConfig) {
-        const section = window.__app.App[cfg.section];
-        for (const prop of cfg.props) {
-            if (!prop.key) continue;
-
-            const value = _getValue(config, prop) ?? prop.default;
-            section.props[prop.key].control.setValue(value);
-        }
-    }
 }
 
 ws.begin();
