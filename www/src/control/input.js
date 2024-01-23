@@ -74,8 +74,11 @@ export class InputControl extends InputControlBase {
             case InputType.float:
                 return Number.isFinite(Number.parseFloat(this.element.value));
 
+            case InputType.time:
+                return Number.isFinite(this.element.valueAsNumber);
+
             default:
-                return true;
+                return this.element.validity.valid;
         }
     }
 
@@ -89,5 +92,11 @@ export class InputControl extends InputControlBase {
 
             this._emitChanged(this.#value, oldValue);
         }
+    }
+
+    setMaxLength(maxlength) {
+        if (!Number.isInteger(maxlength)) return;
+
+        this.element.setAttribute("maxLength", maxlength);
     }
 }

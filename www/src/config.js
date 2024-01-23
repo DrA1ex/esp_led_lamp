@@ -1,64 +1,104 @@
 import {PacketType} from "./network/cmd.js";
+import {BinaryParser} from "./misc/binary_parser.js";
 
-export const PropertyConfig = [{
-    section: "General", props: [
-        {key: "power", title: "Power", type: "trigger", cmd: [PacketType.POWER_ON, PacketType.POWER_OFF]},
-        {key: "maxBrightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.MAX_BRIGHTNESS},
-        {key: "eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.ECO_LEVEL},
-    ],
-}, {
-    section: "FX", props: [
-        {key: "palette", title: "Palette", type: "select", list: "palette", cmd: PacketType.PALETTE},
-        {key: "colorEffect", title: "Color Effect", type: "select", list: "colorEffects", cmd: PacketType.COLOR_EFFECT},
-        {key: "brightnessEffect", title: "Brightness Effect", type: "select", list: "brightnessEffects", cmd: PacketType.BRIGHTNESS_EFFECT},
-    ],
-}, {
-    section: "Fine Tune", props: [
-        {key: "speed", title: "Speed", type: "wheel", limit: 255, cmd: PacketType.SPEED},
-        {key: "scale", title: "Scale", type: "wheel", limit: 255, cmd: PacketType.SCALE},
-        {key: "light", title: "Light", type: "wheel", limit: 255, cmd: PacketType.LIGHT},
-    ],
-}, {
-    section: "Night Mode", props: [
-        {key: "nightMode.enabled", title: "Enabled", type: "trigger", cmd: PacketType.NIGHT_MODE_ENABLED},
-        {key: "nightMode.brightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_BRIGHTNESS},
-        {key: "nightMode.eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_ECO},
-        {key: "nightMode.startTime", title: "Start Time", type: "time", size: 4, kind: "Uint32", cmd: PacketType.NIGHT_MODE_START},
-        {key: "nightMode.endTime", title: "End Time", type: "time", size: 4, kind: "Uint32", cmd: PacketType.NIGHT_MODE_END},
-        {
-            key: "nightMode.switchInterval",
-            title: "Switch Interval",
-            type: "time",
-            size: 2,
-            kind: "Uint16",
-            cmd: PacketType.NIGHT_MODE_INTERVAL
-        },
-    ]
-}, {
-    section: "Calibration", props: [
-        {
-            key: "colorCorrection",
-            title: "Red",
-            transform: (v) => (v & 0xff0000) >> 16,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_R
-        },
-        {
-            key: "colorCorrection",
-            title: "Green",
-            transform: (v) => (v & 0xff00) >> 8,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_G
-        },
-        {
-            key: "colorCorrection",
-            title: "Blue",
-            transform: (v) => v & 0xff,
-            type: "wheel",
-            limit: 255,
-            cmd: PacketType.CALIBRATION_B
-        },
-    ]
-}]
+class Preset {
+    #ws;
+    #config;
+
+    current;
+    list;
+
+    get name() {
+        return this.list[this.#config.presetId]?.name;
+    }
+
+    constructor(ws, config) {
+        this.#ws = ws;
+        this.#config = config;
+    }
+
+    async load() {
+        const [cfg, list] = await Promise.all([this.#request_preset_config(), this.#request_presets()]);
+
+        this.current = cfg;
+        this.list = list;
+    }
+
+    async #request_preset_config() {
+        const buffer = await this.#ws.request(PacketType.GET_PRESET_CONFIG);
+        const parser = new BinaryParser(buffer);
+
+        return {
+            speed: parser.readUInt8(),
+            scale: parser.readUInt8(),
+            light: parser.readUInt8(),
+
+            palette: parser.readUInt8(),
+            colorEffect: parser.readUInt8(),
+            brightnessEffect: parser.readUInt8(),
+        };
+    }
+
+    async #request_presets() {
+        const buffer = await this.#ws.request(PacketType.PRESET_LIST);
+        const parser = new BinaryParser(buffer);
+
+        const count = parser.readUInt8();
+        const length = parser.readUInt8();
+
+        const result = new Array(count);
+        for (let i = 0; i < count; i++) {
+            result[i] = {
+                code: i,
+                name: parser.readFixedString(length)
+            }
+        }
+
+        return result;
+    }
+}
+
+export class Config {
+    #ws;
+
+    power;
+    maxBrightness;
+    eco;
+    presetId;
+    colorCorrection;
+    nightMode;
+
+    presets;
+
+    constructor(ws) {
+        this.#ws = ws;
+    }
+
+
+    async load() {
+        this.preset = new Preset(this.#ws, this);
+
+        const [buffer] = await Promise.all([
+            this.#ws.request(PacketType.GET_CONFIG), this.preset.load()]);
+
+        const parser = new BinaryParser(buffer);
+
+        this.power = parser.readBoolean();
+
+        this.maxBrightness = parser.readUInt8();
+        this.eco = parser.readUInt8();
+
+        this.presetId = parser.readUInt8();
+        this.colorCorrection = parser.readUInt32();
+
+        this.nightMode = {
+            enabled: parser.readBoolean(),
+            brightness: parser.readUInt8(),
+            eco: parser.readUInt8(),
+
+            startTime: parser.readUInt32(),
+            endTime: parser.readUInt32(),
+            switchInterval: parser.readUInt16(),
+        };
+    }
+}

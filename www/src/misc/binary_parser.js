@@ -48,6 +48,28 @@ export class BinaryParser {
     }
 
     /**
+     * Read a null-terminated string with fixed size from the buffer
+     * @param {number} byteLength - Size of string filed in bytes
+     * @param {string} [encoding="utf8"] - The parsed string encoding
+     * @returns {string} - The parsed string value
+     */
+    readFixedString(byteLength, encoding = "utf8") {
+        let length = 0;
+        for (let i = 0; i < byteLength; i++) {
+            if (this.#dataView.getUint8(this.#byteOffset + length) === 0) {
+                break;
+            }
+
+            ++length;
+        }
+
+        const str = this.readString(length, encoding);
+        this.#byteOffset += byteLength - length;
+
+        return str;
+    }
+
+    /**
      * Read a boolean from the buffer
      * @returns {boolean} - The parsed boolean value
      */

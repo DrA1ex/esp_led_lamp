@@ -1,4 +1,5 @@
-import {PropertyConfig} from "./config.js";
+import {PropertyConfig} from "./props.js";
+import {Config} from "./config.js";
 
 import {TriggerControl} from "./control/trigger.js";
 import {FrameControl} from "./control/frame.js";
@@ -12,6 +13,7 @@ import {WebSocketInteraction} from "./network/ws.js";
 import {BinaryParser} from "./misc/binary_parser.js";
 
 import * as FunctionUtils from "./utils/function.js"
+import {ButtonControl} from "./control/button.js";
 
 const StatusElement = document.getElementById("status");
 
@@ -55,44 +57,6 @@ async function request_fx(cmd) {
     return result;
 }
 
-async function request_config() {
-    const buffer = await ws.request(PacketType.GET_CONFIG);
-    const parser = new BinaryParser(buffer);
-
-    const size = parser.readUInt8();
-    if (size < 26) {
-        console.error("Invalid config response");
-        return {};
-    }
-
-    return {
-        power: parser.readBoolean(),
-
-        maxBrightness: parser.readUInt8(),
-
-        speed: parser.readUInt8(),
-        scale: parser.readUInt8(),
-        light: parser.readUInt8(),
-        eco: parser.readUInt8(),
-
-        palette: parser.readUInt8(),
-        colorEffect: parser.readUInt8(),
-        brightnessEffect: parser.readUInt8(),
-
-        colorCorrection: parser.readUInt32(),
-
-        nightMode: {
-            enabled: parser.readBoolean(),
-            brightness: parser.readUInt8(),
-            eco: parser.readUInt8(),
-
-            startTime: parser.readUInt32(),
-            endTime: parser.readUInt32(),
-            switchInterval: parser.readUInt16(),
-        }
-    };
-}
-
 function createSelect(list, value, cmd) {
     const control = new SelectControl(document.createElement("div"));
     control.setOptions(list.map(v => ({key: v.code, label: v.name})));
@@ -116,9 +80,8 @@ function createSelect(list, value, cmd) {
     return control;
 }
 
-function createInput(type, value, cmd, size, valueType) {
+function createNumericInput(type, value, cmd, size, valueType) {
     const control = new InputControl(document.createElement("input"), type);
-
     control.setValue(value);
 
     control.__busy = false;
@@ -126,7 +89,7 @@ function createInput(type, value, cmd, size, valueType) {
         if (control.__busy) return FunctionUtils.ThrottleDelay;
         if (!ws.connected) return;
 
-        if (Number.isFinite(value)) {
+        if (control.isValid()) {
             const data = new Uint8Array(size);
             const view = new DataView(data.buffer);
 
@@ -145,6 +108,36 @@ function createInput(type, value, cmd, size, valueType) {
             }
         }
     }, 1000 / 60))
+
+    return control;
+}
+
+function createTextInput(value, cmd, maxlength) {
+    const control = new InputControl(document.createElement("input"), InputType.text);
+    control.setValue(value);
+    control.setMaxLength(maxlength);
+
+    control.__busy = false;
+    control.setOnChange(FunctionUtils.throttle(async (newValue, oldValue) => {
+        if (control.__busy) return FunctionUtils.ThrottleDelay;
+        if (!ws.connected) return;
+
+        if (control.isValid()) {
+            try {
+                control.__busy = true;
+                control.element.setAttribute("data-saving", "true");
+
+                const response = await ws.request(cmd, new TextEncoder().encode(newValue).buffer);
+                if (response !== "OK") throw new Error(`Bad response: ${response}`);
+            } catch (e) {
+                console.error("Value save error", e);
+                control.setValue(oldValue)
+            } finally {
+                control.__busy = false;
+                control.element.setAttribute("data-saving", "false");
+            }
+        }
+    }, 1000 / 60));
 
     return control;
 }
@@ -216,7 +209,21 @@ function createTitle(title) {
     return titleElement;
 }
 
+function createButton(label, cmd) {
+    const control = new ButtonControl(document.createElement("a"));
+    control.setLabel(label);
+    control.addClass("m-top");
+
+    control.setOnClick(async () => {
+        await ws.request(cmd);
+    });
+
+    return control;
+}
+
 function _getValue(config, prop) {
+    if (!prop.key) return null;
+
     let value = prop.key.split(".")
         .reduce((obj, key) => obj[key], config);
 
@@ -224,16 +231,23 @@ function _getValue(config, prop) {
 }
 
 async function initialize() {
-    const config = await request_config();
-    console.log("Config", config);
+    const config = new Config(ws);
 
-    const [palette, colorEffects, brightnessEffects] = await Promise.all([
+    const [_, palette, colorEffects, brightnessEffects] = await Promise.all([
+        config.load(),
         request_fx(PacketType.PALETTE_LIST),
         request_fx(PacketType.COLOR_EFFECT_LIST),
-        request_fx(PacketType.BRIGHTNESS_EFFECT_LIST)
-    ])
+        request_fx(PacketType.BRIGHTNESS_EFFECT_LIST),
+    ]);
 
-    const Lists = {palette, colorEffects, brightnessEffects};
+    console.log("Config", config);
+
+    const Lists = {
+        palette, colorEffects, brightnessEffects, presets: config.preset.list,
+    };
+
+    console.log("Lists", Lists);
+
     const App = {};
 
     for (const cfg of PropertyConfig) {
@@ -242,10 +256,13 @@ async function initialize() {
         App[cfg.section] = {section, cfg, props: {}};
 
         for (const prop of cfg.props) {
-            const title = createTitle(prop.title);
-            section.appendChild(title);
+            let title = null
+            if (prop.title) {
+                title = createTitle(prop.title);
+                section.appendChild(title);
+            }
 
-            const value = _getValue(config, prop);
+            const value = _getValue(config, prop) ?? prop.default;
 
             let control = null;
             switch (prop.type) {
@@ -258,7 +275,7 @@ async function initialize() {
                     break;
 
                 case "time":
-                    control = createInput(InputType.time, value, prop.cmd, prop.size, prop.kind);
+                    control = createNumericInput(InputType.time, value, prop.cmd, prop.size, prop.kind);
                     break;
 
                 case "select":
@@ -266,7 +283,15 @@ async function initialize() {
                     break;
 
                 case "int":
-                    control = createInput(InputType.int, value, prop.cmd, prop.size, prop.kind);
+                    control = createNumericInput(InputType.int, value, prop.cmd, prop.size, prop.kind);
+                    break;
+
+                case "text":
+                    control = createTextInput(value, prop.cmd, prop.maxLength);
+                    break;
+
+                case "button":
+                    control = createButton(prop.label, prop.cmd);
                     break;
 
                 default:
@@ -287,17 +312,20 @@ async function initialize() {
 }
 
 async function refresh() {
-    const config = await request_config();
+    const config = window.__app.Config;
+    await config.load();
+
     console.log("New config", config);
 
     for (const cfg of PropertyConfig) {
         const section = window.__app.App[cfg.section];
         for (const prop of cfg.props) {
-            section.props[prop.key].control.setValue(_getValue(config, prop));
+            if (!prop.key) continue;
+
+            const value = _getValue(config, prop) ?? prop.default;
+            section.props[prop.key].control.setValue(value);
         }
     }
-
-    window.__app.Config = config;
 }
 
 ws.begin();

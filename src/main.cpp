@@ -26,12 +26,15 @@ void render_loop(void *);
 void service_loop(void *);
 
 Led led(WIDTH, HEIGHT);
-
 Timer global_timer;
+
 Storage<Config> config_storage(global_timer, 0);
+Storage<PresetNames> preset_names_storage(global_timer, config_storage.size());
+Storage<PresetConfigs> preset_configs_storage(global_timer, preset_names_storage.size());
+
 NightModeManager night_mode_manager(led, config_storage.get());
 
-Application app(config_storage, night_mode_manager);
+Application app(config_storage, preset_names_storage, preset_configs_storage, night_mode_manager);
 
 WifiManager wifi_manager;
 WebServer web_server(WEB_PORT);
@@ -48,11 +51,14 @@ void setup() {
 #endif
 
     config_storage.begin();
+    preset_names_storage.begin();
+    preset_configs_storage.begin();
+
     app.load();
 
     led.setPowerLimit(MATRIX_VOLTAGE, CURRENT_LIMIT);
-    led.setCorrection(app.config.colorCorrection);
-    led.setBrightness(app.config.maxBrightness);
+    led.setCorrection(app.config.color_correction);
+    led.setBrightness(app.config.max_brightness);
 
     led.clear();
     led.show();
@@ -76,7 +82,7 @@ void render_loop(void *) {
     ++ii;
 #endif
 
-    led.setBrightness(app.config.maxBrightness);
+    led.setBrightness(app.config.max_brightness);
 
     switch (app.state) {
         case AppState::INITIALIZATION:
@@ -95,7 +101,7 @@ void render_loop(void *) {
 
 
 void render() {
-    if (!app.config.power || app.config.maxBrightness == 0) {
+    if (!app.config.power || app.config.max_brightness == 0) {
         led.clear();
         led.show();
 
@@ -106,21 +112,21 @@ void render() {
 
     led.clear();
 
-    const auto &config = app.config;
-    ColorEffects.call(led, palette, config);
-    BrightnessEffects.call(led, config);
+    const auto &preset = app.preset();
+    ColorEffects.call(led, palette, preset);
+    BrightnessEffects.call(led, preset);
 
     if (night_mode_manager.is_night_time()) {
         night_mode_manager.apply_night_settings();
     } else {
-        BrightnessEffectManager::eco(led, config.eco);
+        BrightnessEffectManager::eco(led, app.config.eco);
     }
 
     led.show();
 }
 
 void calibration() {
-    led.setCorrection(app.config.colorCorrection);
+    led.setCorrection(app.config.color_correction);
     led.fillSolid(CRGB::White);
     led.show();
 

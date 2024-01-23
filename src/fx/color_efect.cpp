@@ -15,7 +15,7 @@ ColorEffectManager::ColorEffectManager() {
     _config.count = _config.entries.size();
 }
 
-void ColorEffectManager::call(Led &led, const CRGBPalette16 *palette, const Config &config) {
+void ColorEffectManager::call(Led &led, const CRGBPalette16 *palette, const PresetConfig &config) {
     _before_call();
 
     _state.params.speed = config.speed;

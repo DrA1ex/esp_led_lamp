@@ -8,7 +8,7 @@ class BrightnessEffectManager : public FxManagerBase<BrightnessEffectConfig, Bri
 public:
     BrightnessEffectManager();
 
-    void call(Led &led, const Config &config);
+    void call(Led &led, const PresetConfig &config);
 
     static void eco(Led &led, byte level);
 

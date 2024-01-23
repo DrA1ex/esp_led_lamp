@@ -18,7 +18,7 @@ void Storage<T>::begin() {
         Storage::_global_initialized = true;
         EEPROM.begin(FLASH_SECTOR_SIZE);
 
-        D_PRINT("EEPROM initialized");
+        D_PRINT("Storage: EEPROM initialized");
     }
 
     const auto header_size = sizeof(_header) + sizeof(_version);
@@ -30,10 +30,10 @@ void Storage<T>::begin() {
 
     if (saved_header == _header && saved_version == _version) {
         EEPROM.get(_offset + header_size, _data);
-        D_PRINTF("Loaded stored settings version: %u\n", saved_version);
+        D_PRINTF("Storage+%u: Loaded stored settings version: %u\n", _offset, saved_version);
     } else {
-        D_PRINTF("Unsupported settings, expected version: %u, header: %X\n", _version, _header);
-        D_PRINT("Reset settings...");
+        D_PRINTF("Storage+%u: Unsupported settings, expected version: %u, header: %X\n", _offset, _version, _header);
+        D_PRINTF("Storage+%u: Reset settings...\n", _offset);
 
         _data = T();
     }
@@ -55,19 +55,19 @@ void _storage_commit_impl(int offset, uint32_t header, uint8_t version, const T 
 
     auto success = EEPROM.commit();
     if (success)
-        D_PRINT("EEPROM committed");
+        D_PRINTF("Storage+%u: EEPROM committed\n", offset);
     else
-        D_PRINT("EEPROM commit failed");
+        D_PRINTF("Storage+%u: EEPROM commit failed\n", offset);
 }
 
 template<typename T>
 void Storage<T>::save() {
     if (_save_timer_id != -1) {
-        D_PRINT("Clear existing Settings save timer");
+        D_PRINTF("Storage+%u: Clear existing Settings save timer\n", _offset);
         _timer.clear_timeout(_save_timer_id);
     }
 
-    D_PRINT("Schedule storage commit...");
+    D_PRINTF("Storage+%u: Schedule storage commit...\n", _offset);
     _save_timer_id = (long) _timer.add_timeout([](void *param) {
         auto *self = (Storage *) param;
         self->_save_timer_id = -1;
@@ -78,7 +78,7 @@ void Storage<T>::save() {
 template<typename T>
 void Storage<T>::force_save() {
     if (_save_timer_id != -1) {
-        D_PRINT("Clear existing Storage save timer");
+        D_PRINTF("Storage+%u: Clear existing Storage save timer\n", _offset);
 
         _timer.clear_timeout(_save_timer_id);
     }

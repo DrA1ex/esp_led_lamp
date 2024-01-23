@@ -7,22 +7,31 @@
 
 #include "mode.h"
 
-Application::Application(Storage<Config> &storage, NightModeManager &night_mode_manager) :
-        storage(storage), config(storage.get()), night_mode_manager(night_mode_manager) {}
+Application::Application(Storage<Config> &config_storage,
+                         Storage<PresetNames> &preset_names_storage,
+                         Storage<PresetConfigs> &preset_configs_storage,
+                         NightModeManager &night_mode_manager) :
+        config_storage(config_storage), preset_names_storage(preset_names_storage), preset_configs_storage(preset_configs_storage),
+        config(config_storage.get()), preset_names(preset_names_storage.get()), preset_configs(preset_configs_storage.get()),
+        night_mode_manager(night_mode_manager) {}
 
 void Application::load() {
-    ColorEffects.select(config.colorEffect);
-    BrightnessEffects.select(config.brightnessEffect);
+    const auto &preset = this->preset();
+    ColorEffects.select(preset.color_effect);
+    BrightnessEffects.select(preset.brightness_effect);
 
-    if ((int) config.palette < Palettes.count) {
-        palette = &Palettes.entries[(int) config.palette];
+    if ((int) preset.palette < Palettes.count) {
+        palette = &Palettes.entries[(int) preset.palette];
     } else {
         palette = &Palettes.entries[(int) PaletteEnum::RAINBOW];
     }
 }
 
 void Application::update() {
-    storage.save();
+    config_storage.save();
+    preset_names_storage.save();
+    preset_configs_storage.save();
+
     load();
 }
 

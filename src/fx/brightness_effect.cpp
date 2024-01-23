@@ -14,7 +14,7 @@ BrightnessEffectManager::BrightnessEffectManager() {
     _config.count = _config.entries.size();
 }
 
-void BrightnessEffectManager::call(Led &led, const Config &config) {
+void BrightnessEffectManager::call(Led &led, const PresetConfig &config) {
     _before_call();
 
     _state.params.level = config.light;

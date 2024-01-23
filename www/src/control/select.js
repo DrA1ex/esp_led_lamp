@@ -106,9 +106,12 @@ export class SelectControl extends InputControlBase {
             index = (this.options.length + index + direction) % this.options.length;
 
             const oldValue = this.selected;
-            this.select(this.options[index].key);
+            const newValue = this.options[index].key;
 
-            this._emitChanged(this.selected, oldValue);
+            if (oldValue !== newValue) {
+                this.select(newValue);
+                this._emitChanged(newValue, oldValue);
+            }
         }
 
         e.preventDefault();

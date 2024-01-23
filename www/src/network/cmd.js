@@ -16,6 +16,9 @@ export const PacketType = {
     NIGHT_MODE_BRIGHTNESS: 44,
     NIGHT_MODE_ECO: 45,
 
+    PRESET_ID: 60,
+    PRESET_NAME: 61,
+
     PALETTE: 100,
     COLOR_EFFECT: 101,
     BRIGHTNESS_EFFECT: 102,
@@ -27,8 +30,10 @@ export const PacketType = {
     PALETTE_LIST: 140,
     COLOR_EFFECT_LIST: 141,
     BRIGHTNESS_EFFECT_LIST: 142,
+    PRESET_LIST: 143,
 
     GET_CONFIG: 160,
+    GET_PRESET_CONFIG: 161,
 
     DISCOVERY: 200,
 

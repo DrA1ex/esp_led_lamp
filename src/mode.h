@@ -31,7 +31,7 @@ public:
     void handle_night(const NtpTime &ntp_time);
     void apply_night_settings();
 
-    [[nodiscard]] inline bool is_night_time() const { return _config.nightMode.enabled && _is_night; }
+    [[nodiscard]] inline bool is_night_time() const { return _config.night_mode.enabled && _is_night; }
 
     void reset();
 
