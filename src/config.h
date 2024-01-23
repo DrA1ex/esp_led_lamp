@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cctype>
-#include <FastLED.h>
 
+#include "misc/led.h"
 #include "fx/type.h"
 
 class NtpTime;

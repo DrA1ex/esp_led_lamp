@@ -1,5 +1,8 @@
 #pragma once
 
+#define FASTLED_INTERNAL
+#define FASTLED_USE_PROGMEM 1
+
 #include <FastLED.h>
 #include "constants.h"
 

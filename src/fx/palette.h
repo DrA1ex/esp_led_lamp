@@ -1,6 +1,6 @@
 #pragma once
 
-#include <FastLED.h>
+#include "misc/led.h"
 
 extern CRGBPalette16 CustomPal;
 
