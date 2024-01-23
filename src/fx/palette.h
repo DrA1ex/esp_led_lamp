@@ -2,8 +2,6 @@
 
 #include "misc/led.h"
 
-extern CRGBPalette16 CustomPal;
-
 FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Fire_gp[] FL_PROGMEM;
 FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Sunset_Real_gp[] FL_PROGMEM;
 FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Dkbluered_gp[] FL_PROGMEM;
@@ -29,3 +27,9 @@ extern const TProgmemRGBPalette16 LithiumFireColors_p PROGMEM; //* пастел�
 extern const TProgmemRGBPalette16 SodiumFireColors_p PROGMEM; //* Yellow
 extern const TProgmemRGBPalette16 CopperFireColors_p PROGMEM; //* Green
 extern const TProgmemRGBPalette16 AlcoholFireColors_p PROGMEM; //* Blue
+
+extern const TProgmemRGBGradientPalette_byte CornField_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte Gargantua_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte MoonLight_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte LastNight_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte Rhapsody_gp[] FL_PROGMEM;

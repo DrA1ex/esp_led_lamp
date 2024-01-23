@@ -6,7 +6,7 @@ ColorEffectManager ColorEffects;
 BrightnessEffectManager BrightnessEffects;
 
 PaletteConfig Palettes = {
-        .count = 31,
+        .count = 36,
         .entries = {
                 {PaletteEnum::HEAT_COLORS,    "Heat",           HeatColors_p},
                 {PaletteEnum::FIRE,           "Fire",           Fire_gp},
@@ -39,5 +39,10 @@ PaletteConfig Palettes = {
                 {PaletteEnum::GUMMY,          "Gummy",          Gummy_gp},
                 {PaletteEnum::LEO,            "Leo",            Leo_gp},
                 {PaletteEnum::AURORA,         "Aurora",         Aurora_gp},
+                {PaletteEnum::CORN_FIELD,     "Corn Field",     CornField_gp},
+                {PaletteEnum::GARGANTUA,      "Gargantua",      Gargantua_gp},
+                {PaletteEnum::MOON_LIGHT,     "Moon Light",     MoonLight_gp},
+                {PaletteEnum::LAST_NIGHT,     "Last Night",     LastNight_gp},
+                {PaletteEnum::RHAPSODY,       "Rhapsody",       Rhapsody_gp},
         }
 };

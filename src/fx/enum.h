@@ -34,6 +34,11 @@ enum class PaletteEnum : uint8_t {
     GUMMY,
     LEO,
     AURORA,
+    CORN_FIELD,
+    GARGANTUA,
+    MOON_LIGHT,
+    LAST_NIGHT,
+    RHAPSODY,
 };
 
 enum class ColorEffectEnum : uint8_t {
