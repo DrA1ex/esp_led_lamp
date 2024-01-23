@@ -57,138 +57,6 @@ async function request_fx(cmd) {
     return result;
 }
 
-function createSelect(list, value, cmd) {
-    const control = new SelectControl(document.createElement("div"));
-    control.setOptions(list.map(v => ({key: v.code, label: v.name})));
-    control.setValue(value);
-
-    control.__busy = false;
-    control.setOnChange(FunctionUtils.throttle(async (value, prevValue) => {
-        if (control.__busy) return FunctionUtils.ThrottleDelay;
-
-        try {
-            control.__busy = true;
-            await ws.request(cmd, Uint8Array.of(Number.parseInt(value)).buffer);
-        } catch (e) {
-            console.error("Value save error", e);
-            control.select(prevValue);
-        } finally {
-            control.__busy = false;
-        }
-    }, 1000 / 60));
-
-    return control;
-}
-
-function createNumericInput(type, value, cmd, size, valueType) {
-    const control = new InputControl(document.createElement("input"), type);
-    control.setValue(value);
-
-    control.__busy = false;
-    control.setOnChange(FunctionUtils.throttle(async (value, oldValue) => {
-        if (control.__busy) return FunctionUtils.ThrottleDelay;
-        if (!ws.connected) return;
-
-        if (control.isValid()) {
-            const data = new Uint8Array(size);
-            const view = new DataView(data.buffer);
-
-            try {
-                control.__busy = true;
-                control.element.setAttribute("data-saving", "true");
-
-                view["set" + valueType](0, value, true);
-                await ws.request(cmd, data.buffer);
-            } catch (e) {
-                console.error("Value save error", e);
-                control.setValue(oldValue)
-            } finally {
-                control.__busy = false;
-                control.element.setAttribute("data-saving", "false");
-            }
-        }
-    }, 1000 / 60))
-
-    return control;
-}
-
-function createTextInput(value, cmd, maxlength) {
-    const control = new InputControl(document.createElement("input"), InputType.text);
-    control.setValue(value);
-    control.setMaxLength(maxlength);
-
-    control.__busy = false;
-    control.setOnChange(FunctionUtils.throttle(async (newValue, oldValue) => {
-        if (control.__busy) return FunctionUtils.ThrottleDelay;
-        if (!ws.connected) return;
-
-        if (control.isValid()) {
-            try {
-                control.__busy = true;
-                control.element.setAttribute("data-saving", "true");
-
-                const response = await ws.request(cmd, new TextEncoder().encode(newValue).buffer);
-                if (response !== "OK") throw new Error(`Bad response: ${response}`);
-            } catch (e) {
-                console.error("Value save error", e);
-                control.setValue(oldValue)
-            } finally {
-                control.__busy = false;
-                control.element.setAttribute("data-saving", "false");
-            }
-        }
-    }, 1000 / 60));
-
-    return control;
-}
-
-function createWheel(value, limit, cmd) {
-    const control = new WheelControl(document.createElement("div"), limit);
-
-    control.setValue(value);
-    control.__busy = false;
-
-    const _sendRequest = FunctionUtils.throttle(async (newValue, oldValue) => {
-        if (control.__busy) return FunctionUtils.ThrottleDelay;
-        if (!ws.connected) return;
-
-        control.__busy = true;
-
-        try {
-            await ws.request(cmd, Uint8Array.of(newValue).buffer);
-        } catch (e) {
-            console.error("Value save error", e);
-            control.setValue(oldValue);
-        } finally {
-            control.__busy = false;
-        }
-    }, 1000 / 60);
-
-    control.setOnChange(_sendRequest);
-
-    return control;
-}
-
-function createTrigger(value, cmdOn, cmdOff = null) {
-    const control = new TriggerControl(document.createElement("a"));
-    control.setValue(value);
-
-    control.setOnChange(async (value, oldValue) => {
-        try {
-            if (cmdOff) {
-                await ws.request(value ? cmdOn : cmdOff);
-            } else {
-                await ws.request(cmdOn, Uint8Array.of(value ? 1 : 0).buffer);
-            }
-        } catch (e) {
-            console.error("Value save error", e);
-            control.setValue(oldValue);
-        }
-    });
-
-    return control;
-}
-
 function startSection(title) {
     const frame = new FrameControl(document.createElement("div"));
     frame.addClass("section");
@@ -207,18 +75,6 @@ function createTitle(title) {
     titleElement.setText(title);
 
     return titleElement;
-}
-
-function createButton(label, cmd) {
-    const control = new ButtonControl(document.createElement("a"));
-    control.addClass("m-top");
-    control.setLabel(label);
-
-    control.setOnClick(async () => {
-        await ws.request(cmd);
-    });
-
-    return control;
 }
 
 async function initialize() {
@@ -276,6 +132,7 @@ async function initialize() {
 
             if (control) {
                 if ("setOnChange" in control) control.setOnChange((value) => config.setProperty(prop.key, value));
+                else console.warn("Unsupported control type", console);
 
                 section.appendChild(control);
             }
@@ -345,43 +202,55 @@ async function onConfigPropChanged(config, {key, value, oldValue}) {
         return;
     }
 
-    console.log(`Changed '${key}': '${oldValue}' -> '${value}'`);
-
-    if (Array.isArray(prop.cmd)) {
-        await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
-    } else {
-        if (!prop.__busy) {
-            prop.__busy = true;
-
-            try {
-                if (Array.isArray(prop.cmd)) {
-                    await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
-                } else if (prop.type === "text") {
-                    await window.__ws.request(prop.cmd, new TextEncoder().encode(value).buffer);
-                } else {
-                    const size = prop.size ?? 1;
-                    const kind = prop.kind ?? "Uint8";
-
-                    const req = new Uint8Array(size);
-                    const view = new DataView(req.buffer);
-                    view[`set${kind}`](0, value, true);
-
-                    await window.__ws.request(prop.cmd, req.buffer);
-                }
-
-                if (key === "preset.name") {
-                    window.__app.Properties["presetId"].control.updateOption(config.presetId, value);
-                }
-
-                if (key === "presetId") {
-                    window.__app.Properties["preset.name"].control.setValue(config.preset.name);
-                }
-            } finally {
-                prop.__busy = false;
-            }
-        }
+    if (value !== oldValue) {
+        await sendChanges(config, prop, value, oldValue);
     }
 }
+
+const sendChanges = FunctionUtils.throttle(async function (config, prop, value, oldValue) {
+    if (prop.__busy) {
+        return FunctionUtils.ThrottleDelay;
+    }
+
+    const control = window.__app.Properties[prop.key].control;
+    prop.__busy = true;
+    try {
+        let response;
+        if (Array.isArray(prop.cmd)) {
+            response = await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
+        } else if (prop.type === "text") {
+            response = await window.__ws.request(prop.cmd, new TextEncoder().encode(value).buffer);
+        } else {
+            const size = prop.size ?? 1;
+            const kind = prop.kind ?? "Uint8";
+
+            const req = new Uint8Array(size);
+            const view = new DataView(req.buffer);
+            view[`set${kind}`](0, value, true);
+
+            response = await window.__ws.request(prop.cmd, req.buffer);
+        }
+
+        if (typeof response === "string" && response !== "OK") {
+            throw new Error(`Bad response: ${response}`);
+        }
+
+        if (prop.key === "preset.name") {
+            window.__app.Properties["presetId"].control.updateOption(config.presetId, value);
+        }
+
+        if (prop.key === "presetId") {
+            window.__app.Properties["preset.name"].control.setValue(config.preset.name);
+        }
+
+        console.log(`Changed '${prop.key}': '${oldValue}' -> '${value}'`);
+    } catch (e) {
+        console.error("Unable to save changes", e);
+        control.setValue(oldValue);
+    } finally {
+        prop.__busy = false;
+    }
+}, 1000 / 60);
 
 async function refresh() {
     const config = window.__app.Config;

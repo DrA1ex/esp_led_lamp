@@ -28,9 +28,9 @@ void service_loop(void *);
 Led led(WIDTH, HEIGHT);
 Timer global_timer;
 
-Storage<Config> config_storage(global_timer, 0);
-Storage<PresetNames> preset_names_storage(global_timer, config_storage.size());
-Storage<PresetConfigs> preset_configs_storage(global_timer, preset_names_storage.size());
+Storage<Config> config_storage(global_timer, 0, STORAGE_CONFIG_VERSION);
+Storage<PresetNames> preset_names_storage(global_timer, config_storage.size(), STORAGE_PRESET_NAMES_VERSION);
+Storage<PresetConfigs> preset_configs_storage(global_timer, preset_names_storage.size(), STORAGE_PRESET_CONFIG_VERSION);
 
 NightModeManager night_mode_manager(led, config_storage.get());
 

@@ -6,16 +6,13 @@
 #include "debug.h"
 
 template<typename T>
-volatile bool Storage<T>::_global_initialized = false;
-
-template<typename T>
-Storage<T>::Storage(Timer &timer, uint16_t offset, uint32_t header, uint8_t version) :
-        _timer(timer), _offset(offset), _header(header), _version(version) {}
+Storage<T>::Storage(Timer &timer, uint16_t offset, uint8_t version, uint32_t header) :
+        _timer(timer), _offset(offset), _version(version), _header(header) {}
 
 template<typename T>
 void Storage<T>::begin() {
-    if (!Storage::_global_initialized) {
-        Storage::_global_initialized = true;
+    if (!StorageGlobal::storage_initialized) {
+        StorageGlobal::storage_initialized = true;
         EEPROM.begin(FLASH_SECTOR_SIZE);
 
         D_PRINT("Storage: EEPROM initialized");

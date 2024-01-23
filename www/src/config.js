@@ -7,8 +7,8 @@ class Preset {
     #ws;
     #config;
 
-    current;
-    list;
+    current = null;
+    list = [];
 
     get name() {
         return this.list[this.#config.presetId]?.name;
@@ -27,7 +27,8 @@ class Preset {
         const [cfg, list] = await Promise.all([this.#request_preset_config(), this.#request_presets()]);
 
         this.current = cfg;
-        this.list = list;
+        this.list.splice(0);
+        this.list.push(...list);
     }
 
     async #request_preset_config() {
@@ -77,18 +78,14 @@ export class Config extends EventEmitter {
     colorCorrection;
     nightMode;
 
-    presets;
-
     constructor(ws) {
         super();
 
         this.#ws = ws;
+        this.preset = new Preset(this.#ws, this);
     }
 
-
     async load() {
-        this.preset = new Preset(this.#ws, this);
-
         const [buffer] = await Promise.all([
             this.#ws.request(PacketType.GET_CONFIG), this.preset.load()]);
 

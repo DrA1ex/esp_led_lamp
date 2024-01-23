@@ -7,20 +7,23 @@
 #include "debug.h"
 #include "timer.h"
 
+class StorageGlobal { ;
+public:
+    static bool storage_initialized;
+};
+
 template<typename T>
 class Storage {
-    volatile static bool _global_initialized;
-
     T _data;
     Timer &_timer;
 
     uint16_t _offset;
-    uint32_t _header;
     uint8_t _version;
+    uint32_t _header;
     long _save_timer_id = -1;
 
 public:
-    Storage(Timer &timer, uint16_t offset, uint32_t header = STORAGE_HEADER, uint8_t version = STORAGE_VERSION);
+    Storage(Timer &timer, uint16_t offset, uint8_t version, uint32_t header = STORAGE_HEADER);
 
     void begin();
 
