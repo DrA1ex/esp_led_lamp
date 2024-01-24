@@ -33,3 +33,7 @@ extern const TProgmemRGBGradientPalette_byte Gargantua_gp[] FL_PROGMEM;
 extern const TProgmemRGBGradientPalette_byte MoonLight_gp[] FL_PROGMEM;
 extern const TProgmemRGBGradientPalette_byte LastNight_gp[] FL_PROGMEM;
 extern const TProgmemRGBGradientPalette_byte Rhapsody_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte Galaxy_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte NeonStreet_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte Moody_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte Fall_gp[] FL_PROGMEM;

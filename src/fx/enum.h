@@ -39,6 +39,10 @@ enum class PaletteEnum : uint8_t {
     MOON_LIGHT,
     LAST_NIGHT,
     RHAPSODY,
+    GALAXY,
+    NEON_STREET,
+    MOODY,
+    FALL,
 };
 
 enum class ColorEffectEnum : uint8_t {
