@@ -39,15 +39,26 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 4 / 255;
     const auto time_factor = apply_period(state.current_time_factor, (1 << 16) - 1);
 
-    for (int i = 0; i < width; ++i) {
-        for (int j = 0; j < height; ++j) {
-            led.setPixel(i, j, ColorFromPalette(
+    if (height > 1) {
+        for (int i = 0; i < width; ++i) {
+            for (int j = 0; j < height; ++j) {
+                led.setPixel(i, j, ColorFromPalette(
+                        *palette,
+                        inoise8(
+                                i * scale / 5 - width * scale / 5 / 2,
+                                j * scale / 5 - height * scale / 5 / 2,
+                                time_factor))
+                );
+            }
+        }
+    } else {
+        for (int i = 0; i < width; ++i) {
+            led.setPixel(i, 0, ColorFromPalette(
                     *palette,
                     inoise8(
-                            i * (scale / 5) - width * (scale / 5) / 2,
-                            j * (scale / 5) - height * (scale / 5) / 2,
-                            time_factor),
-                    255, LINEARBLEND));
+                            i * scale / 5 - width * scale / 5 / 2,
+                            time_factor)
+            ));
         }
     }
 }
@@ -74,7 +85,7 @@ void ColorEffectManager::changeColor(Led &led, ColorEffectState &state) {
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 10.f / 255.f;
     const byte value = apply_period(state.current_time_factor, 256);
 
-    auto color = ColorFromPalette(*palette, value, 255, LINEARBLEND);
+    auto color = ColorFromPalette(*palette, value);
     led.fillSolid(color);
 }
 
@@ -92,7 +103,7 @@ void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
 
     for (int i = 0; i < led.width(); i++) {
         auto index = (long) ((float) i * scale_factor) + time_factor;
-        auto color = ColorFromPalette(*palette, index % 256, 255, LINEARBLEND);
+        auto color = ColorFromPalette(*palette, index % 256);
         led.fillColumn(i, color);
     }
 }
@@ -126,7 +137,7 @@ void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
             particle.x = random16() % width;
             particle.y = random16() % height;
 
-            particle.color = ColorFromPalette(*palette, random8(), 255, LINEARBLEND);
+            particle.color = ColorFromPalette(*palette, random8());
             particle.brightness = 255;
         }
 
@@ -160,6 +171,11 @@ void ColorEffectManager::pacific(Led &led, ColorEffectState &state) {
             scale,
             speed
     ] = state.params;
+
+    _pacific_wave(led,
+                  ColorFromPalette(*palette, beatsin8(speed / 8)),
+                  beatsin16(speed / 4, 0, led.width(), 0),
+                  scale / 4);
 
     _pacific_wave(led,
                   ColorFromPalette(*palette, beatsin8(speed / 16)),
