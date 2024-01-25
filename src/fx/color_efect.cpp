@@ -3,7 +3,7 @@
 #include "misc/led.h"
 
 ColorEffectManager::ColorEffectManager() {
-    _config.entries = {
+    static constexpr std::initializer_list<ColorEffectEntry> fx_init = {
             {ColorEffectEnum::PERLIN,       "Perlin Noise", perlin},
             {ColorEffectEnum::GRADIENT,     "Gradient",     gradient},
             {ColorEffectEnum::PACIFIC,      "Pacific",      pacific},
@@ -12,6 +12,9 @@ ColorEffectManager::ColorEffectManager() {
             {ColorEffectEnum::SOLID,        "Solid Color",  solid},
     };
 
+    static_assert(check_entry_order(fx_init), "Order isn't valid: item index must be the same as the code");
+
+    _config.entries = fx_init;
     _config.count = _config.entries.size();
 }
 
@@ -39,14 +42,16 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 4 / 255;
     const auto time_factor = apply_period(state.current_time_factor, (1 << 16) - 1);
 
+    float scale_factor = scale / 3.f;
+
     if (height > 1) {
         for (int i = 0; i < width; ++i) {
             for (int j = 0; j < height; ++j) {
                 led.setPixel(i, j, ColorFromPalette(
                         *palette,
                         inoise8(
-                                i * scale / 5 - width * scale / 5 / 2,
-                                j * scale / 5 - height * scale / 5 / 2,
+                                (float) i * scale_factor - (float) width * scale_factor / 4.f,
+                                (float) j * scale_factor - (float) height * scale_factor / 4.f,
                                 time_factor))
                 );
             }
@@ -56,7 +61,7 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
             led.setPixel(i, 0, ColorFromPalette(
                     *palette,
                     inoise8(
-                            i * scale / 5 - width * scale / 5 / 2,
+                            (float) i * scale_factor - (float) width * scale_factor / 4.f,
                             time_factor)
             ));
         }

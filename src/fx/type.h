@@ -118,3 +118,28 @@ public:
     [[nodiscard]] inline const ConfigT &config() const { return _config; }
     [[nodiscard]] inline CodeT fx() const { return _fx; }
 };
+
+template<typename T>
+constexpr bool check_entry_order(const std::initializer_list<T> &lst) {
+    int index = 0;
+    for (const auto &v: lst) {
+        if ((int) v.code != index++) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+template<typename T, const std::initializer_list<T> &lst>
+constexpr const std::initializer_list<T> &check_entry_order_2() {
+    int index = 0;
+    for (const T &t: lst) {
+        if (((int) t.code != index++)) {
+            //TODO:
+            static_assert("Error !");
+        }
+    }
+
+    return lst;
+}

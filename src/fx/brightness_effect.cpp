@@ -3,7 +3,7 @@
 #include "misc/led.h"
 
 BrightnessEffectManager::BrightnessEffectManager() {
-    _config.entries = {
+    static constexpr std::initializer_list<BrightnessEffectEntry> fx_init = {
             {BrightnessEffectEnum::FIXED,       "Fixed",       fixed},
             {BrightnessEffectEnum::PULSE,       "Pulse",       pulse},
             {BrightnessEffectEnum::WAVE,        "Wave",        wave},
@@ -11,6 +11,9 @@ BrightnessEffectManager::BrightnessEffectManager() {
             {BrightnessEffectEnum::OSCILLATOR,  "Oscillator",  oscillator},
     };
 
+    static_assert(check_entry_order(fx_init), "Order isn't valid: item index must be the same as the code");
+
+    _config.entries = fx_init;
     _config.count = _config.entries.size();
 }
 
@@ -109,7 +112,8 @@ void BrightnessEffectManager::eco(Led &led, byte level) {
     float next_index = period;
     for (int i = 0; i < led.width(); ++i) {
         for (int j = 0; j < led.height(); ++j) {
-            if (i < (int) next_index) {
+            const auto index = i * led.width() + j;
+            if (index < (int) next_index) {
                 if (!invert) led.setPixel(i, j, CRGB::Black);
             } else {
                 if (invert) led.setPixel(i, j, CRGB::Black);
