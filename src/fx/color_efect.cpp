@@ -6,7 +6,7 @@ ColorEffectManager::ColorEffectManager() {
     static constexpr std::initializer_list<ColorEffectEntry> fx_init = {
             {ColorEffectEnum::PERLIN,       "Perlin Noise", perlin},
             {ColorEffectEnum::GRADIENT,     "Gradient",     gradient},
-            {ColorEffectEnum::PACIFIC,      "Pacific",      pacific},
+            {ColorEffectEnum::PACIFIC,      "Fire",         fire},
             {ColorEffectEnum::PARTICLES,    "Particles",    particles},
             {ColorEffectEnum::CHANGE_COLOR, "Color Change", changeColor},
             {ColorEffectEnum::SOLID,        "Solid Color",  solid},
@@ -154,55 +154,32 @@ void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
     }
 }
 
-void _pacific_wave(Led &led, CRGB color, uint16_t phase, uint16_t width) {
-    const auto from = max(0, phase - width / 2);
-    const auto to = min(led.width(), phase + width / 2);
-
-    for (int i = from; i < to; ++i) {
-        const byte brightness = ease8InOutCubic(255 * abs(phase - i) / (width / 2));
-
-        const auto &pixel = led.getPixel(i, 0);
-
-        const auto faded_color = color.scale8(255 - brightness);
-        const auto out_color = blend(pixel, faded_color, 64);
-
-        led.setPixel(i, 0, out_color);
-    }
-}
-
-void ColorEffectManager::pacific(Led &led, ColorEffectState &state) {
+void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
     const auto &[
             palette,
             scale,
             speed
     ] = state.params;
 
-    _pacific_wave(led,
-                  ColorFromPalette(*palette, beatsin8(speed / 8)),
-                  beatsin16(speed / 4, 0, led.width(), 0),
-                  scale / 4);
+    const auto height = led.height();
+    const auto width = led.width();
 
-    _pacific_wave(led,
-                  ColorFromPalette(*palette, beatsin8(speed / 16)),
-                  beatsin16(speed / 8, 0, led.width(), 0),
-                  scale / 8);
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 2 / 255;
+    const auto time_factor = apply_period(state.current_time_factor, (1 << 16) - 1);
 
-    _pacific_wave(led,
-                  ColorFromPalette(*palette, beatsin8(speed / 15)),
-                  beatsin16(speed / 8 + 2, 0, led.width()),
-                  scale / 8);
+    auto scale_factor = scale / 2;
 
-    _pacific_wave(led,
-                  ColorFromPalette(*palette, beatsin8(speed / 32)),
-                  beatsin16(speed / 16, 0, led.width()),
-                  scale / 4);
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            const auto brightness = max(0, (int16_t) inoise8(
+                    (uint16_t) (i * scale_factor),
+                    (uint16_t) (j * scale_factor) - time_factor,
+                    time_factor) - (j * 255 / height));
 
-    _pacific_wave(led,
-                  ColorFromPalette(*palette, beatsin8(speed / 64)),
-                  beatsin16(speed / 32, 0, led.width()),
-                  scale / 2);
+            const uint8_t color_index = brightness % 256;
 
-    for (int i = 0; i < led.width(); ++i) {
-        led.fillColumn(i, led.getPixel(i, 0));
+            auto color = ColorFromPalette(*palette, color_index, brightness > 0 ? 255 - brightness / 5 : 0);
+            nblend(led.getPixel(i, j), color, 176);
+        }
     }
 }
