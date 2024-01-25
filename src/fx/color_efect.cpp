@@ -6,7 +6,9 @@ ColorEffectManager::ColorEffectManager() {
     static constexpr std::initializer_list<ColorEffectEntry> fx_init = {
             {ColorEffectEnum::PERLIN,       "Perlin Noise", perlin},
             {ColorEffectEnum::GRADIENT,     "Gradient",     gradient},
-            {ColorEffectEnum::PACIFIC,      "Fire",         fire},
+            {ColorEffectEnum::FIRE,         "Fire",         fire},
+            {ColorEffectEnum::AURORA,       "Aurora",       aurora},
+            {ColorEffectEnum::PLASMA,       "Plasma",       plasma},
             {ColorEffectEnum::PARTICLES,    "Particles",    particles},
             {ColorEffectEnum::CHANGE_COLOR, "Color Change", changeColor},
             {ColorEffectEnum::SOLID,        "Solid Color",  solid},
@@ -40,30 +42,23 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     const auto width = led.width();
 
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 4 / 255;
-    const auto time_factor = apply_period(state.current_time_factor, (1 << 16) - 1);
+    const auto time_factor = apply_period(state.current_time_factor, 1 << 16);
 
     float scale_factor = scale / 3.f;
 
     if (height > 1) {
         for (int i = 0; i < width; ++i) {
             for (int j = 0; j < height; ++j) {
-                led.setPixel(i, j, ColorFromPalette(
-                        *palette,
-                        inoise8(
-                                (float) i * scale_factor - (float) width * scale_factor / 4.f,
-                                (float) j * scale_factor - (float) height * scale_factor / 4.f,
-                                time_factor))
-                );
+                auto noise_value = inoise8(i * scale_factor, j * scale_factor, time_factor);
+
+                led.setPixel(i, j, ColorFromPalette(*palette, noise_value));
             }
         }
     } else {
         for (int i = 0; i < width; ++i) {
-            led.setPixel(i, 0, ColorFromPalette(
-                    *palette,
-                    inoise8(
-                            (float) i * scale_factor - (float) width * scale_factor / 4.f,
-                            time_factor)
-            ));
+            auto index = inoise8(i * scale_factor, time_factor);
+
+            led.setPixel(i, 0, ColorFromPalette(*palette, index));
         }
     }
 }
@@ -165,7 +160,7 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
     const auto width = led.width();
 
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 2 / 255;
-    const auto time_factor = apply_period(state.current_time_factor, (1 << 16) - 1);
+    const auto time_factor = apply_period(state.current_time_factor, 1 << 16);
 
     auto scale_factor = scale / 2;
 
@@ -180,6 +175,72 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
 
             auto color = ColorFromPalette(*palette, color_index, brightness > 0 ? 255 - brightness / 5 : 0);
             nblend(led.getPixel(i, j), color, 176);
+        }
+    }
+}
+
+void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
+    const auto height = led.height();
+    const auto width = led.width();
+
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 255;
+    const auto time_factor = apply_period(state.current_time_factor, 1 << 16);
+
+    auto scale_factor = scale / 4;
+    auto height_factor = height * 185 / 100;
+
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            const auto value = inoise8(
+                    i * scale_factor,
+                    j * height,
+                    time_factor);
+
+            const auto color = ColorFromPalette(*palette, qsub8(value, height_factor * abs(height / 2 - j)));
+            led.setPixel(i, j, color);
+        }
+    }
+}
+
+float sin8f(float i) {
+    while (i > 65535) {
+        i -= 65535;
+    }
+
+    return (sin16((uint16_t) (i / 255 * 65535)) / 32767.0f + 1) * 255;
+}
+
+void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
+    const auto height = led.height();
+    const auto width = led.width();
+
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 255 / 255;
+    apply_period(state.current_time_factor, 1 << 16);
+
+    float scale_factor = (float) scale / 255;
+
+    auto x_drift = state.current_time_factor * 5;
+    auto y_drift = x_drift;
+
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            const auto index = sin8f(x_drift + i * 8 + sin8f(i * 2 + state.current_time_factor * 6)) / 2 +
+                               sin8f(y_drift + j * 8 + sin8f(j * 2 + state.current_time_factor * 7) / 2);
+
+            const auto color = ColorFromPalette(*palette, (int) (index * scale_factor) % 256);
+            led.setPixel(i, j, color);
         }
     }
 }

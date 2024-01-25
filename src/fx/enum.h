@@ -48,7 +48,9 @@ enum class PaletteEnum : uint8_t {
 enum class ColorEffectEnum : uint8_t {
     PERLIN,
     GRADIENT,
-    PACIFIC,
+    FIRE,
+    AURORA,
+    PLASMA,
     PARTICLES,
     CHANGE_COLOR,
     SOLID,
