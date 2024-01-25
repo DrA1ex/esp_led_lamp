@@ -50,5 +50,5 @@ const std::initializer_list<PaletteEntry> palette_init = {
 
 PaletteConfig Palettes = {
         .count = (uint8_t) palette_init.size(),
-        .entries = check_entry_order_2<PaletteEntry, palette_init>()
+        .entries = palette_init
 };

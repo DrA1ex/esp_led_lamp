@@ -11,6 +11,8 @@ enum class AppState {
     INITIALIZATION,
     NORMAL,
     CALIBRATION,
+    TURNING_ON,
+    TURNING_OFF
 };
 
 struct __attribute ((packed)) NightModeConfig {

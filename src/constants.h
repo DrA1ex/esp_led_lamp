@@ -1,6 +1,6 @@
 #pragma once
 
-#include <FastLED.h>
+#include "misc/led.h"
 
 #define WIFI_MODE                               (0u)                    // 0 - AP mode, 1 - STA mode
 #define WIFI_SSID                               "ESP_LED"
@@ -45,6 +45,7 @@
 #define TIMER_GROW_AMOUNT                       (8u);
 
 #define CALIBRATION_TIMEOUT                     (5000u)                 // Timeout for calibration mode
+#define POWER_CHANGE_TIMEOUT                    (1000u)                 // Timeout for power change animation
 
 #define MAX_PARTICLES_COUNT                     (50u)
 

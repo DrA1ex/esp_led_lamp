@@ -50,7 +50,6 @@ Response ServerBase::handle_packet_data(const byte *buffer, uint16_t length) {
             D_PRINTF("Color correction: %Xu\n", app().config.color_correction);
 
             app().config_storage.save();
-            app().change_state(AppState::CALIBRATION);
         }
 
         return response;
@@ -175,10 +174,12 @@ Response ServerBase::process_command(const PacketHeader &header) {
     switch (header.type) {
         case PacketType::POWER_ON:
             app().config.power = true;
+            app().change_state(AppState::TURNING_ON);
             break;
 
         case PacketType::POWER_OFF:
             app().config.power = false;
+            app().change_state(AppState::TURNING_OFF);
             break;
 
         case PacketType::RESTART:
@@ -288,6 +289,7 @@ Response ServerBase::calibrate(const PacketHeader &header, const void *data) {
             return Response::code(ResponseCode::BAD_COMMAND);
     }
 
+    app().change_state(AppState::CALIBRATION);
     return Response::ok();
 }
 

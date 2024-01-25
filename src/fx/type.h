@@ -130,16 +130,3 @@ constexpr bool check_entry_order(const std::initializer_list<T> &lst) {
 
     return true;
 }
-
-template<typename T, const std::initializer_list<T> &lst>
-constexpr const std::initializer_list<T> &check_entry_order_2() {
-    int index = 0;
-    for (const T &t: lst) {
-        if (((int) t.code != index++)) {
-            //TODO:
-            static_assert("Error !");
-        }
-    }
-
-    return lst;
-}

@@ -82,7 +82,31 @@ void render_loop(void *) {
     ++ii;
 #endif
 
-    led.setBrightness(app.config.max_brightness);
+    switch (app.state) {
+        case AppState::NORMAL:
+        case AppState::INITIALIZATION:
+        case AppState::CALIBRATION:
+            led.setBrightness(app.config.max_brightness);
+            break;
+
+        case AppState::TURNING_ON: {
+            uint8_t factor = ease8InOutQuad((millis() - app.state_change_time) * 255 / POWER_CHANGE_TIMEOUT);
+            uint8_t brightness = (uint16_t) factor * app.config.max_brightness / 255;
+            led.setBrightness(brightness);
+
+            if (factor == 255) app.change_state(AppState::NORMAL);
+            break;
+        }
+
+        case AppState::TURNING_OFF: {
+            uint8_t factor = ease8InOutQuad(255 - (millis() - app.state_change_time) * 255 / POWER_CHANGE_TIMEOUT);
+            uint8_t brightness = (uint16_t) factor * app.config.max_brightness / 255;
+            led.setBrightness(brightness);
+
+            if (factor == 0) app.change_state(AppState::NORMAL);
+            break;
+        }
+    }
 
     switch (app.state) {
         case AppState::INITIALIZATION:
@@ -90,6 +114,8 @@ void render_loop(void *) {
             break;
 
         case AppState::NORMAL:
+        case AppState::TURNING_ON:
+        case AppState::TURNING_OFF:
             render();
             break;
 
@@ -101,7 +127,7 @@ void render_loop(void *) {
 
 
 void render() {
-    if (!app.config.power || app.config.max_brightness == 0) {
+    if ((app.state == AppState::NORMAL && !app.config.power) || app.config.max_brightness == 0) {
         led.clear();
         led.show();
 
