@@ -1,7 +1,7 @@
 import {PacketType} from "./cmd.js";
 import {EventEmitter} from "../misc/event_emitter.js";
 
-const SIGNATURE = [0x34, 0xaa];
+import {REQUEST_TIMEOUT, REQUEST_SIGNATURE, CONNECTION_TIMEOUT_DELAY_STEP} from "../constants.js";
 
 export class WebSocketInteraction extends EventEmitter {
     static CONNECTED = "ws_interaction_connected";
@@ -20,7 +20,7 @@ export class WebSocketInteraction extends EventEmitter {
 
     get connected() {return this.#connected;}
 
-    constructor(gateway, requestTimeout = 1000) {
+    constructor(gateway, requestTimeout = REQUEST_TIMEOUT) {
         super();
 
         this.gateway = gateway;
@@ -56,9 +56,9 @@ export class WebSocketInteraction extends EventEmitter {
         }
 
         if (buffer) {
-            this.#ws.send(Uint8Array.of(...SIGNATURE, cmd, buffer.byteLength, ...new Uint8Array(buffer)));
+            this.#ws.send(Uint8Array.of(...REQUEST_SIGNATURE, cmd, buffer.byteLength, ...new Uint8Array(buffer)));
         } else {
-            this.#ws.send(Uint8Array.of(...SIGNATURE, cmd, 0x00));
+            this.#ws.send(Uint8Array.of(...REQUEST_SIGNATURE, cmd, 0x00));
         }
 
         return new Promise((resolve, reject) => {
@@ -96,6 +96,7 @@ export class WebSocketInteraction extends EventEmitter {
 
     #onOpen() {
         this.#connected = true;
+        this.#connectionTimeout = 0;
         console.log("Connection established");
 
         this.emitEvent(WebSocketInteraction.CONNECTED);
@@ -147,9 +148,7 @@ export class WebSocketInteraction extends EventEmitter {
 
         if (reconnect) {
             setTimeout(() => this.#init(), this.#connectionTimeout);
-            this.#connectionTimeout += 1000;
-        } else {
-            this.#connectionTimeout = 0;
+            this.#connectionTimeout += CONNECTION_TIMEOUT_DELAY_STEP;
         }
     }
 }

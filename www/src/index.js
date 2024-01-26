@@ -15,10 +15,16 @@ import {BinaryParser} from "./misc/binary_parser.js";
 import * as FunctionUtils from "./utils/function.js"
 import {ButtonControl} from "./control/button.js";
 
+import {DEFAULT_ADDRESS, THROTTLE_INTERVAL} from "./constants.js";
+
 const StatusElement = document.getElementById("status");
 
-const host = window.location.hostname;
-const gateway = `ws://${host !== "localhost" ? host : "esp_lamp.local"}/ws`;
+const params = new Proxy(new URLSearchParams(window.location.search), {
+    get: (searchParams, prop) => searchParams.get(prop),
+});
+
+const host = params.host ?? window.location.hostname;
+const gateway = `ws://${host !== "localhost" ? host : DEFAULT_ADDRESS}/ws`;
 
 const ws = new WebSocketInteraction(gateway);
 
@@ -254,7 +260,7 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
         prop.__busy = false;
         if (prop.type !== "wheel") control.element.setAttribute("data-saving", "false");
     }
-}, 1000 / 60);
+}, THROTTLE_INTERVAL);
 
 async function refresh() {
     const config = window.__app.Config;
