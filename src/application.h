@@ -2,7 +2,7 @@
 
 #include "config.h"
 #include "misc/storage.h"
-#include "mode.h"
+#include "night_mode.h"
 
 class Application {
 public:
@@ -31,4 +31,5 @@ public:
     void update();
 
     inline PresetConfig &preset() { return preset_configs.presets[config.preset_id]; }
+    [[nodiscard]] BrightnessSettings get_brightness_settings() const;
 };

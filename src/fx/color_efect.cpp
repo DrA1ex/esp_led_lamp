@@ -41,7 +41,7 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     const auto height = led.height();
     const auto width = led.width();
 
-    state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 4 / 255;
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 2 / 255;
     const auto time_factor = apply_period(state.current_time_factor, 1 << 16);
 
     float scale_factor = scale / 3.f;
@@ -192,7 +192,7 @@ void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 255;
     const auto time_factor = apply_period(state.current_time_factor, 1 << 16);
 
-    auto scale_factor = scale / 4;
+    auto scale_factor = scale / 2;
     auto height_factor = height * 185 / 100;
 
     for (int i = 0; i < width; i++) {
@@ -226,18 +226,19 @@ void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
     const auto height = led.height();
     const auto width = led.width();
 
-    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 255 / 255;
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 128 / 255;
     apply_period(state.current_time_factor, 1 << 16);
 
-    float scale_factor = (float) scale / 255;
+    const float time_factor = state.current_time_factor;
+    const float scale_factor = ((float) scale + 1.f) / 256;
 
-    auto x_drift = state.current_time_factor * 5;
+    auto x_drift = time_factor * 5;
     auto y_drift = x_drift;
 
     for (int i = 0; i < width; i++) {
         for (int j = 0; j < height; j++) {
-            const auto index = sin8f(x_drift + i * 8 + sin8f(i * 2 + state.current_time_factor * 6)) / 2 +
-                               sin8f(y_drift + j * 8 + sin8f(j * 2 + state.current_time_factor * 7) / 2);
+            const auto index = sin8f(x_drift + i * 8 + sin8f(i * 2 + time_factor * 6)) / 2 +
+                               sin8f(y_drift + j * 8 + sin8f(j * 2 + time_factor * 7) / 2);
 
             const auto color = ColorFromPalette(*palette, (int) (index * scale_factor) % 256);
             led.setPixel(i, j, color);

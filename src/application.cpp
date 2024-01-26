@@ -5,7 +5,7 @@
 
 #include "fx/fx.h"
 
-#include "mode.h"
+#include "night_mode.h"
 
 Application::Application(Storage<Config> &config_storage,
                          Storage<PresetNames> &preset_names_storage,
@@ -38,4 +38,12 @@ void Application::update() {
 void Application::change_state(AppState s) {
     state_change_time = millis();
     state = s;
+}
+
+BrightnessSettings Application::get_brightness_settings() const {
+    if (night_mode_manager.is_night_time()) {
+        return night_mode_manager.get_night_settings();
+    } else {
+        return {config.max_brightness, config.eco};
+    }
 }

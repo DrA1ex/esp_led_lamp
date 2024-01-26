@@ -92,7 +92,7 @@ protected:
 
     uint32_t static apply_period(float &value, uint32_t period) {
         if (value >= period) value -= period;
-        return (uint32_t) value % period;
+        return (uint32_t) round(value) % period;
     }
 
     virtual void reset_state() {

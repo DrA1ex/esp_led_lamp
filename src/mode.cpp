@@ -1,10 +1,10 @@
-#include "mode.h"
+#include "night_mode.h"
 
 #include "fx/brightness_effect.h"
 #include "misc/led.h"
 #include "misc/ntp_time.h"
 
-NightModeManager::NightModeManager(Led &led, const Config &config) : _led(led), _config(config) {}
+NightModeManager::NightModeManager(const Config &config) : _config(config) {}
 
 void NightModeManager::handle_night(const NtpTime &ntp_time) {
     if (!_config.night_mode.enabled || !ntp_time.available()) return;
@@ -33,12 +33,13 @@ uint8_t _smooth(uint8_t from, uint8_t to, float factor) {
     return from - ((int16_t) from - to) * factor;
 }
 
-void NightModeManager::apply_night_settings() {
+BrightnessSettings NightModeManager::get_night_settings() const {
+    if (!is_night_time()) { return {}; }
+
     const uint8_t brightness = _smooth(_config.max_brightness, _config.night_mode.brightness, _fade_factor);
     const uint8_t eco = _smooth(_config.eco, _config.night_mode.eco, _fade_factor);
 
-    _led.setBrightness(brightness);
-    BrightnessEffectManager::eco(_led, eco);
+    return {brightness, eco};
 }
 
 void NightModeManager::reset() {

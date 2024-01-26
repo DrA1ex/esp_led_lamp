@@ -15,6 +15,11 @@ enum class AppState {
     TURNING_OFF
 };
 
+struct BrightnessSettings {
+    uint8_t brightness;
+    uint8_t eco;
+};
+
 struct __attribute ((packed)) NightModeConfig {
     bool enabled = false;
 

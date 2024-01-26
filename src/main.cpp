@@ -4,7 +4,7 @@
 #include "application.h"
 #include "constants.h"
 #include "config.h"
-#include "mode.h"
+#include "night_mode.h"
 
 #include "misc/led.h"
 #include "misc/storage.h"
@@ -32,7 +32,7 @@ Storage<Config> config_storage(global_timer, 0, STORAGE_CONFIG_VERSION);
 Storage<PresetNames> preset_names_storage(global_timer, config_storage.size(), STORAGE_PRESET_NAMES_VERSION);
 Storage<PresetConfigs> preset_configs_storage(global_timer, preset_names_storage.size(), STORAGE_PRESET_CONFIG_VERSION);
 
-NightModeManager night_mode_manager(led, config_storage.get());
+NightModeManager night_mode_manager(config_storage.get());
 
 Application app(config_storage, preset_names_storage, preset_configs_storage, night_mode_manager);
 
@@ -82,16 +82,18 @@ void render_loop(void *) {
     ++ii;
 #endif
 
+    const auto brightness_settings = app.get_brightness_settings();
+
     switch (app.state) {
         case AppState::NORMAL:
         case AppState::INITIALIZATION:
         case AppState::CALIBRATION:
-            led.setBrightness(app.config.max_brightness);
+            led.setBrightness(brightness_settings.brightness);
             break;
 
         case AppState::TURNING_ON: {
             uint8_t factor = ease8InOutQuad((millis() - app.state_change_time) * 255 / POWER_CHANGE_TIMEOUT);
-            uint8_t brightness = (uint16_t) factor * app.config.max_brightness / 255;
+            uint8_t brightness = (uint16_t) factor * brightness_settings.brightness / 255;
             led.setBrightness(brightness);
 
             if (factor == 255) app.change_state(AppState::NORMAL);
@@ -100,7 +102,7 @@ void render_loop(void *) {
 
         case AppState::TURNING_OFF: {
             uint8_t factor = ease8InOutQuad(255 - (millis() - app.state_change_time) * 255 / POWER_CHANGE_TIMEOUT);
-            uint8_t brightness = (uint16_t) factor * app.config.max_brightness / 255;
+            uint8_t brightness = (uint16_t) factor * brightness_settings.brightness / 255;
             led.setBrightness(brightness);
 
             if (factor == 0) app.change_state(AppState::NORMAL);
@@ -116,7 +118,10 @@ void render_loop(void *) {
         case AppState::NORMAL:
         case AppState::TURNING_ON:
         case AppState::TURNING_OFF:
+            led.clear();
             render();
+            BrightnessEffectManager::eco(led, brightness_settings.eco);
+            led.show();
             break;
 
         case AppState::CALIBRATION:
@@ -127,28 +132,12 @@ void render_loop(void *) {
 
 
 void render() {
-    if ((app.state == AppState::NORMAL && !app.config.power) || app.config.max_brightness == 0) {
-        led.clear();
-        led.show();
-
-        return;
-    }
+    if (app.state == AppState::NORMAL && !app.config.power) return;
 
     const auto palette = &app.palette->value;
-
-    led.clear();
-
     const auto &preset = app.preset();
     ColorEffects.call(led, palette, preset);
     BrightnessEffects.call(led, preset);
-
-    if (night_mode_manager.is_night_time()) {
-        night_mode_manager.apply_night_settings();
-    } else {
-        BrightnessEffectManager::eco(led, app.config.eco);
-    }
-
-    led.show();
 }
 
 void calibration() {
@@ -173,11 +162,11 @@ void initialization_animation() {
 
     const auto t = millis() - app.state_change_time;
     for (int i = 0; i < led.width(); ++i) {
-        const auto time_factor = (t / 8 + i * 6) % 256;
+        const auto time_factor = (t / 8 + i * 4) % 256;
         const auto brightness = 255 - cubicwave8(time_factor);
         const auto color = CRGB(CRGB::Purple).scale8(brightness);
 
-        led.fillColumn(i, color);
+        led.setPixel(i, 0, color);
     }
 
     led.show();

@@ -100,7 +100,7 @@ void BrightnessEffectManager::double_wave(Led &led, BrightnessEffectState &state
 }
 
 void BrightnessEffectManager::eco(Led &led, byte level) {
-    const auto total_count = led.width() * led.height();
+    const auto total_count = led.count();
     const auto active_count = (total_count * level) / 255;
 
     if (total_count == active_count) return;
@@ -110,9 +110,9 @@ void BrightnessEffectManager::eco(Led &led, byte level) {
                                  : (float) total_count / (float) (total_count - active_count + 1);
 
     float next_index = period;
-    for (int i = 0; i < led.width(); ++i) {
-        for (int j = 0; j < led.height(); ++j) {
-            const auto index = i * led.width() + j;
+    for (int j = 0; j < led.height(); ++j) {
+        for (int i = 0; i < led.width(); ++i) {
+            const auto index = i + j * led.width();
             if (index < (int) next_index) {
                 if (!invert) led.setPixel(i, j, CRGB::Black);
             } else {

@@ -9,7 +9,6 @@ class NightModeManager {
     const static int32_t FACTOR_FADE_UPDATE_PERIOD_MS = 30;
     const static int32_t FACTOR_UPDATE_PERIOD_MS = 1000;
 
-    Led &_led;
     const Config &_config;
 
     bool _is_night = false;
@@ -21,16 +20,16 @@ class NightModeManager {
     unsigned long _next_end_fade_time = 0;
 
     unsigned long _last_fade_factor_update = 0;
-    float _fade_factor;
+    float _fade_factor = 0;
 
     bool _need_update_parameters = false;
 
 public:
-    explicit NightModeManager(Led &led, const Config &config);
+    explicit NightModeManager(const Config &config);
 
     void handle_night(const NtpTime &ntp_time);
-    void apply_night_settings();
 
+    [[nodiscard]] BrightnessSettings get_night_settings() const;
     [[nodiscard]] inline bool is_night_time() const { return _config.night_mode.enabled && _is_night; }
 
     void reset();
