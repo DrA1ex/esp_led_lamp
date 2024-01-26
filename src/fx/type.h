@@ -7,6 +7,8 @@
 struct Config;
 class Led;
 
+typedef CRGBPalette16 PaletteT;
+
 struct FxStateBase {
     unsigned long time = 0;
     unsigned long prev_time = 0;
@@ -19,7 +21,7 @@ struct FxStateBase {
 
 struct ColorEffectState : FxStateBase {
     struct {
-        const CRGBPalette16 *palette = nullptr;
+        const PaletteT *palette = nullptr;
         byte scale = 0;
         byte speed = 0;
     } params;
@@ -52,7 +54,7 @@ struct FxConfig {
     std::vector<EntryT> entries;
 };
 
-typedef FxConfigEntry<PaletteEnum, CRGBPalette16> PaletteEntry;
+typedef FxConfigEntry<PaletteEnum, PaletteT> PaletteEntry;
 typedef FxConfig<PaletteEntry> PaletteConfig;
 
 typedef FxConfigEntry<ColorEffectEnum, ColorEffectFn> ColorEffectEntry;
