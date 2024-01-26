@@ -13,8 +13,8 @@ struct FxStateBase {
     unsigned long time = 0;
     unsigned long prev_time = 0;
 
-    float prev_time_factor = 0;
-    float current_time_factor = 0;
+    double prev_time_factor = 0;
+    double current_time_factor = 0;
 
     [[nodiscard]] inline unsigned long delta() const { return time - prev_time; }
 };
@@ -82,7 +82,7 @@ protected:
         _save_next_value(_state.prev_time_factor, _state.current_time_factor);
     }
 
-    void static _save_next_value(float &prev, float &current) {
+    void static _save_next_value(double &prev, double &current) {
         // Avoid overflow to +INF
         if (current > MAX_SAFE_FLOAT_VALUE) {
             current -= MAX_SAFE_FLOAT_VALUE;
@@ -92,14 +92,15 @@ protected:
         prev = current;
     }
 
-    uint32_t static apply_period(float &value, uint32_t period) {
+    uint64_t static apply_period(double &value, uint64_t period) {
         if (value >= period) value -= period;
-        return (uint32_t) round(value) % period;
+        return (uint64_t) round(value) % period;
     }
 
     virtual void reset_state() {
         _state.prev_time_factor = 0;
         _state.current_time_factor = 0;
+        random16_add_entropy(micros() % (1 << 16));
     };
 
 public:

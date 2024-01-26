@@ -1,5 +1,8 @@
 #pragma once
 
+#include "misc/led.h"
+
+
 #define RGB_ENTRY(IND, CNT, rgb) (IND != CNT-1 ? IND * (255 / CNT) : 255), rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff
 
 #define __RGB_PALETTE_16(IND, CNT, rgb, ...) RGB_ENTRY(IND, CNT, rgb), __RGB_PALETTE_15(IND+1, CNT, __VA_ARGS__)
@@ -34,3 +37,8 @@
 #define RGB_PALETTE_4(...) __RGB_PALETTE_4(0, 4, __VA_ARGS__)
 #define RGB_PALETTE_3(...) __RGB_PALETTE_3(0, 3, __VA_ARGS__)
 #define RGB_PALETTE_2(...) __RGB_PALETTE_2(0, 2, __VA_ARGS__)
+
+
+CRGB color_from_palette(const CRGBPalette16 &pal, uint16_t index, uint8_t scale = 255);
+uint16_t inoise_hd(double x, double y, double z);
+uint16_t inoise_hd(double x, double y);

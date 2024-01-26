@@ -1,6 +1,7 @@
 #include "color_effect.h"
 
 #include "misc/led.h"
+#include "utils/palette.h"
 
 ColorEffectManager::ColorEffectManager() {
     static constexpr std::initializer_list<ColorEffectEntry> fx_init = {
@@ -10,7 +11,7 @@ ColorEffectManager::ColorEffectManager() {
             {ColorEffectEnum::AURORA,       "Aurora",       aurora},
             {ColorEffectEnum::PLASMA,       "Plasma",       plasma},
             {ColorEffectEnum::PARTICLES,    "Particles",    particles},
-            {ColorEffectEnum::CHANGE_COLOR, "Color Change", changeColor},
+            {ColorEffectEnum::CHANGE_COLOR, "Color Change", color_change},
             {ColorEffectEnum::SOLID,        "Solid Color",  solid},
     };
 
@@ -41,24 +42,22 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     const auto height = led.height();
     const auto width = led.width();
 
-    state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 2 / 255;
-    const auto time_factor = apply_period(state.current_time_factor, 1 << 16);
+    state.current_time_factor = state.prev_time_factor + (double) state.delta() * speed / 255;
+    apply_period(state.current_time_factor, 1LL << 24);
 
-    float scale_factor = scale / 3.f;
+    double scale_factor = scale / 2.0;
 
     if (height > 1) {
         for (int i = 0; i < width; ++i) {
             for (int j = 0; j < height; ++j) {
-                auto noise_value = inoise8(i * scale_factor, j * scale_factor, time_factor);
-
-                led.setPixel(i, j, ColorFromPalette(*palette, noise_value));
+                auto noise_value = inoise_hd(i * scale_factor, j * scale_factor, state.current_time_factor);
+                led.setPixel(i, j, color_from_palette(*palette, noise_value));
             }
         }
     } else {
         for (int i = 0; i < width; ++i) {
-            auto index = inoise8(i * scale_factor, time_factor);
-
-            led.setPixel(i, 0, ColorFromPalette(*palette, index));
+            auto noise_value = inoise_hd(i * scale_factor, state.current_time_factor);
+            led.setPixel(i, 0, color_from_palette(*palette, noise_value));
         }
     }
 }
@@ -75,17 +74,17 @@ void ColorEffectManager::solid(Led &led, ColorEffectState &state) {
     led.fillSolid(color);
 }
 
-void ColorEffectManager::changeColor(Led &led, ColorEffectState &state) {
+void ColorEffectManager::color_change(Led &led, ColorEffectState &state) {
     const auto &[
             palette,
             scale,
             speed
     ] = state.params;
 
-    state.current_time_factor = state.prev_time_factor + (float) state.delta() * speed / 10.f / 255.f;
-    const byte value = apply_period(state.current_time_factor, 256);
+    state.current_time_factor = state.prev_time_factor + (double) state.delta() * speed / 10 / 255;
+    uint16_t value = apply_period(state.current_time_factor, 1LL << 24);
 
-    auto color = ColorFromPalette(*palette, value);
+    auto color = color_from_palette(*palette, value * 16);
     led.fillSolid(color);
 }
 
@@ -96,14 +95,14 @@ void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
             speed
     ] = state.params;
 
-    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (speed - 128) / 8.f / 128.f;
-    const auto time_factor = apply_period(state.current_time_factor, 256);
+    state.current_time_factor = state.prev_time_factor + (double) state.delta() * (speed - 128) / 4 / 128;
+    apply_period(state.current_time_factor, 1LL << 24);
 
     auto scale_factor = ((float) scale * 1.9f + 25) / (float) led.width();
 
     for (int i = 0; i < led.width(); i++) {
-        auto index = (long) ((float) i * scale_factor) + time_factor;
-        auto color = ColorFromPalette(*palette, index % 256);
+        auto index = ((double) i * scale_factor + state.current_time_factor) * 16;
+        auto color = color_from_palette(*palette, (uint16_t) index);
         led.fillColumn(i, color);
     }
 }
@@ -134,8 +133,8 @@ void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
         auto &particle = particles_store[k];
 
         if (particle.brightness == 0 && random8() < 32) {
-            particle.x = random16() % width;
-            particle.y = random16() % height;
+            particle.x = random8() % width;
+            particle.y = random8() % height;
 
             particle.color = ColorFromPalette(*palette, random8());
             particle.brightness = 255;
@@ -229,7 +228,7 @@ void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
     state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 128 / 255;
     apply_period(state.current_time_factor, 1 << 16);
 
-    const float time_factor = state.current_time_factor;
+    const auto time_factor = (float) state.current_time_factor;
     const float scale_factor = ((float) scale + 1.f) / 256;
 
     auto x_drift = time_factor * 5;
