@@ -47,9 +47,9 @@
 #define CALIBRATION_TIMEOUT                     (5000u)                 // Timeout for calibration mode
 #define POWER_CHANGE_TIMEOUT                    (1000u)                 // Timeout for power change animation
 
-#define MAX_PARTICLES_COUNT                     (50u)
+#define MAX_PARTICLES_COUNT                     (100u)
 
-#define MAX_SAFE_FLOAT_VALUE                    (4194304)               // 2 ** 22
+#define MAX_SAFE_FLOAT_VALUE                    (9007199254740991LL)    // 2 ** 53
 
 #define PRESET_MAX_COUNT                        (32u)
 #define PRESET_NAME_MAX_SIZE                    (40u)                   // Max size in bytes, UTF-8
