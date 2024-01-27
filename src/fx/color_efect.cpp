@@ -195,20 +195,30 @@ void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
     const auto height = led.height();
     const auto width = led.width();
 
-    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 255;
-    const auto time_factor = apply_period(state.current_time_factor, 1 << 16);
+    state.current_time_factor = state.prev_time_factor + (double) state.delta() * (double) speed / 2 / 255;
+    apply_period(state.current_time_factor, (1LL << 24) - 1);
 
-    auto scale_factor = scale / 2;
-    auto height_factor = height * 185 / 100;
+    const auto time_factor = state.current_time_factor;
+    const auto scale_factor = scale / 2;
+    const auto height_factor = 16 * height * 185 / 100;
 
-    for (int i = 0; i < width; i++) {
-        for (int j = 0; j < height; j++) {
-            const auto value = inoise8(
-                    i * scale_factor,
-                    j * height,
-                    time_factor);
+    for (int j = 0; j < height; j++) {
+        const auto noise_y = j * height;
+        const auto height_limit = height_factor * abs(height / 2 - j);
 
-            const auto color = ColorFromPalette(*palette, qsub8(value, height_factor * abs(height / 2 - j)));
+        for (int i = 0; i < width; i++) {
+            const auto noise_x = i * scale_factor;
+            const int noise_value = inoise_hd(noise_x, noise_y, time_factor);
+
+            auto color_index = noise_value - height_limit;
+
+            uint8_t brightness = 255;
+            if (color_index < 0) {
+                brightness = min(255, max<int>(0, 255 + color_index / 2));
+                color_index = 0;
+            }
+
+            const auto color = color_from_palette(*palette, color_index, brightness);
             led.setPixel(i, j, color);
         }
     }
