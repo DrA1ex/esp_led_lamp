@@ -118,7 +118,6 @@ void render_loop(void *) {
         case AppState::NORMAL:
         case AppState::TURNING_ON:
         case AppState::TURNING_OFF:
-            led.clear();
             render();
             BrightnessEffectManager::eco(led, brightness_settings.eco);
             led.show();
@@ -132,7 +131,10 @@ void render_loop(void *) {
 
 
 void render() {
-    if (app.state == AppState::NORMAL && !app.config.power) return;
+    if (app.state == AppState::NORMAL && !app.config.power) {
+        led.clear();
+        return;
+    }
 
     const auto palette = &app.palette->value;
     const auto &preset = app.preset();

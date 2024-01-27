@@ -129,6 +129,8 @@ void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
     const uint16_t particle_count = 1 + scale * (MAX_PARTICLES_COUNT - 1) / 255;
     const int fade_speed = 1 + speed / 8;
 
+    led.clear();
+
     for (uint16_t k = 0; k < particle_count; ++k) {
         auto &particle = particles_store[k];
 
@@ -137,7 +139,7 @@ void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
             particle.y = random8() % height;
 
             particle.color = ColorFromPalette(*palette, random8());
-            particle.brightness = 255;
+            particle.brightness = 192 + random8() / 4;
         }
 
         const auto color = particle.color.scale8(particle.brightness);
@@ -180,7 +182,7 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
             }
 
             auto color = color_from_palette(*palette, color_index, brightness);
-            led.setPixel(i, j, color);
+            nblend(led.getPixel(i, j), color, 64);
         }
     }
 }
@@ -219,7 +221,7 @@ void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
             }
 
             const auto color = color_from_palette(*palette, color_index, brightness);
-            led.setPixel(i, j, color);
+            nblend(led.getPixel(i, j), color, 64);
         }
     }
 }
