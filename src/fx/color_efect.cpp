@@ -146,7 +146,7 @@ void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
 
         const auto color = particle.color.scale8(particle.brightness);
         auto &pixel = led.getPixel(particle.x, particle.y);
-        nblend(pixel, color, 128);
+        nblend(pixel, color, 192);
 
         particle.brightness = ((uint16_t) particle.brightness * (255 - fade_speed)) >> 8;
     }
