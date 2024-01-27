@@ -164,17 +164,22 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
     auto time_factor = state.current_time_factor;
     auto scale_factor = scale / 2.0;
 
-    for (int i = 0; i < width; i++) {
-        for (int j = 0; j < height; j++) {
-            const auto noise_value = inoise_hd(
-                    (uint32_t) (i * scale_factor),
-                    (uint32_t) (j * scale_factor) - time_factor);
+    for (int j = 0; j < height; j++) {
+        const auto height_limit = (j * 4096 / height);
+        const auto noise_y = (j * scale_factor) - time_factor;
 
-            const auto color_index = noise_value - (j * 4096 / height);
-            const auto brightness = color_index < 0 ? 255 - color_index / 16 / 5 : 255;
+        for (int i = 0; i < width; i++) {
+            const auto noise_x = i * scale_factor;
+            const auto noise_value = inoise_hd(noise_x, noise_y);
+            auto color_index = noise_value - height_limit;
 
-            const auto color = color_from_palette(*palette, max(0, color_index));
+            uint8_t brightness = 255;
+            if (color_index < 0) {
+                brightness = min(255, max(0, 255 + color_index / 2));
+                color_index = 0;
+            }
 
+            auto color = color_from_palette(*palette, color_index, brightness);
             led.setPixel(i, j, color);
         }
     }
