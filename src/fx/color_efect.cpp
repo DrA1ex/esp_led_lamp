@@ -10,6 +10,7 @@ ColorEffectManager::ColorEffectManager() {
             {ColorEffectEnum::FIRE,         "Fire",         fire},
             {ColorEffectEnum::AURORA,       "Aurora",       aurora},
             {ColorEffectEnum::PLASMA,       "Plasma",       plasma},
+            {ColorEffectEnum::RIPPLE,       "Ripple",       ripple},
             {ColorEffectEnum::PARTICLES,    "Particles",    particles},
             {ColorEffectEnum::CHANGE_COLOR, "Color Change", color_change},
             {ColorEffectEnum::SOLID,        "Solid Color",  solid},
@@ -226,14 +227,6 @@ void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
     }
 }
 
-float sin8f(float i) {
-    while (i > 65535) {
-        i -= 65535;
-    }
-
-    return (sin16((uint16_t) (i / 255 * 65535)) / 32767.0f + 1) * 255;
-}
-
 void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
     const auto &[
             palette,
@@ -260,6 +253,32 @@ void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
 
             const auto color = ColorFromPalette(*palette, (int) (index * scale_factor) % 256);
             led.setPixel(i, j, color);
+        }
+    }
+}
+
+void ColorEffectManager::ripple(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
+    const auto height = led.height();
+    const auto width = led.width();
+
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed * 4 / 255;
+    apply_period(state.current_time_factor, 1 << 16);
+
+    const auto time_factor = (float) state.current_time_factor;
+    const auto scale_factor = (scale + 1) * 4;
+
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            const uint16_t index = i + j * width;
+            auto value = sin16f((float) (index * scale_factor) + time_factor * 2) / 16 + time_factor;
+
+            led.data()[index] = color_from_palette(*palette, (uint16_t) round(value));
         }
     }
 }

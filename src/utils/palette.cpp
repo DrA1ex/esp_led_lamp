@@ -23,3 +23,16 @@ CRGB color_from_palette(const CRGBPalette16 &pal, uint16_t index, uint8_t scale)
 
     return color;
 }
+
+float sin8f(float i) {
+    return (sin16f(i / 256 * 65536) / 65536) * 255;
+}
+
+float sin16f(float i) {
+    const int k = i / 65536;
+    if (k != 0) {
+        i -= k * 65536;
+    }
+
+    return sin16((uint16_t) round(i)) + 32767;
+}

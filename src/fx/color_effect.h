@@ -15,6 +15,7 @@ private:
     static void aurora(Led &led, ColorEffectState &state);
     static void plasma(Led &led, ColorEffectState &state);
     static void particles(Led &led, ColorEffectState &state);
+    static void ripple(Led &led, ColorEffectState &state);
     static void color_change(Led &led, ColorEffectState &state);
     static void solid(Led &led, ColorEffectState &state);
 };
