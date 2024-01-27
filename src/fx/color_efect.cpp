@@ -11,6 +11,7 @@ ColorEffectManager::ColorEffectManager() {
             {ColorEffectEnum::AURORA,       "Aurora",       aurora},
             {ColorEffectEnum::PLASMA,       "Plasma",       plasma},
             {ColorEffectEnum::RIPPLE,       "Ripple",       ripple},
+            {ColorEffectEnum::VELUM,        "Velum",        velum},
             {ColorEffectEnum::PARTICLES,    "Particles",    particles},
             {ColorEffectEnum::CHANGE_COLOR, "Color Change", color_change},
             {ColorEffectEnum::SOLID,        "Solid Color",  solid},
@@ -279,6 +280,44 @@ void ColorEffectManager::ripple(Led &led, ColorEffectState &state) {
             auto value = sin16f((float) (index * scale_factor) + time_factor * 2) / 16 + time_factor;
 
             led.data()[index] = color_from_palette(*palette, (uint16_t) round(value));
+        }
+    }
+}
+
+void ColorEffectManager::velum(Led &led, ColorEffectState &state) {
+    const auto &[
+            palette,
+            scale,
+            speed
+    ] = state.params;
+
+    const auto height = led.height();
+    const auto width = led.width();
+
+    state.current_time_factor = state.prev_time_factor + (float) state.delta() * (float) speed / 16 / 255;
+    apply_period(state.current_time_factor, 1 << 16);
+
+    const auto time_factor = (float) state.current_time_factor;
+    const auto scale_factor = ((float) scale + 1) / 16;
+
+    auto t = sin8f(0.40f * time_factor);
+    auto t2 = sin8f(0.37f * time_factor);
+    auto t3 = sin8f(0.32f * time_factor);
+
+    for (uint16_t i = 0; i < width; i++) {
+        const auto x_factor = (float) i * 8;
+
+        for (uint16_t j = 0; j < height; j++) {
+            const auto y_factor = (float) j * 8;
+
+            auto a = sin8f(x_factor + t / 2 + sin8f(y_factor + t2)) / 2;
+            auto b = sin8f(y_factor + t + sin8f(t3 / 4 + x_factor));
+            auto c = sin8f(y_factor + t2 + sin8f(t + i + (b / 4)));
+
+            const auto color_index = (a + b + c) * scale_factor;
+            const auto color = color_from_palette(*palette, color_index);
+
+            led.setPixel(i, j, color);
         }
     }
 }

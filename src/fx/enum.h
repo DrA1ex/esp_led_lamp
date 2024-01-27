@@ -52,6 +52,7 @@ enum class ColorEffectEnum : uint8_t {
     AURORA,
     PLASMA,
     RIPPLE,
+    VELUM,
     PARTICLES,
     CHANGE_COLOR,
     SOLID,
