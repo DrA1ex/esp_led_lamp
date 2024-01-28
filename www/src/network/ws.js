@@ -172,6 +172,8 @@ export class WebSocketInteraction extends EventEmitter {
 
         if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(this.#ws.readyState)) {
             const ws = this.#ws;
+            this.#ws = null;
+
             const timerId = setInterval(() => {
                 if (ws.readyState === WebSocket.CONNECTING) return;
 

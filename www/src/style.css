@@ -245,10 +245,17 @@ h3 {
     content: "OFF"
 }
 
-.button-danger {
-    background-color: #5e3434
+.input[data-loading=true], .button[data-loading=true] {
+    color: transparent;
+    background-image: linear-gradient(90deg, transparent, var(--gradiet-1), transparent);
+    background-repeat: no-repeat;
+    background-size: 90% 100%;
+    animation: background-shift linear infinite 1s;
 }
 
+.input[data-loading=true] > select {
+    color: transparent;
+}
 
 p {
     font-size: 1rem;
@@ -294,5 +301,15 @@ p {
 
     100% {
         background-color: var(--control-color-active);
+    }
+}
+
+@keyframes background-shift {
+    0% {
+        background-position: -1000% 0;
+    }
+
+    100% {
+        background-position: 1000% 0;
     }
 }

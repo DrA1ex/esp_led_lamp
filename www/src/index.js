@@ -26,8 +26,10 @@ const params = new Proxy(new URLSearchParams(window.location.search), {
 const host = params.host ?? window.location.hostname;
 const gateway = `ws://${host !== "localhost" ? host : DEFAULT_ADDRESS}/ws`;
 
-const ws = new WebSocketInteraction(gateway);
+window.__app = {};
+initUi();
 
+const ws = new WebSocketInteraction(gateway);
 let initialized = false;
 
 ws.subscribe(this, WebSocketInteraction.CONNECTED, async () => {
@@ -83,7 +85,7 @@ function createTitle(title) {
     return titleElement;
 }
 
-async function initialize() {
+function initUi() {
     const Sections = {};
     const Properties = {};
 
@@ -137,9 +139,7 @@ async function initialize() {
             }
 
             if (control) {
-                if ("setOnChange" in control) control.setOnChange((value) => config.setProperty(prop.key, value));
-                else console.warn("Unsupported control type", console);
-
+                control.element.setAttribute("data-loading", "true");
                 section.appendChild(control);
             }
 
@@ -149,13 +149,14 @@ async function initialize() {
         }
     }
 
+    window.__app.Sections = Sections;
+    window.__app.Properties = Properties;
+}
+
+async function initialize() {
     const config = new Config(ws);
 
-    window.__app = {
-        Sections,
-        Properties,
-        Config: config,
-    }
+    window.__app.Config = config;
 
     const [_, palette, colorEffects, brightnessEffects] = await Promise.all([
         config.load(),
@@ -197,6 +198,12 @@ function refreshConfig() {
 
             const value = config.getProperty(prop.key);
             control.setValue(value);
+            if (control.element.getAttribute("data-loading") === "true") {
+                if ("setOnChange" in control) control.setOnChange((value) => config.setProperty(prop.key, value));
+                else console.warn("Unsupported control type", console);
+
+                control.element.setAttribute("data-loading", "false");
+            }
         }
     }
 }
@@ -223,11 +230,10 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
     try {
         if (prop.type !== "wheel") control.element.setAttribute("data-saving", "true");
 
-        let response;
         if (Array.isArray(prop.cmd)) {
-            response = await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
+            await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
         } else if (prop.type === "text") {
-            response = await window.__ws.request(prop.cmd, new TextEncoder().encode(value).buffer);
+            await window.__ws.request(prop.cmd, new TextEncoder().encode(value).buffer);
         } else {
             const size = prop.size ?? 1;
             const kind = prop.kind ?? "Uint8";
@@ -236,7 +242,7 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
             const view = new DataView(req.buffer);
             view[`set${kind}`](0, value, true);
 
-            response = await window.__ws.request(prop.cmd, req.buffer);
+            await window.__ws.request(prop.cmd, req.buffer);
         }
 
         if (prop.key === "preset.name") {
