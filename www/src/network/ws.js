@@ -1,7 +1,17 @@
 import {PacketType} from "./cmd.js";
 import {EventEmitter} from "../misc/event_emitter.js";
 
-import {REQUEST_TIMEOUT, REQUEST_SIGNATURE, CONNECTION_TIMEOUT_DELAY_STEP} from "../constants.js";
+import {REQUEST_TIMEOUT, REQUEST_SIGNATURE, CONNECTION_TIMEOUT_DELAY_STEP, CONNECTION_CLOSE_TIMEOUT} from "../constants.js";
+
+/**
+ * @enum {string}
+ */
+const WebSocketState = {
+    uninitialized: "uninitialized",
+    disconnected: "disconnected",
+    connecting: "connecting",
+    connected: "connected"
+}
 
 export class WebSocketInteraction extends EventEmitter {
     static CONNECTED = "ws_interaction_connected";
@@ -9,7 +19,9 @@ export class WebSocketInteraction extends EventEmitter {
     static ERROR = "ws_interaction_error";
     static MESSAGE = "ws_interaction_message";
 
-    #connected = false;
+    #id = 0;
+
+    #state = WebSocketState.uninitialized;
     #ws = null;
 
     #connectionTimeout = 0;
@@ -18,7 +30,8 @@ export class WebSocketInteraction extends EventEmitter {
     gateway;
     requestTimeout;
 
-    get connected() {return this.#connected;}
+    get connected() {return this.#state === WebSocketState.connected;}
+    get state() {return this.#state;}
 
     constructor(gateway, requestTimeout = REQUEST_TIMEOUT) {
         super();
@@ -28,19 +41,24 @@ export class WebSocketInteraction extends EventEmitter {
     }
 
     begin() {
-        if (this.#ws) throw new Error("Already initialized");
+        if (this.#state !== WebSocketState.uninitialized) throw new Error("Already initialized");
 
+        this.#state = WebSocketState.disconnected;
         this.connect();
     }
 
     connect() {
-        if (!this.connected) {
+        if (this.#state === WebSocketState.uninitialized) throw new Error("Not initialized. Call begin() first.")
+
+        if (this.#state === WebSocketState.disconnected) {
             this.#init();
         }
     }
 
     close() {
-        if (this.connected) {
+        if (this.#state === WebSocketState.uninitialized) throw new Error("Not initialized. Call begin() first.")
+
+        if (this.#state !== WebSocketState.disconnected) {
             this.#closeConnection(false);
         }
     }
@@ -51,7 +69,7 @@ export class WebSocketInteraction extends EventEmitter {
      * @returns {Promise<ArrayBuffer|*>}
      */
     async request(cmd, buffer = null) {
-        if (!this.#connected) {
+        if (!this.connected) {
             throw new Error("Not connected");
         }
 
@@ -83,10 +101,11 @@ export class WebSocketInteraction extends EventEmitter {
     }
 
     #init() {
-        console.log("Connecting to", this.gateway);
+        console.log("WebSocket connecting to", this.gateway);
 
-        this.#connected = false;
+        this.#state = WebSocketState.connecting;
         this.#ws = new WebSocket(this.gateway);
+        this.#ws.__id = this.#id++;
 
         this.#ws.onopen = this.#onOpen.bind(this);
         this.#ws.onclose = this.#closeConnection.bind(this);
@@ -95,25 +114,23 @@ export class WebSocketInteraction extends EventEmitter {
     }
 
     #onOpen() {
-        this.#connected = true;
+        this.#state = WebSocketState.connected;
         this.#connectionTimeout = 0;
-        console.log("Connection established");
+        console.log(`#${this.#ws.__id}: WebSocket connection established`);
 
         this.emitEvent(WebSocketInteraction.CONNECTED);
     }
 
     #onError(e) {
-        this.#connected = false;
-        console.error("WebSocket error", e);
+        console.error(`#${this.#ws.__id}: WebSocket error`, e);
 
         this.emitEvent(WebSocketInteraction.ERROR, e);
-
         this.#closeConnection();
     }
 
     async #onMessage(e) {
-        if (this.#requestQueue.length === 0 || !this.#connected) {
-            console.error("Unexpected message", e);
+        if (this.#requestQueue.length === 0 || !this.connected) {
+            console.error(`#${this.#ws.__id}: WebSocket unexpected message`, e);
             return;
         }
 
@@ -124,15 +141,18 @@ export class WebSocketInteraction extends EventEmitter {
         if (e.data instanceof Blob) {
             const buffer = await e.data.arrayBuffer()
             request.resolve(buffer);
+        } else if (typeof e.data === "string") {
+            if (e.data === "OK") request.resolve(e.data);
+            else request.reject(new Error(`Bad response: ${e.data}`));
         } else {
             request.resolve(e.data);
         }
     }
 
     #closeConnection(reconnect = true) {
-        console.log("Connection closed");
+        console.log(`#${this.#ws.__id}: WebSocket connection closed`);
 
-        this.#connected = false;
+        this.#state = WebSocketState.disconnected;
         this.#requestQueue = [];
 
         this.#ws.onopen = null;
@@ -141,13 +161,20 @@ export class WebSocketInteraction extends EventEmitter {
         this.#ws.onmessage = null;
 
         if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(this.#ws.readyState)) {
-            this.#ws.close();
+            const ws = this.#ws;
+            const timerId = setInterval(() => {
+                if (ws.readyState === WebSocket.CONNECTING) return;
+
+                ws.close();
+                clearInterval(timerId);
+            }, CONNECTION_CLOSE_TIMEOUT);
         }
 
         this.emitEvent(WebSocketInteraction.DISCONNECTED);
 
         if (reconnect) {
             setTimeout(() => this.#init(), this.#connectionTimeout);
+            console.log("WebSocket: try reconnect after", this.#connectionTimeout);
             this.#connectionTimeout += CONNECTION_TIMEOUT_DELAY_STEP;
         }
     }

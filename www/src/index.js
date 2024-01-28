@@ -239,10 +239,6 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
             response = await window.__ws.request(prop.cmd, req.buffer);
         }
 
-        if (typeof response === "string" && response !== "OK") {
-            throw new Error(`Bad response: ${response}`);
-        }
-
         if (prop.key === "preset.name") {
             window.__app.Properties["presetId"].control.updateOption(config.presetId, value);
         }
