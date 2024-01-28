@@ -1,7 +1,8 @@
 ## Application UI
 
 <p align="center">
-  <img alt="UI" height="480" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/2528b31c-21ac-4806-b7c1-755c0d8b66e1">
+  <img alt="UI Light" height="480" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/841e800b-41cc-4933-9e5f-deb624b7f1e0">
+  <img alt="UI Dark" height="480" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/9d3c6928-69de-4096-9cef-5e063a872605">
 </p>
 
 ### Instruction for PWA installation (Web as Application)
