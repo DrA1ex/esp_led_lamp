@@ -1,3 +1,8 @@
+# ESP LED LAMP
+
+Beautifull ambient lighting for LED strips and matrices.
+
+
 ## Application UI
 
 <p align="center">
