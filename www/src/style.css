@@ -25,7 +25,7 @@
 @media (prefers-color-scheme: light) {
     :where(body) {
         --control-color-active: #dfe0e7;
-        --control-color-accent: #b200c4;
+        --control-color-accent: linear-gradient(90deg, #8300c4, #b200c4);
         --control-color-inactive: #d4d5dc;
 
         --frame-color: #ebecf1;
@@ -43,21 +43,20 @@
 }
 
 html {
-    --control-color-active: #1d2030;
-    --control-color-accent: #f97601;
-    --control-color-inactive: #22232b;
+    --control-color-active: #3b3c42;
+    --control-color-accent: linear-gradient(90deg, #8300c4, #b200c4);
+    --control-color-inactive: #323237;
 
-    --frame-color: rgba(23, 16, 30, 0.22);
+    --frame-color: #252527;
 
-    --theme-color: #262b3b;
-    --gradient-1: #33394d;
-    --gradient-2: #1f2230;
+    --theme-color: #1c1c1c;
+    --gradient-1: #2e2e2e;
+    --gradient-2: #161616;
+    --loader-color: #272727;
 
-    --loader-color: var(--gradient-1);
+    --text-color: #f3f3f3;
 
-    --text-color: #fff;
-
-    --shadow: rgba(152, 153, 160, 0.04) 9px -9px 16px, rgba(19, 20, 22, 0.4) -9px 9px 16px;
+    --shadow: #27272a 8px -8px 16px, #1d1e21 -8px 8px 16px;
 
     margin: 0 auto;
     text-align: center;
