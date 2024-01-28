@@ -162,7 +162,7 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
     const auto height = led.height();
     const auto width = led.width();
 
-    state.current_time_factor = state.prev_time_factor + (double) state.delta() * speed / 255;
+    state.current_time_factor = state.prev_time_factor + (double) state.delta() * speed * 2 / 255;
     apply_period(state.current_time_factor, (1LL << 24) - 1);
 
     auto time_factor = state.current_time_factor;
