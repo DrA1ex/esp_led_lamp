@@ -8,10 +8,12 @@ echo "Building..."
 
 cd ./www || (echo "No directory ./www" && exit 1)
 npm run build || (echo "Failed" && exit 2)
+cd ..
 
+echo "Compress..."
+gzip -9 ./data/*
 
 echo "Uploading..."
-cd ..
 
 if (("$OTA" == 1)); then
   echo "*** OTA mode selected ***"
