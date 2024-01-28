@@ -15,7 +15,7 @@ import {BinaryParser} from "./misc/binary_parser.js";
 import * as FunctionUtils from "./utils/function.js"
 import {ButtonControl} from "./control/button.js";
 
-import {DEFAULT_ADDRESS, THROTTLE_INTERVAL} from "./constants.js";
+import {CONNECTION_TIMEOUT_DELAY_STEP, DEFAULT_ADDRESS, THROTTLE_INTERVAL} from "./constants.js";
 
 const StatusElement = document.getElementById("status");
 
@@ -33,13 +33,20 @@ const ws = new WebSocketInteraction(gateway);
 let initialized = false;
 
 ws.subscribe(this, WebSocketInteraction.CONNECTED, async () => {
-    StatusElement.style.visibility = "collapse";
+    try {
+        if (!initialized) {
+            await initialize();
+            initialized = true;
+        } else {
+            await refresh();
+        }
 
-    if (!initialized) {
-        initialized = true;
-        await initialize();
-    } else {
-        await refresh();
+        StatusElement.style.visibility = "collapse";
+    } catch (e) {
+        console.error("Unable to finish initialization after connection established.", e);
+
+        ws.close();
+        setTimeout(() => ws.connect(), CONNECTION_TIMEOUT_DELAY_STEP);
     }
 });
 

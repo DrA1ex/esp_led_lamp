@@ -91,7 +91,6 @@ export class WebSocketInteraction extends EventEmitter {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.#closeConnection();
-
                 reject(new Error("Request timeout"));
             }, this.requestTimeout);
 
@@ -105,21 +104,26 @@ export class WebSocketInteraction extends EventEmitter {
                 reject(...args);
             }
 
-            this.#requestQueue.push({resolve: _ok, reject: _fail});
+            function _abort() {
+                clearTimeout(timer);
+                reject(new Error("Request aborted"));
+            }
+
+            this.#requestQueue.push({resolve: _ok, reject: _fail, abort: _abort});
         });
     }
 
     #init() {
         console.log("WebSocket connecting to", this.gateway);
 
-        this.#clearConnectionTimer();
+        this.#clearConnectionTimerIfNeeded();
 
         this.#state = WebSocketState.connecting;
         this.#ws = new WebSocket(this.gateway);
         this.#ws.__id = this.#id++;
 
         this.#ws.onopen = this.#onOpen.bind(this);
-        this.#ws.onclose = this.#closeConnection.bind(this);
+        this.#ws.onclose = this.#onClose.bind(this);
         this.#ws.onerror = this.#onError.bind(this);
         this.#ws.onmessage = this.#onMessage.bind(this);
     }
@@ -136,6 +140,11 @@ export class WebSocketInteraction extends EventEmitter {
         console.error(`#${this.#ws.__id}: WebSocket error`, e);
 
         this.emitEvent(WebSocketInteraction.ERROR, e);
+        this.#closeConnection();
+    }
+
+    #onClose(e) {
+        console.log(`${this.#ws.__id}: WebSocket close signal #${e.code}.`, e.reason);
         this.#closeConnection();
     }
 
@@ -161,9 +170,29 @@ export class WebSocketInteraction extends EventEmitter {
     }
 
     #closeConnection(reconnect = true) {
-        console.log(`#${this.#ws.__id}: WebSocket connection closed`);
+        this.#cleanUpSocket();
 
-        this.#requestQueue = [];
+        if (reconnect) {
+            this.#reconnect();
+        } else {
+            this.#clearConnectionTimerIfNeeded();
+            this.#state = WebSocketState.disconnected;
+            this.#reconnectionTimeout = 0;
+        }
+
+        this.emitEvent(WebSocketInteraction.DISCONNECTED);
+    }
+
+    #cleanUpSocket() {
+        if (this.#requestQueue.length) {
+            for (const entry of this.#requestQueue) {
+                entry.abort();
+            }
+
+            this.#requestQueue = [];
+        }
+
+        if (!this.#ws) return;
 
         this.#ws.onopen = null;
         this.#ws.onclose = null;
@@ -172,7 +201,6 @@ export class WebSocketInteraction extends EventEmitter {
 
         if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(this.#ws.readyState)) {
             const ws = this.#ws;
-            this.#ws = null;
 
             const timerId = setInterval(() => {
                 if (ws.readyState === WebSocket.CONNECTING) return;
@@ -182,22 +210,21 @@ export class WebSocketInteraction extends EventEmitter {
             }, CONNECTION_CLOSE_TIMEOUT);
         }
 
-        if (reconnect) {
-            this.#reconnectionTimerId = setTimeout(() => this.#init(), this.#reconnectionTimeout);
-            console.log("WebSocket: try reconnect after", this.#reconnectionTimeout);
-
-            this.#state = WebSocketState.reconnecting;
-            this.#reconnectionTimeout = Math.min(CONNECTION_TIMEOUT_MAX_DELAY, this.#reconnectionTimeout + CONNECTION_TIMEOUT_DELAY_STEP);
-        } else {
-            this.#clearConnectionTimer();
-            this.#state = WebSocketState.disconnected;
-            this.#reconnectionTimeout = 0;
-        }
-
-        this.emitEvent(WebSocketInteraction.DISCONNECTED);
+        console.log(`#${this.#ws.__id}: WebSocket connection closed`);
+        this.#ws = null;
     }
 
-    #clearConnectionTimer() {
+    #reconnect() {
+        if (this.#state === WebSocketState.reconnecting) return;
+
+        this.#reconnectionTimerId = setTimeout(() => this.#init(), this.#reconnectionTimeout);
+        console.log("WebSocket: try reconnect after", this.#reconnectionTimeout);
+
+        this.#state = WebSocketState.reconnecting;
+        this.#reconnectionTimeout = Math.min(CONNECTION_TIMEOUT_MAX_DELAY, this.#reconnectionTimeout + CONNECTION_TIMEOUT_DELAY_STEP);
+    }
+
+    #clearConnectionTimerIfNeeded() {
         if (this.#state === WebSocketState.reconnecting) {
             clearTimeout(this.#reconnectionTimerId);
 

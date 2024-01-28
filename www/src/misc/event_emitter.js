@@ -9,7 +9,11 @@ export class EventEmitter {
         for (let subscriptions of this.subscribers.values()) {
             const handler = subscriptions[type];
             if (handler) {
-                handler(this, data);
+                try {
+                    handler(this, data);
+                } catch (e) {
+                    console.error("Error while event handling", e);
+                }
             }
         }
     }
