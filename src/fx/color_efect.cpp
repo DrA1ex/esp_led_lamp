@@ -169,7 +169,7 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
     auto scale_factor = scale / 2.0;
 
     for (int j = 0; j < height; j++) {
-        const auto height_limit = (j * 4096 / height);
+        const auto height_limit = (j * 3584 / height);
         const auto noise_y = (j * scale_factor) - time_factor;
 
         for (int i = 0; i < width; i++) {
