@@ -1,7 +1,13 @@
 import {PacketType} from "./cmd.js";
 import {EventEmitter} from "../misc/event_emitter.js";
 
-import {REQUEST_TIMEOUT, REQUEST_SIGNATURE, CONNECTION_TIMEOUT_DELAY_STEP, CONNECTION_CLOSE_TIMEOUT} from "../constants.js";
+import {
+    REQUEST_TIMEOUT,
+    REQUEST_SIGNATURE,
+    CONNECTION_TIMEOUT_DELAY_STEP,
+    CONNECTION_CLOSE_TIMEOUT,
+    CONNECTION_TIMEOUT_MAX_DELAY
+} from "../constants.js";
 
 /**
  * @enum {string}
@@ -175,7 +181,8 @@ export class WebSocketInteraction extends EventEmitter {
         if (reconnect) {
             setTimeout(() => this.#init(), this.#connectionTimeout);
             console.log("WebSocket: try reconnect after", this.#connectionTimeout);
-            this.#connectionTimeout += CONNECTION_TIMEOUT_DELAY_STEP;
+
+            this.#connectionTimeout = Math.min(CONNECTION_TIMEOUT_MAX_DELAY, this.#connectionTimeout + CONNECTION_TIMEOUT_DELAY_STEP);
         }
     }
 }
