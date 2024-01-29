@@ -16,7 +16,7 @@ struct FxStateBase {
     double prev_time_factor = 0;
     double current_time_factor = 0;
 
-    [[nodiscard]] inline unsigned long delta() const { return time - prev_time; }
+    [[nodiscard]] inline unsigned long delta() const { return min(1000ul, time - prev_time); }
 };
 
 struct ColorEffectState : FxStateBase {

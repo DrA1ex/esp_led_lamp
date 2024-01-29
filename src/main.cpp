@@ -118,8 +118,13 @@ void render_loop(void *) {
         case AppState::NORMAL:
         case AppState::TURNING_ON:
         case AppState::TURNING_OFF:
-            render();
-            BrightnessEffectManager::eco(led, brightness_settings.eco);
+            if (brightness_settings.brightness > 0 && brightness_settings.eco > 0) {
+                render();
+                BrightnessEffectManager::eco(led, brightness_settings.eco);
+            } else {
+                led.clear();
+            }
+
             led.show();
             break;
 
