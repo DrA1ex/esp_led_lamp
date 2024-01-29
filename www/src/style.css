@@ -59,7 +59,7 @@ html {
     --frame-shadow: #29292c 9px -9px 16px, #1b1b1c -9px 9px 16px;
 
     --control-color-accent-1: #8300c4;
-    --control-color-accent-2: #b200c4;
+    --control-color-accent-2: #c4007f;
 
     --control-color-active: linear-gradient(194deg, var(--control-color-1), var(--control-color-2));
     --control-color-inactive: linear-gradient(194deg, var(--control-color-2), var(--control-color-1));
@@ -209,6 +209,8 @@ h3 {
     position: relative;
     height: 2.4rem;
     user-select: none;
+
+    overflow: hidden;
     z-index: 1;
 }
 
@@ -222,7 +224,6 @@ h3 {
     right: 0;
     height: 1.25rem;
     background: var(--control-gradient-accent);
-    border-radius: 0 0 0.75rem 0.75rem;
 
     pointer-events: none;
     z-index: -1;
