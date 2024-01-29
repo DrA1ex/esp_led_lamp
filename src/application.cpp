@@ -84,8 +84,9 @@ void Application::restart() {
 void Application::brightness_increase() {
     if (config.max_brightness == 255) return;
 
+    if (!config.power) config.power = true;
 
-    config.max_brightness++;
+    config.max_brightness = min(255, config.max_brightness + max(1, config.max_brightness / 12));
     if (!config_storage.is_pending_commit()) config_storage.save();
 
     D_PRINT("Increase brightness");
@@ -94,7 +95,7 @@ void Application::brightness_increase() {
 void Application::brightness_decrease() {
     if (config.max_brightness == 0) return;
 
-    config.max_brightness--;
+    config.max_brightness = max(0, config.max_brightness - max(1, config.max_brightness / 12));
     if (!config_storage.is_pending_commit()) config_storage.save();
 
     D_PRINT("Decrease brightness");
