@@ -6,6 +6,7 @@
 #include "config.h"
 #include "night_mode.h"
 
+#include "misc/button.h"
 #include "misc/led.h"
 #include "misc/storage.h"
 #include "misc/timer.h"
@@ -21,6 +22,9 @@
 void initialization_animation();
 void render();
 void calibration();
+
+void button_on_click(uint8_t cnt);
+void button_on_hold(uint8_t cnt);
 
 void render_loop(void *);
 void service_loop(void *);
@@ -44,6 +48,8 @@ WebSocketServer ws_server(app);
 
 NtpTime ntp_time;
 
+Button button(BUTTON_PIN);
+
 void setup() {
 #if defined(DEBUG)
     Serial.begin(115200);
@@ -62,6 +68,10 @@ void setup() {
 
     led.clear();
     led.show();
+
+    button.begin();
+    button.set_on_click(button_on_click);
+    button.set_on_hold(button_on_hold);
 
     global_timer.add_interval(render_loop, 1000 / FRAMES_PER_SECOND);
     global_timer.add_interval(service_loop, 20);
@@ -231,5 +241,46 @@ void service_loop(void *) {
         }
 
         default:;
+    }
+
+    button.handle();
+}
+
+void button_on_click(uint8_t cnt) {
+    switch (cnt) {
+        case 1:
+            app.set_power(!app.config.power);
+            break;
+
+        case 2:
+            app.change_preset((app.config.preset_id + 1) % app.preset_names.count);
+            break;
+
+        case 3:
+            app.change_preset(app.config.preset_id > 0
+                              ? (app.config.preset_id - 1) % app.preset_names.count
+                              : app.preset_names.count - 1);
+            break;
+
+        case 5:
+            app.restart();
+            break;
+
+        default:
+            break;
+    }
+}
+
+void button_on_hold(uint8_t cnt) {
+    switch (cnt) {
+        case 1:
+            app.brightness_increase();
+            break;
+        case 2:
+            app.brightness_decrease();
+            break;
+
+        default:
+            break;
     }
 }

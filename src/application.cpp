@@ -47,3 +47,55 @@ BrightnessSettings Application::get_brightness_settings() const {
         return {config.max_brightness, config.eco};
     }
 }
+
+void Application::set_power(bool on) {
+    config.power = on;
+
+    if (state != AppState::INITIALIZATION) {
+        change_state(config.power ? AppState::TURNING_ON : AppState::TURNING_OFF);
+    }
+
+    D_PRINTF("Turning Power: %s\n", config.power ? "ON" : "OFF");
+
+    config_storage.save();
+}
+
+void Application::change_preset(uint8_t preset_id) {
+    if (preset_id >= preset_names.count) return;
+
+    config.preset_id = preset_id;
+    config_storage.save();
+
+    D_PRINTF("Change preset: %s\n", preset_names.names[preset_id]);
+
+    load();
+}
+
+void Application::restart() {
+    if (config_storage.is_pending_commit()) config_storage.force_save();
+    if (preset_names_storage.is_pending_commit()) preset_names_storage.force_save();
+    if (preset_configs_storage.is_pending_commit()) preset_configs_storage.force_save();
+
+    D_PRINT("Restarting");
+
+    ESP.restart();
+}
+
+void Application::brightness_increase() {
+    if (config.max_brightness == 255) return;
+
+
+    config.max_brightness++;
+    if (!config_storage.is_pending_commit()) config_storage.save();
+
+    D_PRINT("Increase brightness");
+}
+
+void Application::brightness_decrease() {
+    if (config.max_brightness == 0) return;
+
+    config.max_brightness--;
+    if (!config_storage.is_pending_commit()) config_storage.save();
+
+    D_PRINT("Decrease brightness");
+}

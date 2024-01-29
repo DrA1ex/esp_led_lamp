@@ -173,21 +173,15 @@ Response ServerBase::process_command(const PacketHeader &header) {
 
     switch (header.type) {
         case PacketType::POWER_ON:
-            app().config.power = true;
-            app().change_state(AppState::TURNING_ON);
+            app().set_power(true);
             break;
 
         case PacketType::POWER_OFF:
-            app().config.power = false;
-            app().change_state(AppState::TURNING_OFF);
+            app().set_power(false);
             break;
 
         case PacketType::RESTART:
-            if (app().config_storage.is_pending_commit()) app().config_storage.force_save();
-            if (app().preset_names_storage.is_pending_commit()) app().preset_names_storage.force_save();
-            if (app().preset_configs_storage.is_pending_commit()) app().preset_configs_storage.force_save();
-
-            ESP.restart();
+            app().restart();
             break;
 
         case PacketType::DISCOVERY:

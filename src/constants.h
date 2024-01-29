@@ -24,6 +24,8 @@
 
 #define WEB_PORT                                (80)
 
+#define BUTTON_PIN                              (4u)
+
 #define LED_PIN                                 (5u)
 #define LED_TYPE                                WS2812B
 #define LED_COLOR_ORDER                         GRB
@@ -31,8 +33,8 @@
 #define MATRIX_VOLTAGE                          (5u)
 #define CURRENT_LIMIT                           (500u)
 
-#define WIDTH                                   (34u)
-#define HEIGHT                                  (1u)
+#define WIDTH                                   (16u)
+#define HEIGHT                                  (16u)
 
 #define FRAMES_PER_SECOND                       (60u)
 
@@ -53,3 +55,8 @@
 
 #define PRESET_MAX_COUNT                        (32u)
 #define PRESET_NAME_MAX_SIZE                    (40u)                   // Max size in bytes, UTF-8
+
+#define BTN_SILENCE_INTERVAL (40u)
+#define BTN_HOLD_INTERVAL (500u)
+#define BTN_PRESS_WAIT_INTERVAL (500u)
+#define BTN_RESET_INTERVAL (1000u)

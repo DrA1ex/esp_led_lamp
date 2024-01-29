@@ -30,6 +30,14 @@ public:
     void load();
     void update();
 
+    void set_power(bool on);
+    void change_preset(uint8_t preset_id);
+
+    void brightness_increase();
+    void brightness_decrease();
+
+    void restart();
+
     inline PresetConfig &preset() { return preset_configs.presets[config.preset_id]; }
     [[nodiscard]] BrightnessSettings get_brightness_settings() const;
 };
