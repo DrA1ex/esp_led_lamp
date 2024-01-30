@@ -45,8 +45,8 @@ export class Preset {
         const buffer = await this.#ws.request(PacketType.PRESET_CONFIG_LIST);
         const parser = new BinaryParser(buffer);
 
-        if (buffer.byteLength % Preset.CONFIG_SIZE !== 0) {
-            throw new Error(`Unable to load preset config list. Bad size ${buffer.byteLength}, must be multiple of ${Preset.CONFIG_SIZE}`);
+        if ((buffer.byteLength - 1) % Preset.CONFIG_SIZE !== 0) {
+            throw new Error(`Unable to load preset config list. Bad size ${buffer.byteLength - 1}, must be multiple of ${Preset.CONFIG_SIZE}`);
         }
 
         const count = parser.readUInt8();
