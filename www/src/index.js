@@ -234,6 +234,25 @@ async function onConfigPropChanged(config, {key, value, oldValue}) {
     if (value !== oldValue) {
         await sendChanges(config, prop, value, oldValue);
     }
+
+    if (key === "preset.current.palette" || key === "presetId") {
+        await ws.request(PacketType.GET_PALETTE).then(logPaletteColor).catch(() => {});
+    }
+}
+
+function logPaletteColor(buffer) {
+    const colors = Array.from(new Uint8Array(buffer))
+        .map(v => v.toString(16).padStart(2, '0'));
+
+    const hexColors = []
+    for (let i = 0; i < colors.length; i += 3) {
+        const hex = `#${colors[i]}${colors[i + 1]}${colors[i + 2]}`;
+        hexColors.push(hex);
+    }
+
+    const format = hexColors.map(v => "%c██").join("");
+    const colorArgs = hexColors.map(v => `color: ${v}`);
+    console.log(`PALETTE: ${format}`, ...colorArgs);
 }
 
 async function onExportClicked(sender) {
@@ -255,7 +274,10 @@ async function onExportClicked(sender) {
             }
         }
 
-        const exportFileName = `lamp-presets-${new Date().toISOString()}.json`;
+        const exportFileName = `lamp-presets-${new Date().toISOString()}.json`
+
+
+        ;
         await FileUtils.saveFile(JSON.stringify(result), exportFileName, "application/json");
 
     } finally {
@@ -286,7 +308,11 @@ async function onImportClicked(sender) {
             const nameData = encoder.encode(accumulator.join("\0"));
             const payload = Uint8Array.of(dstOffset, ...Array.from(nameData));
 
-            console.log(`Send chunk at ${dstOffset}:`, accumulator);
+            console.log(
+                `Send chunk at ${dstOffset}:`
+
+
+                , accumulator);
 
             await ws.request(PacketType.UPDATE_PRESET_NAMES, payload.buffer);
 
@@ -323,7 +349,6 @@ async function onImportClicked(sender) {
     } finally {
         sender.element.setAttribute("data-saving", "false");
     }
-
 }
 
 const sendChanges = FunctionUtils.throttle(async function (config, prop, value, oldValue) {
@@ -346,7 +371,13 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
 
             const req = new Uint8Array(size);
             const view = new DataView(req.buffer);
-            view[`set${kind}`](0, value, true);
+            view[
+
+
+                `set${kind}`
+
+
+                ](0, value, true);
 
             await ws.request(prop.cmd, req.buffer);
         }
@@ -360,7 +391,9 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
             refreshConfig();
         }
 
-        console.log(`Changed '${prop.key}': '${oldValue}' -> '${value}'`);
+        console.log(
+            `Changed '${prop.key}': '${oldValue}' -> '${value}'`
+        );
     } catch (e) {
         console.error("Unable to save changes", e);
         control.setValue(oldValue);

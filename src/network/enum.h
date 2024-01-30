@@ -46,6 +46,8 @@ enum class PacketType : uint8_t {
     GET_CONFIG = 160,
     GET_PRESET_CONFIG = 161,
 
+    GET_PALETTE = 180,
+
     // COMMANDS
 
     DISCOVERY = 200,

@@ -196,6 +196,9 @@ Response ServerBase::process_data_request(const PacketHeader &header) {
         case PacketType::PRESET_CONFIG_LIST:
             return serialize(app().preset_configs);
 
+        case PacketType::GET_PALETTE:
+            return serialize(app().palette->value.entries);
+
         default:
             return Response{ResponseType::CODE, {.code = ResponseCode::BAD_COMMAND}};
     }

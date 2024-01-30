@@ -39,6 +39,8 @@ export const PacketType = {
     GET_CONFIG: 160,
     GET_PRESET_CONFIG: 161,
 
+    GET_PALETTE: 180,
+
     DISCOVERY: 200,
 
     POWER_OFF: 220,
