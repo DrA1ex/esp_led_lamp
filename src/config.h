@@ -58,13 +58,13 @@ struct __attribute ((packed)) __PresetNames {
 };
 
 struct __attribute ((packed)) PresetConfig {
-    uint8_t speed = 180;
-    uint8_t scale = 64;
-    uint8_t light = 180;
+    uint8_t speed = 80;
+    uint8_t scale = 190;
+    uint8_t light = 128;
 
-    PaletteEnum palette = PaletteEnum::SUNSET;
-    ColorEffectEnum color_effect = ColorEffectEnum::GRADIENT;
-    BrightnessEffectEnum brightness_effect = BrightnessEffectEnum::DOUBLE_WAVE;
+    PaletteEnum palette = PaletteEnum::PARTY;
+    ColorEffectEnum color_effect = ColorEffectEnum::PLASMA;
+    BrightnessEffectEnum brightness_effect = BrightnessEffectEnum::FIXED;
 };
 
 template<uint8_t N>
