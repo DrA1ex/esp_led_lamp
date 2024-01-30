@@ -11,12 +11,11 @@ export class ButtonControl extends Control {
         this.addClass("button");
     }
 
-    void
     setLabel(label) {
         this.element.innerText = label;
     }
 
     setOnClick(fn) {
-        this.element.onclick = fn;
+        this.element.onclick = (e) => fn(this, e);
     }
 }

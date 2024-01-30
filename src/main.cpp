@@ -16,8 +16,8 @@
 
 #include "network/wifi.h"
 #include "network/web.h"
-#include "network/protocol/udp.h"
-#include "network/protocol/ws.h"
+#include "network/protocol/server/udp.h"
+#include "network/protocol/server/ws.h"
 
 void initialization_animation();
 void render();

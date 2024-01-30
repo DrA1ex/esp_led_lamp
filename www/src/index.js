@@ -1,5 +1,5 @@
 import {Properties, PropertyConfig} from "./props.js";
-import {Config} from "./config.js";
+import {Config, Preset} from "./config.js";
 
 import {TriggerControl} from "./control/trigger.js";
 import {FrameControl} from "./control/frame.js";
@@ -16,6 +16,9 @@ import * as FunctionUtils from "./utils/function.js"
 import {ButtonControl} from "./control/button.js";
 
 import {CONNECTION_TIMEOUT_DELAY_STEP, DEFAULT_ADDRESS, THROTTLE_INTERVAL} from "./constants.js";
+import {saveFile} from "./utils/file.js";
+import * as FileUtils from "./utils/file.js";
+import {FileAsyncReader} from "./utils/fetch.js";
 
 const StatusElement = document.getElementById("status");
 
@@ -77,6 +80,7 @@ function startSection(title) {
     frame.addClass("section");
 
     const sectionTitle = new TextControl(document.createElement("h3"));
+    sectionTitle.addClass("section-title");
     sectionTitle.setText(title);
 
     frame.appendChild(sectionTitle);
@@ -156,6 +160,9 @@ function initUi() {
         }
     }
 
+    Properties["export"].control.setOnClick(onExportClicked);
+    Properties["import"].control.setOnClick(onImportClicked);
+
     window.__app.Sections = Sections;
     window.__app.Properties = Properties;
 }
@@ -203,11 +210,13 @@ function refreshConfig() {
                 control.setOptions(lists[prop.list].map(v => ({key: v.code, label: v.name})));
             }
 
-            const value = config.getProperty(prop.key);
-            control.setValue(value);
+            if (prop.type !== "button") {
+                const value = config.getProperty(prop.key);
+                control.setValue(value);
+            }
+
             if (control.element.getAttribute("data-loading") === "true") {
                 if ("setOnChange" in control) control.setOnChange((value) => config.setProperty(prop.key, value));
-                else console.warn("Unsupported control type", console);
 
                 control.element.setAttribute("data-loading", "false");
             }
@@ -227,6 +236,96 @@ async function onConfigPropChanged(config, {key, value, oldValue}) {
     }
 }
 
+async function onExportClicked(sender) {
+    if (sender.element.getAttribute("data-saving") === "true") return;
+
+    sender.element.setAttribute("data-saving", "true");
+
+    try {
+        const [names, configs] = await Promise.all([
+            window.__app.Config.preset.loadPresetNames(),
+            window.__app.Config.preset.loadPresetConfigList()
+        ]);
+
+        const result = new Array(names.length);
+        for (let i = 0; i < result.length; i++) {
+            result[i] = {
+                name: names[i].name,
+                ...configs[i]
+            }
+        }
+
+        const exportFileName = `lamp-presets-${new Date().toISOString()}.json`;
+        await FileUtils.saveFile(JSON.stringify(result), exportFileName, "application/json");
+
+    } finally {
+        sender.element.setAttribute("data-saving", "false");
+    }
+}
+
+async function onImportClicked(sender) {
+    if (sender.element.getAttribute("data-saving") === "true") return;
+
+    sender.element.setAttribute("data-saving", "true");
+    try {
+        const file = await FileUtils.openFile("application/json", false);
+        if (!file) return;
+
+        const reader = new FileAsyncReader(file);
+        const buffer = await reader.load();
+
+        const entries = JSON.parse(new TextDecoder().decode(buffer));
+
+        const encoder = new TextEncoder();
+
+        let dstOffset = 0;
+        let accumulator = []
+        let accumulatedLength = 0;
+
+        async function _request() {
+            const nameData = encoder.encode(accumulator.join("\0"));
+            const payload = Uint8Array.of(dstOffset, ...Array.from(nameData));
+
+            console.log(`Send chunk at ${dstOffset}:`, accumulator);
+
+            await ws.request(PacketType.UPDATE_PRESET_NAMES, payload.buffer);
+
+            dstOffset += accumulator.length;
+            accumulator = [];
+            accumulatedLength = 0;
+        }
+
+        for (const entry of entries) {
+            const nameFieldSize = entry.name.length + 1;
+            if (accumulatedLength + nameFieldSize >= 255) {
+                if (accumulator.length === 0) throw new Error("Bad length.")
+                await _request();
+            }
+
+            accumulator.push(entry.name);
+            accumulatedLength += nameFieldSize;
+        }
+
+        if (accumulator.length > 0) await _request();
+
+        const cfgBuffer = new Uint8Array(entries.length * Preset.CONFIG_SIZE).buffer;
+        let offset = 0;
+        for (const entry of entries) {
+            Preset.writePresetConfig(entry, new DataView(cfgBuffer, offset));
+            offset += Preset.CONFIG_SIZE;
+        }
+
+        await ws.request(PacketType.UPDATE_PRESET_CONFIGS, cfgBuffer);
+
+        console.log("Import success");
+
+        await refresh();
+    } finally {
+        sender.element.setAttribute("data-saving", "false");
+    }
+
+}
+
 const sendChanges = FunctionUtils.throttle(async function (config, prop, value, oldValue) {
     if (prop.__busy) {
         return FunctionUtils.ThrottleDelay;
@@ -238,9 +337,9 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
         if (prop.type !== "wheel") control.element.setAttribute("data-saving", "true");
 
         if (Array.isArray(prop.cmd)) {
-            await window.__ws.request(value ? prop.cmd[0] : prop.cmd[1]);
+            await ws.request(value ? prop.cmd[0] : prop.cmd[1]);
         } else if (prop.type === "text") {
-            await window.__ws.request(prop.cmd, new TextEncoder().encode(value).buffer);
+            await ws.request(prop.cmd, new TextEncoder().encode(value).buffer);
         } else {
             const size = prop.size ?? 1;
             const kind = prop.kind ?? "Uint8";
@@ -249,7 +348,7 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
             const view = new DataView(req.buffer);
             view[`set${kind}`](0, value, true);
 
-            await window.__ws.request(prop.cmd, req.buffer);
+            await ws.request(prop.cmd, req.buffer);
         }
 
         if (prop.key === "preset.name") {

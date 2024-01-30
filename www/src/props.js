@@ -42,6 +42,11 @@ export const PropertyConfig = [{
         {key: "colorCorrection.g", title: "Green", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_G},
         {key: "colorCorrection.b", title: "Blue", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_B},
     ]
+}, {
+    key: "action", section: "Actions", props: [
+        {key: "export", type: "button", label: "Export presets"},
+        {key: "import", type: "button", label: "Import presets"}
+    ]
 }];
 
 export const Properties = PropertyConfig.reduce((res, section) => {

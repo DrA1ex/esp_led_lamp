@@ -69,6 +69,8 @@ struct __attribute ((packed)) PresetConfig {
 
 template<uint8_t N>
 struct __attribute ((packed)) __PresetConfigs {
+    uint8_t count = N;
+
     PresetConfig presets[N] = {};
 };
 

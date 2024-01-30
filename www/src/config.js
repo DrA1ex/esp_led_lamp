@@ -3,7 +3,9 @@ import {BinaryParser} from "./misc/binary_parser.js";
 import {EventEmitter} from "./misc/event_emitter.js";
 import {Properties} from "./props.js";
 
-class Preset {
+export class Preset {
+    static CONFIG_SIZE = 6;
+
     #ws;
     #config;
 
@@ -24,29 +26,41 @@ class Preset {
     }
 
     async load() {
-        await Promise.all([this.loadPresetConfig(), this.loadPresets()]);
+        await Promise.all([this.loadPresetConfig(), this.loadPresetNames()]);
     }
 
     async loadPresetConfig() {
         const buffer = await this.#ws.request(PacketType.GET_PRESET_CONFIG);
         const parser = new BinaryParser(buffer);
 
-        const cfg = {
-            speed: parser.readUInt8(),
-            scale: parser.readUInt8(),
-            light: parser.readUInt8(),
+        if (buffer.byteLength !== Preset.CONFIG_SIZE) {
+            throw new Error(`Unable to load preset config. Bad size ${buffer.byteLength}, expected: ${Preset.CONFIG_SIZE}`);
+        }
 
-            palette: parser.readUInt8(),
-            colorEffect: parser.readUInt8(),
-            brightnessEffect: parser.readUInt8(),
-        };
-
-        this.current = cfg;
-        return cfg;
+        this.current = Preset.parsePresetConfig(parser);
+        return this.current;
     }
 
-    async loadPresets() {
-        const buffer = await this.#ws.request(PacketType.PRESET_LIST);
+    async loadPresetConfigList() {
+        const buffer = await this.#ws.request(PacketType.PRESET_CONFIG_LIST);
+        const parser = new BinaryParser(buffer);
+
+        if (buffer.byteLength % Preset.CONFIG_SIZE !== 0) {
+            throw new Error(`Unable to load preset config list. Bad size ${buffer.byteLength}, must be multiple of ${Preset.CONFIG_SIZE}`);
+        }
+
+        const count = parser.readUInt8();
+        const result = new Array(count);
+
+        for (let i = 0; i < count; i++) {
+            result[i] = Preset.parsePresetConfig(parser);
+        }
+
+        return result;
+    }
+
+    async loadPresetNames() {
+        const buffer = await this.#ws.request(PacketType.PRESET_NAMES_LIST);
         const parser = new BinaryParser(buffer);
 
         const count = parser.readUInt8();
@@ -64,6 +78,29 @@ class Preset {
         this.list.push(...result);
 
         return result;
+    }
+
+    static parsePresetConfig(parser) {
+        return {
+            speed: parser.readUInt8(),
+            scale: parser.readUInt8(),
+            light: parser.readUInt8(),
+
+            palette: parser.readUInt8(),
+            colorEffect: parser.readUInt8(),
+            brightnessEffect: parser.readUInt8(),
+        };
+    }
+
+    static writePresetConfig(value, dataView) {
+        let offset = 0;
+
+        dataView.setUint8(offset++, value.speed);
+        dataView.setUint8(offset++, value.scale);
+        dataView.setUint8(offset++, value.light);
+        dataView.setUint8(offset++, value.palette);
+        dataView.setUint8(offset++, value.colorEffect);
+        dataView.setUint8(offset++, value.brightnessEffect);
     }
 }
 

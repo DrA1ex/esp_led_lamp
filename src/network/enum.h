@@ -3,6 +3,8 @@
 #include <cctype>
 
 enum class PacketType : uint8_t {
+    //PARAMETERS
+
     SPEED = 0,
     SCALE = 1,
     LIGHT = 2,
@@ -20,21 +22,31 @@ enum class PacketType : uint8_t {
     PRESET_ID = 60,
     PRESET_NAME = 61,
 
+    UPDATE_PRESET_NAMES = 80,
+    UPDATE_PRESET_CONFIGS = 81,
+
     PALETTE = 100,
     COLOR_EFFECT = 101,
     BRIGHTNESS_EFFECT = 102,
+
+    // CALIBRATION
 
     CALIBRATION_R = 120,
     CALIBRATION_G = 121,
     CALIBRATION_B = 122,
 
+    // LISTS
+
     PALETTE_LIST = 140,
     COLOR_EFFECT_LIST = 141,
     BRIGHTNESS_EFFECT_LIST = 142,
-    PRESET_LIST = 143,
+    PRESET_NAMES_LIST = 143,
+    PRESET_CONFIG_LIST = 144,
 
     GET_CONFIG = 160,
     GET_PRESET_CONFIG = 161,
+
+    // COMMANDS
 
     DISCOVERY = 200,
 

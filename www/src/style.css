@@ -33,6 +33,7 @@ body {
     --gradient-2: #161616;
 
     --text-color: #f3f3f3;
+    --text-color-inactive: #6a6a73;
 
     --control-shadow: -3px 3px 8px #202124, 3px -3px 8px #313134;
     --frame-shadow: #29292c 9px -9px 16px, #1b1b1c -9px 9px 16px;
@@ -53,6 +54,7 @@ body {
         --gradient-2: #d6d8e0;
 
         --text-color: #6c7180;
+        --text-color-inactive: #b4b4b4;
 
         --control-shadow: -3px 3px 8px #d8d8d8, 3px -3px 8px #f2f2f2;
         --frame-shadow: #e8e8e8 12px -12px 18px, #b9b9bf -12px 12px 18px;
@@ -273,7 +275,9 @@ h3 {
 }
 
 .button[data-saving=true], .input[data-saving=true] {
-    animation: saving infinite 2s;
+    color: var(--text-color-inactive);
+    pointer-events: none;
+    animation: saving linear infinite 1.4s;
 }
 
 .button[data-value=true] {
@@ -342,7 +346,7 @@ p {
     background: var(--control-gradient-accent);
 }
 
-:not(.m-top) + .m-top {
+:not(.m-top, .section-title) + .m-top {
     margin-top: 4rem;
 }
 
@@ -352,15 +356,15 @@ p {
 
 @keyframes saving {
     0% {
-        background: var(--control-color-active);
+        background: var(--control-color-1);
     }
 
     50% {
-        background: var(--gradient-1);
+        background: var(--control-color-2);
     }
 
     100% {
-        background: var(--control-color-active);
+        background: var(--control-color-1);
     }
 }
 
