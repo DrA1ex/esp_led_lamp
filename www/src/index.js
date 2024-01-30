@@ -151,6 +151,8 @@ function initUi() {
 
             if (control) {
                 control.element.setAttribute("data-loading", "true");
+                if (prop.displayConverter) control.setDisplayConverter(prop.displayConverter);
+
                 section.appendChild(control);
             }
 

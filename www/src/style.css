@@ -217,6 +217,10 @@ h3 {
 
     overflow: hidden;
     z-index: 1;
+
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: baseline;
 }
 
 .wheel::before {
@@ -244,7 +248,12 @@ h3 {
     user-select: none;
 }
 
-.wheel .fraction {
+.wheel > .main {
+    grid-column-start: 2;
+}
+
+.wheel > .fraction {
+    justify-self: left;
     font-size: 0.5em;
 }
 

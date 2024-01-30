@@ -154,6 +154,8 @@ export class Config extends EventEmitter {
             switchInterval: parser.readUInt16(),
         };
 
+        this.gamma = parser.readUInt8();
+
         this.emitEvent(Config.LOADED);
     }
 

@@ -24,6 +24,9 @@ struct ColorEffectState : FxStateBase {
         const PaletteT *palette = nullptr;
         byte scale = 0;
         byte speed = 0;
+
+        bool gamma_correction = false;
+        float gamma = 0;
     } params;
 };
 

@@ -11,6 +11,7 @@ enum class PacketType : uint8_t {
 
     MAX_BRIGHTNESS = 20,
     ECO_LEVEL = 21,
+    GAMMA = 22,
 
     NIGHT_MODE_ENABLED = 40,
     NIGHT_MODE_START = 41,

@@ -62,6 +62,9 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
         case PacketType::ECO_LEVEL:
             return _protocol.update_parameter_value(&app().config.eco, header, data);
 
+        case PacketType::GAMMA:
+            return _protocol.update_parameter_value(&app().config.gamma, header, data);
+
         case PacketType::PALETTE:
             return _protocol.update_parameter_value(&app().preset().palette, header, data);
 

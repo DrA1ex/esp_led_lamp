@@ -6,7 +6,7 @@ class ColorEffectManager : public FxManagerBase<ColorEffectConfig, ColorEffectSt
 public:
     ColorEffectManager();
 
-    void call(Led &led, const PaletteT *palette, const PresetConfig &config);
+    void call(Led &led, const PaletteT *palette, const PresetConfig &config, uint8_t gamma);
 
 private:
     static void perlin(Led &led, ColorEffectState &state);

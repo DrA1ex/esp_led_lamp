@@ -23,12 +23,15 @@ ColorEffectManager::ColorEffectManager() {
     _config.count = _config.entries.size();
 }
 
-void ColorEffectManager::call(Led &led, const PaletteT *palette, const PresetConfig &config) {
+void ColorEffectManager::call(Led &led, const PaletteT *palette, const PresetConfig &config, uint8_t gamma) {
     _before_call();
 
     _state.params.speed = config.speed;
     _state.params.scale = config.scale;
     _state.params.palette = palette;
+
+    _state.params.gamma_correction = gamma > 0;
+    _state.params.gamma = 2.2f + (float) (gamma - 128) / 128.f;
 
     _config.entries[(int) _fx].value(led, _state);
     _after_call();
@@ -36,9 +39,8 @@ void ColorEffectManager::call(Led &led, const PaletteT *palette, const PresetCon
 
 void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     const auto height = led.height();
@@ -62,25 +64,26 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
             led.setPixel(i, 0, color_from_palette(*palette, noise_value));
         }
     }
+
+    if (gamma_correction) led.apply_gamma_correction(gamma);
 }
 
 void ColorEffectManager::solid(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     auto color = CHSV(speed, scale, 255);
 
     led.fillSolid(color);
+    if (gamma_correction) led.apply_gamma_correction(gamma);
 }
 
 void ColorEffectManager::color_change(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     state.current_time_factor = state.prev_time_factor + (double) state.delta() * speed / 10 / 255;
@@ -88,13 +91,14 @@ void ColorEffectManager::color_change(Led &led, ColorEffectState &state) {
 
     auto color = color_from_palette(*palette, value * 16);
     led.fillSolid(color);
+
+    if (gamma_correction) led.apply_gamma_correction(gamma);
 }
 
 void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     state.current_time_factor = state.prev_time_factor + (double) state.delta() * (speed - 128) / 4 / 128;
@@ -107,6 +111,8 @@ void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
         auto color = color_from_palette(*palette, (uint16_t) index);
         led.fillColumn(i, color);
     }
+
+    if (gamma_correction) led.apply_gamma_correction(gamma);
 }
 
 struct Particle {
@@ -120,9 +126,8 @@ static Particle particles_store[MAX_PARTICLES_COUNT];
 
 void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     const auto height = led.height();
@@ -150,13 +155,14 @@ void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
 
         particle.brightness = ((uint16_t) particle.brightness * (255 - fade_speed)) >> 8;
     }
+
+    if (gamma_correction) led.apply_gamma_correction(gamma);
 }
 
 void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     const auto height = led.height();
@@ -184,6 +190,8 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
             }
 
             auto color = color_from_palette(*palette, color_index, brightness);
+            if (gamma_correction) napplyGamma_video(color, gamma);
+
             nblend(led.getPixel(i, j), color, 64);
         }
     }
@@ -191,9 +199,8 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
 
 void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     const auto height = led.height();
@@ -222,7 +229,9 @@ void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
                 color_index = 0;
             }
 
-            const auto color = color_from_palette(*palette, color_index, brightness);
+            auto color = color_from_palette(*palette, color_index, brightness);
+            if (gamma_correction) napplyGamma_video(color, gamma);
+
             nblend(led.getPixel(i, j), color, 64);
         }
     }
@@ -230,9 +239,8 @@ void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
 
 void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     const auto height = led.height();
@@ -256,13 +264,14 @@ void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
             led.setPixel(i, j, color);
         }
     }
+
+    if (gamma_correction) led.apply_gamma_correction(gamma);
 }
 
 void ColorEffectManager::ripple(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     const auto height = led.height();
@@ -282,13 +291,14 @@ void ColorEffectManager::ripple(Led &led, ColorEffectState &state) {
             led.data()[index] = color_from_palette(*palette, (uint16_t) round(value));
         }
     }
+
+    if (gamma_correction) led.apply_gamma_correction(gamma);
 }
 
 void ColorEffectManager::velum(Led &led, ColorEffectState &state) {
     const auto &[
-            palette,
-            scale,
-            speed
+            palette, scale, speed,
+            gamma_correction, gamma
     ] = state.params;
 
     const auto height = led.height();
@@ -315,9 +325,11 @@ void ColorEffectManager::velum(Led &led, ColorEffectState &state) {
             auto c = sin8f(y_factor + t2 + sin8f(t + i + (b / 4)));
 
             const auto color_index = (a + b + c) * scale_factor;
-            const auto color = color_from_palette(*palette, color_index);
+            const auto color = color_from_palette(*palette, (uint16_t) color_index);
 
             led.setPixel(i, j, color);
         }
     }
+
+    if (gamma_correction) led.apply_gamma_correction(gamma);
 }

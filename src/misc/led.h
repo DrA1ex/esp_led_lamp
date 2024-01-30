@@ -34,6 +34,7 @@ public:
 
     inline void clear() { FastLED.clear(); }
     inline void show() { FastLED.show(); }
+    inline void apply_gamma_correction(float value) { napplyGamma_video(_data, _count, value); }
 
     void fadeToBlack(byte factor);
 

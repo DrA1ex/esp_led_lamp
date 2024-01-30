@@ -305,5 +305,5 @@ const TProgmemRGBGradientPalette_byte Moody_gp[] = {
 };
 
 const TProgmemRGBGradientPalette_byte Fall_gp[] = {
-        RGB_PALETTE_5(0x7e9f84, 0xce1d2f, 0x7e1418, 0x2a3f36, 0x192123)
+        RGB_PALETTE_5(0x5f0f40, 0x9a031e, 0xfb8b24, 0xe36414, 0x0f4c5c)
 };

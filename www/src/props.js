@@ -41,6 +41,24 @@ export const PropertyConfig = [{
         {key: "colorCorrection.r", title: "Red", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_R},
         {key: "colorCorrection.g", title: "Green", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_G},
         {key: "colorCorrection.b", title: "Blue", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_B},
+        {
+            key: "gamma", title: "Gamma correction", type: "wheel", limit: 255, cmd: PacketType.GAMMA,
+            displayConverter: (v) => {
+                if (v === 0) return "OFF";
+
+                const value = 2.2 + (v - 128) / 128;
+
+                let str = value.toFixed(2);
+                const lastDigit = str.slice(-1);
+                str = str.slice(0, -1);
+
+                if (lastDigit === "0") {
+                    return str;
+                } else {
+                    return [str, lastDigit];
+                }
+            }
+        },
     ]
 }, {
     key: "action", section: "Actions", props: [

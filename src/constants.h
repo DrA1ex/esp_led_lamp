@@ -39,9 +39,9 @@
 #define FRAMES_PER_SECOND                       (60u)
 
 #define STORAGE_HEADER                          ((uint32_t) 0xffaabbcc)
-#define STORAGE_CONFIG_VERSION                  ((uint8_t) 6)
-#define STORAGE_PRESET_NAMES_VERSION            ((uint8_t) 1)
-#define STORAGE_PRESET_CONFIG_VERSION           ((uint8_t) 2)
+#define STORAGE_CONFIG_VERSION                  ((uint8_t) 7)
+#define STORAGE_PRESET_NAMES_VERSION            ((uint8_t) 2)
+#define STORAGE_PRESET_CONFIG_VERSION           ((uint8_t) 3)
 #define STORAGE_SAVE_INTERVAL                   (60000u)                // Wait before commit settings to FLASH
 
 #define TIMER_GROW_AMOUNT                       (8u);

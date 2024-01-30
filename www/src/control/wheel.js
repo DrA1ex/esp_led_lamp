@@ -4,6 +4,11 @@ export class WheelControl extends InputControlBase {
     #value = null;
     #position = 0;
 
+    #mainPartElement;
+    #fractionPartElement;
+
+    #displayConverter = null;
+
     #active = false;
     #width = 0;
     #left = 0;
@@ -13,6 +18,14 @@ export class WheelControl extends InputControlBase {
 
     constructor(element, limit) {
         super(element)
+
+        this.#mainPartElement = document.createElement("span");
+        this.#mainPartElement.classList.add("main");
+        element.appendChild(this.#mainPartElement);
+
+        this.#fractionPartElement = document.createElement("span");
+        this.#fractionPartElement.classList.add("fraction");
+        element.appendChild(this.#fractionPartElement);
 
         this.limit = limit;
 
@@ -43,24 +56,42 @@ export class WheelControl extends InputControlBase {
         this.#value = value;
         this.#position = (value / this.limit);
 
-        const percent = (this.#position * 100);
-
-        if (percent === 0 || percent === 100) {
-            this.element.innerText = percent.toString();
+        let result;
+        if (this.#displayConverter) {
+            result = this.#displayConverter(value);
         } else {
-            const textValue = percent.toFixed(1).split(".");
-            if (textValue[1] === "0") {
-                this.element.innerText = textValue[0];
-            } else {
-                this.element.innerHTML = textValue[0] + `<span class='fraction'>.${textValue[1]}</span>`;
-            }
+            result = this.#defaultDisplayConverter(value);
         }
+
+        const mainPart = Array.isArray(result) ? result[0] : result;
+        const fraction = Array.isArray(result) ? result[1] : "";
+
+        this.#mainPartElement.innerText = mainPart;
+        this.#fractionPartElement.innerText = fraction;
 
         this.element.style.setProperty("--pos", this.#position.toString());
     }
 
     getValue() {
         return this.#value;
+    }
+
+    setDisplayConverter(fn) {
+        this.#displayConverter = fn;
+    }
+
+    #defaultDisplayConverter() {
+        const percent = (this.#position * 100);
+        if (percent === 0 || percent === 100) {
+            return percent.toString();
+        } else {
+            const textValue = percent.toFixed(1).split(".");
+            if (textValue[1] === "0") {
+                return textValue[0];
+            } else {
+                return [textValue[0], `.${textValue[1]}`];
+            }
+        }
     }
 
     #beginInteraction(e) {

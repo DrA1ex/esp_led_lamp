@@ -153,7 +153,8 @@ void render() {
 
     const auto palette = &app.palette->value;
     const auto &preset = app.preset();
-    ColorEffects.call(led, palette, preset);
+
+    ColorEffects.call(led, palette, preset, app.config.gamma);
     BrightnessEffects.call(led, preset);
 }
 

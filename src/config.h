@@ -41,6 +41,8 @@ struct __attribute ((packed)) Config {
 
     uint32_t color_correction = TypicalLEDStrip;
     NightModeConfig night_mode;
+
+    uint8_t gamma = 128; // 2.2
 };
 
 template<uint8_t N, uint8_t S>
