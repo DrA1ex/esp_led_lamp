@@ -2,7 +2,20 @@
 
 #include "LittleFS.h"
 
-WebServer::WebServer(uint16_t port) : _port(port), _server(port) {}
+class WebLogger : public AsyncWebHandler {
+    bool canHandle(AsyncWebServerRequest *request) override {
+        D_PRINTF("WebServer: %s -> %s %s\n", request->client()->remoteIP().toString().c_str(),
+                 request->methodToString(), request->url().c_str());
+
+        return false;
+    }
+};
+
+WebServer::WebServer(uint16_t port) : _port(port), _server(port) {
+#if DEBUG
+    _server.addHandler(new WebLogger());
+#endif
+}
 
 void WebServer::begin() {
     if (!LittleFS.begin()) {
