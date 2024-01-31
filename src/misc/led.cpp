@@ -11,21 +11,21 @@ Led::~Led() {
     delete _data;
 }
 
-void Led::setPixel(int x, int y, const CRGB &color) {
+void Led::set_pixel(int x, int y, const CRGB &color) {
     if (x < 0 || x >= _width || y < 0 || y >= _height) return;
 
-    _data[_get_index(x, y)] = color;
+    _data[get_index(x, y)] = color;
 }
 
-void Led::fillColumn(int x, const CRGB &color) {
+void Led::fill_column(int x, const CRGB &color) {
     if (x < 0 || x >= _width) return;
 
     for (int j = 0; j < _height; ++j) {
-        _data[_get_index(x, j)] = color;
+        _data[get_index(x, j)] = color;
     }
 }
 
-void Led::fadeToBlack(byte factor) {
+void Led::fade_to_black(byte factor) {
     for (int i = 0; i < _count; ++i) {
         _data[i].fadeToBlackBy(factor);
     }

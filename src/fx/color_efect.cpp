@@ -55,13 +55,13 @@ void ColorEffectManager::perlin(Led &led, ColorEffectState &state) {
         for (int i = 0; i < width; ++i) {
             for (int j = 0; j < height; ++j) {
                 auto noise_value = inoise_hd(i * scale_factor, j * scale_factor, state.current_time_factor);
-                led.setPixel(i, j, color_from_palette(*palette, noise_value));
+                led.set_pixel(i, j, color_from_palette(*palette, noise_value));
             }
         }
     } else {
         for (int i = 0; i < width; ++i) {
             auto noise_value = inoise_hd(i * scale_factor, state.current_time_factor);
-            led.setPixel(i, 0, color_from_palette(*palette, noise_value));
+            led.set_pixel(i, 0, color_from_palette(*palette, noise_value));
         }
     }
 
@@ -76,7 +76,7 @@ void ColorEffectManager::solid(Led &led, ColorEffectState &state) {
 
     auto color = CHSV(speed, scale, 255);
 
-    led.fillSolid(color);
+    led.fill_solid(color);
     if (gamma_correction) led.apply_gamma_correction(gamma);
 }
 
@@ -90,7 +90,7 @@ void ColorEffectManager::color_change(Led &led, ColorEffectState &state) {
     uint16_t value = apply_period(state.current_time_factor, 1LL << 24);
 
     auto color = color_from_palette(*palette, value * 16);
-    led.fillSolid(color);
+    led.fill_solid(color);
 
     if (gamma_correction) led.apply_gamma_correction(gamma);
 }
@@ -109,7 +109,7 @@ void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
     for (int i = 0; i < led.width(); i++) {
         auto index = ((double) i * scale_factor + state.current_time_factor) * 16;
         auto color = color_from_palette(*palette, (uint16_t) index);
-        led.fillColumn(i, color);
+        led.fill_column(i, color);
     }
 
     if (gamma_correction) led.apply_gamma_correction(gamma);
@@ -150,7 +150,7 @@ void ColorEffectManager::particles(Led &led, ColorEffectState &state) {
         }
 
         const auto color = particle.color.scale8(particle.brightness);
-        auto &pixel = led.getPixel(particle.x, particle.y);
+        auto &pixel = led.get_pixel(particle.x, particle.y);
         nblend(pixel, color, 192);
 
         particle.brightness = ((uint16_t) particle.brightness * (255 - fade_speed)) >> 8;
@@ -192,7 +192,7 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
             auto color = color_from_palette(*palette, color_index, brightness);
             if (gamma_correction) napplyGamma_video(color, gamma);
 
-            nblend(led.getPixel(i, j), color, 64);
+            nblend(led.get_pixel(i, j), color, 64);
         }
     }
 }
@@ -232,7 +232,7 @@ void ColorEffectManager::aurora(Led &led, ColorEffectState &state) {
             auto color = color_from_palette(*palette, color_index, brightness);
             if (gamma_correction) napplyGamma_video(color, gamma);
 
-            nblend(led.getPixel(i, j), color, 64);
+            nblend(led.get_pixel(i, j), color, 64);
         }
     }
 }
@@ -261,7 +261,7 @@ void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
                                sin8f(y_drift + j * 8 + sin8f(j * 2 + time_factor * 7) / 2);
 
             const auto color = ColorFromPalette(*palette, (int) (index * scale_factor) % 256);
-            led.setPixel(i, j, color);
+            led.set_pixel(i, j, color);
         }
     }
 
@@ -327,7 +327,7 @@ void ColorEffectManager::velum(Led &led, ColorEffectState &state) {
             const auto color_index = (a + b + c) * scale_factor;
             const auto color = color_from_palette(*palette, (uint16_t) color_index);
 
-            led.setPixel(i, j, color);
+            led.set_pixel(i, j, color);
         }
     }
 

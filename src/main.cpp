@@ -32,6 +32,8 @@ void service_loop(void *);
 Led led(WIDTH, HEIGHT);
 Timer global_timer;
 
+uint16_t XY(uint8_t x, uint8_t y) { return led.get_index(x, y); }
+
 Storage<Config> config_storage(global_timer, 0, STORAGE_CONFIG_VERSION);
 Storage<PresetNames> preset_names_storage(global_timer, config_storage.size(), STORAGE_PRESET_NAMES_VERSION);
 Storage<PresetConfigs> preset_configs_storage(global_timer, preset_names_storage.size(), STORAGE_PRESET_CONFIG_VERSION);
@@ -62,9 +64,9 @@ void setup() {
 
     app.load();
 
-    led.setPowerLimit(MATRIX_VOLTAGE, CURRENT_LIMIT);
-    led.setCorrection(app.config.color_correction);
-    led.setBrightness(app.config.max_brightness);
+    led.set_power_limit(MATRIX_VOLTAGE, CURRENT_LIMIT);
+    led.set_correction(app.config.color_correction);
+    led.set_brightness(app.config.max_brightness);
 
     led.clear();
     led.show();
@@ -98,13 +100,13 @@ void render_loop(void *) {
         case AppState::NORMAL:
         case AppState::INITIALIZATION:
         case AppState::CALIBRATION:
-            led.setBrightness(brightness_settings.brightness);
+            led.set_brightness(brightness_settings.brightness);
             break;
 
         case AppState::TURNING_ON: {
             uint8_t factor = ease8InOutQuad((millis() - app.state_change_time) * 255 / POWER_CHANGE_TIMEOUT);
             uint8_t brightness = (uint16_t) factor * brightness_settings.brightness / 255;
-            led.setBrightness(brightness);
+            led.set_brightness(brightness);
 
             if (factor == 255) app.change_state(AppState::NORMAL);
             break;
@@ -113,7 +115,7 @@ void render_loop(void *) {
         case AppState::TURNING_OFF: {
             uint8_t factor = ease8InOutQuad(255 - (millis() - app.state_change_time) * 255 / POWER_CHANGE_TIMEOUT);
             uint8_t brightness = (uint16_t) factor * brightness_settings.brightness / 255;
-            led.setBrightness(brightness);
+            led.set_brightness(brightness);
 
             if (factor == 0) app.change_state(AppState::NORMAL);
             break;
@@ -159,8 +161,8 @@ void render() {
 }
 
 void calibration() {
-    led.setCorrection(app.config.color_correction);
-    led.fillSolid(CRGB::White);
+    led.set_correction(app.config.color_correction);
+    led.fill_solid(CRGB::White);
     led.show();
 
     if (millis() - app.state_change_time > CALIBRATION_TIMEOUT) {
@@ -184,7 +186,7 @@ void initialization_animation() {
         const auto brightness = 255 - cubicwave8(time_factor);
         const auto color = CRGB(CRGB::Purple).scale8(brightness);
 
-        led.setPixel(i, 0, color);
+        led.set_pixel(i, 0, color);
     }
 
     led.show();

@@ -36,7 +36,7 @@ void BrightnessEffectManager::pulse(Led &led, BrightnessEffectState &state) {
     const auto phase = _pulse_phase(state, level);
     auto brightness = ease8InOutQuad(phase);
 
-    led.fadeToBlack(255 - brightness);
+    led.fade_to_black(255 - brightness);
 }
 
 uint8_t BrightnessEffectManager::_pulse_phase(BrightnessEffectState &state, uint8_t scale, uint16_t offset) {
@@ -67,7 +67,7 @@ void BrightnessEffectManager::wave(Led &led, BrightnessEffectState &state) {
         const auto brightness = cubicwave8((value + i * 6) % 256);
 
         for (int j = 0; j < led.height(); ++j) {
-            auto &color = led.getPixel(i, j);
+            auto &color = led.get_pixel(i, j);
             color.fadeToBlackBy(brightness);
         }
     }
@@ -87,12 +87,12 @@ void BrightnessEffectManager::double_wave(Led &led, BrightnessEffectState &state
         const byte brightness = 255 - (phase < 256 ? cubicwave8(phase) : 0);
 
         for (int j = 0; j < led.height(); ++j) {
-            auto &color = led.getPixel(i, j);
+            auto &color = led.get_pixel(i, j);
             color.fadeToBlackBy(brightness);
 
             const auto i2 = width - i - 1;
             if (i2 >= half_width) {
-                auto &color2 = led.getPixel(i2, j);
+                auto &color2 = led.get_pixel(i2, j);
                 color2.fadeToBlackBy(brightness);
             }
         }
@@ -114,9 +114,9 @@ void BrightnessEffectManager::eco(Led &led, byte level) {
         for (int i = 0; i < led.width(); ++i) {
             const auto index = i + j * led.width();
             if (index < (int) next_index) {
-                if (!invert) led.setPixel(i, j, CRGB::Black);
+                if (!invert) led.set_pixel(i, j, CRGB::Black);
             } else {
-                if (invert) led.setPixel(i, j, CRGB::Black);
+                if (invert) led.set_pixel(i, j, CRGB::Black);
                 next_index += period;
             }
         }
@@ -139,7 +139,7 @@ void BrightnessEffectManager::oscillator(Led &led, BrightnessEffectState &state)
         for (int j = 0; j < led.height(); ++j) {
             const auto group = (k++ / period) % 2;
 
-            auto &color = led.getPixel(i, j);
+            auto &color = led.get_pixel(i, j);
             color.fadeToBlackBy(group ? brightness1 : brightness2);
         }
     }
