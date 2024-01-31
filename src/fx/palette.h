@@ -2,6 +2,8 @@
 
 #include "misc/led.h"
 
+extern CRGBPalette16 Custom_p;
+
 FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Fire_gp[] FL_PROGMEM;
 FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Sunset_Real_gp[] FL_PROGMEM;
 FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Dkbluered_gp[] FL_PROGMEM;
@@ -37,3 +39,6 @@ extern const TProgmemRGBGradientPalette_byte Galaxy_gp[] FL_PROGMEM;
 extern const TProgmemRGBGradientPalette_byte NeonStreet_gp[] FL_PROGMEM;
 extern const TProgmemRGBGradientPalette_byte Moody_gp[] FL_PROGMEM;
 extern const TProgmemRGBGradientPalette_byte Fall_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte Matrix_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte Joker_gp[] FL_PROGMEM;
+extern const TProgmemRGBGradientPalette_byte BladeRunner_gp[] FL_PROGMEM;

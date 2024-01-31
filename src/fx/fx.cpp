@@ -46,6 +46,11 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::NEON_STREET,    "Neon Street",    NeonStreet_gp},
         {PaletteEnum::MOODY,          "Moody",          Moody_gp},
         {PaletteEnum::FALL,           "Fall",           Fall_gp},
+        {PaletteEnum::MATRIX,         "Matrix",         Matrix_gp},
+        {PaletteEnum::JOKER,          "Joker",          Joker_gp},
+        {PaletteEnum::BLADE_RUNNER,   "Blade Runner",   BladeRunner_gp},
+
+        {PaletteEnum::CUSTOM,         "Custom",         Custom_p},
 };
 
 PaletteConfig Palettes = {

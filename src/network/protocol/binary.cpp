@@ -83,3 +83,16 @@ Response BinaryProtocol::update_preset_configs(PresetConfigs *cfg, const PacketH
 
     return Response::ok();
 }
+
+Response BinaryProtocol::update_palette(CRGBPalette16 *palette, const PacketHeader &header, const void *data) {
+    if (header.size != sizeof(palette->entries)) {
+        D_PRINTF("Unable to update palette, invalid size. Got %u, expected %u\n", header.size, sizeof(palette->entries));
+        return Response::code(ResponseCode::BAD_REQUEST);
+    }
+
+    memcpy(palette->entries, data, header.size);
+
+    D_PRINT("Update palette");
+
+    return Response::ok();
+}

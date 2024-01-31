@@ -104,6 +104,8 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
         case PacketType::UPDATE_PRESET_CONFIGS:
             return _protocol.update_preset_configs(&app().preset_configs, header, data);
 
+        case PacketType::UPDATE_CUSTOM_PALETTE:
+            return _protocol.update_palette(&Palettes.entries[(int) PaletteEnum::CUSTOM].value, header, data);
 
         default:
             D_PRINTF("Unable to update value, bad type: %u\n", (uint8_t) header.type);

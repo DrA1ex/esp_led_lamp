@@ -19,6 +19,8 @@ public:
 
     Response update_preset_configs(PresetConfigs *cfg, const PacketHeader &header, const void *data);
 
+    Response update_palette(CRGBPalette16 *palette, const PacketHeader &header, const void *data);
+
     template<typename T>
     Response serialize(const T &obj);
 

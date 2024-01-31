@@ -164,6 +164,7 @@ function initUi() {
 
     Properties["export"].control.setOnClick(onExportClicked);
     Properties["import"].control.setOnClick(onImportClicked);
+    Properties["setPalette"].control.setOnClick(onSendPaletteClicked);
 
     window.__app.Sections = Sections;
     window.__app.Properties = Properties;
@@ -348,6 +349,50 @@ async function onImportClicked(sender) {
         console.log("Import success");
 
         await refresh();
+    } finally {
+        sender.element.setAttribute("data-saving", "false");
+    }
+}
+
+async function onSendPaletteClicked(sender) {
+    if (sender.element.getAttribute("data-saving") === "true") return;
+
+    sender.element.setAttribute("data-saving", "true");
+    try {
+        const palette = prompt("Enter palette in CSV format");
+        if (!palette) return;
+
+        const colors = palette.split(",")
+            .map(c => c.trim())
+            .map(c => [
+                Number.parseInt(c.slice(0, 2), 16),
+                Number.parseInt(c.slice(2, 4), 16),
+                Number.parseInt(c.slice(4, 6), 16)]);
+
+        const result = new Array(16);
+        const step = (colors.length - 1) / (result.length - 1);
+
+        for (let i = 0; i < result.length - 1; i++) {
+            const index = i * step;
+
+            const from = Math.floor(index);
+            const to = from + 1;
+
+            const factor = (index - from) / (to - from);
+            result[i] = new Array(3);
+            for (let j = 0; j < result[i].length; j++) {
+                result[i][j] = Math.round(
+                    colors[from][j] + (colors[to][j] - colors[from][j]) * factor
+                );
+            }
+        }
+
+        result[result.length - 1] = colors.at(-1);
+
+        const buffer = new Uint8Array(result.flat()).buffer;
+        logPaletteColor(buffer);
+
+        await ws.request(PacketType.UPDATE_CUSTOM_PALETTE, buffer);
     } finally {
         sender.element.setAttribute("data-saving", "false");
     }

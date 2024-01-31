@@ -43,6 +43,11 @@ enum class PaletteEnum : uint8_t {
     NEON_STREET,
     MOODY,
     FALL,
+    MATRIX,
+    JOKER,
+    BLADE_RUNNER,
+
+    CUSTOM,
 };
 
 enum class ColorEffectEnum : uint8_t {

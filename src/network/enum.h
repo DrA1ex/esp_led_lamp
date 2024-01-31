@@ -23,6 +23,8 @@ enum class PacketType : uint8_t {
     PRESET_ID = 60,
     PRESET_NAME = 61,
 
+    UPDATE_CUSTOM_PALETTE = 70,
+
     UPDATE_PRESET_NAMES = 80,
     UPDATE_PRESET_CONFIGS = 81,
 

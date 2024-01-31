@@ -2,6 +2,8 @@
 
 #include "utils/palette.h"
 
+CRGBPalette16 Custom_p;
+
 const TProgmemRGBGradientPalette_byte Fire_gp[] = {
         0, 0, 0, 0,
         128, 255, 0, 0,
@@ -277,11 +279,12 @@ const TProgmemRGBGradientPalette_byte CornField_gp[] = {
 };
 
 const TProgmemRGBGradientPalette_byte Gargantua_gp[] = {
-        RGB_PALETTE_9(0x291c1c, 0x5a3632, 0x874c44, 0x844123, 0x592200, 0xfb987f, 0xf05700, 0xff8e45, 0xf0dff6)
+        RGB_PALETTE_9(0x272121, 0x52403e, 0x785c58, 0x6d4d3e, 0x542507, 0xdfafa3, 0xd36323, 0xfa9452, 0xf2eaf5)
 };
 
 const TProgmemRGBGradientPalette_byte MoonLight_gp[] = {
-        RGB_PALETTE_11(0x0077f8, 0x003a84, 0x1e80ff, 0x74aeff, 0x8fbfff, 0x3f8dff, 0x005cf0, 0xb7cfff, 0x1f68ff, 0x6b9cff, 0x8a94fa)
+        RGB_PALETTE_12(0x020514, 0x09213d, 0x023465, 0x035899, 0x4f83bf, 0x639bd6,
+                       0xa8c6e8, 0xc3d7f0, 0xd4dce9, 0xbdbed3, 0xa7a4c3, 0x918bad)
 };
 
 const TProgmemRGBGradientPalette_byte LastNight_gp[] = {
@@ -306,4 +309,16 @@ const TProgmemRGBGradientPalette_byte Moody_gp[] = {
 
 const TProgmemRGBGradientPalette_byte Fall_gp[] = {
         RGB_PALETTE_5(0x5f0f40, 0x9a031e, 0xfb8b24, 0xe36414, 0x0f4c5c)
+};
+
+const TProgmemRGBGradientPalette_byte Matrix_gp[] = {
+        RGB_PALETTE_8(0x151a16, 0x1e2a26, 0x23342c, 0x334a40, 0x3e5648, 0x3f7156, 0x5e8358, 0x6d9089)
+};
+
+const TProgmemRGBGradientPalette_byte Joker_gp[] = {
+        RGB_PALETTE_10(0x051514, 0x10324b, 0x00454a, 0x00b29c, 0xd7eccb, 0xe1b882, 0xe06d34, 0xd85f57, 0xa04938, 0x6d271d)
+};
+
+const TProgmemRGBGradientPalette_byte BladeRunner_gp[] = {
+        RGB_PALETTE_10(0x1a051d, 0x35083f, 0x780153, 0xb80e86, 0xdd5db2, 0x885bc2, 0x5625a1, 0x291689, 0x190657, 0x456274)
 };

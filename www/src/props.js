@@ -63,7 +63,8 @@ export const PropertyConfig = [{
 }, {
     key: "action", section: "Actions", props: [
         {key: "export", type: "button", label: "Export presets"},
-        {key: "import", type: "button", label: "Import presets"}
+        {key: "import", type: "button", label: "Import presets"},
+        {key: "setPalette", type: "button", label: "Send Palette"}
     ]
 }];
 

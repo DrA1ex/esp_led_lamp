@@ -101,13 +101,13 @@ void ColorEffectManager::gradient(Led &led, ColorEffectState &state) {
             gamma_correction, gamma
     ] = state.params;
 
-    state.current_time_factor = state.prev_time_factor + (double) state.delta() * (speed - 128) / 4 / 128;
+    state.current_time_factor = state.prev_time_factor + (double) state.delta() * (speed - 128) / 512;
     apply_period(state.current_time_factor, 1LL << 24);
 
     auto scale_factor = ((float) scale * 1.9f + 25) / (float) led.width();
 
     for (int i = 0; i < led.width(); i++) {
-        auto index = ((double) i * scale_factor + state.current_time_factor) * 16;
+        auto index = ((float) i * scale_factor + state.current_time_factor) * 16;
         auto color = color_from_palette(*palette, (uint16_t) index);
         led.fill_column(i, color);
     }
@@ -260,7 +260,7 @@ void ColorEffectManager::plasma(Led &led, ColorEffectState &state) {
             const auto index = sin8f(x_drift + i * 8 + sin8f(i * 2 + time_factor * 6)) / 2 +
                                sin8f(y_drift + j * 8 + sin8f(j * 2 + time_factor * 7) / 2);
 
-            const auto color = ColorFromPalette(*palette, (int) (index * scale_factor) % 256);
+            const auto color = color_from_palette(*palette, (uint16_t) (index * 16 * scale_factor));
             led.set_pixel(i, j, color);
         }
     }
