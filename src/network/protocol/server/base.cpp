@@ -144,7 +144,7 @@ Response ServerBase::process_command(const PacketHeader &header) {
 
 template<typename C, typename V>
 Response serialize_fx_config(const FxConfig<FxConfigEntry<C, V>> &config) {
-    const int CONFIG_DATA_MAX_LENGTH = 1024;
+    const int CONFIG_DATA_MAX_LENGTH = 1536;
 
     static uint8_t buffer[CONFIG_DATA_MAX_LENGTH];
     uint16_t size = 0;

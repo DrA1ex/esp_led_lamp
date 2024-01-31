@@ -23,7 +23,7 @@ void Application::load() {
     if ((int) preset.palette < Palettes.count) {
         palette = &Palettes.entries[(int) preset.palette];
     } else {
-        palette = &Palettes.entries[(int) PaletteEnum::RAINBOW];
+        palette = &Palettes.entries[0];
     }
 }
 

@@ -2,7 +2,6 @@
 
 #include "config.h"
 
-class Led;
 class NtpTime;
 
 class NightModeManager {

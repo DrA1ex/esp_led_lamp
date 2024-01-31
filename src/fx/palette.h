@@ -4,41 +4,70 @@
 
 extern CRGBPalette16 Custom_p;
 
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Fire_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Sunset_Real_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Dkbluered_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Optimus_Prime_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte WarmGrad_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte ColdGrad_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte HotGrad_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte PinkGrad_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Comfy_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Cyberpunk_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Girl_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Xmas_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Acid_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte BlueSmoke_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Gummy_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Leo_gp[] FL_PROGMEM;
-FL_ALIGN_PROGMEM extern const TProgmemRGBGradientPalette_byte Aurora_gp[] FL_PROGMEM;
-
-extern const TProgmemRGBPalette16 WoodFireColors_p PROGMEM; //* рыжий
-extern const TProgmemRGBPalette16 NormalFire_p PROGMEM; // красный
-
-extern const TProgmemRGBPalette16 LithiumFireColors_p PROGMEM; //* пастель
-extern const TProgmemRGBPalette16 SodiumFireColors_p PROGMEM; //* Yellow
-extern const TProgmemRGBPalette16 CopperFireColors_p PROGMEM; //* Green
-extern const TProgmemRGBPalette16 AlcoholFireColors_p PROGMEM; //* Blue
-
-extern const TProgmemRGBGradientPalette_byte CornField_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte Gargantua_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte MoonLight_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte LastNight_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte Rhapsody_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte Galaxy_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte NeonStreet_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte Moody_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte Fall_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte Matrix_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte Joker_gp[] FL_PROGMEM;
-extern const TProgmemRGBGradientPalette_byte BladeRunner_gp[] FL_PROGMEM;
+extern const TProgmemRGBPalette16 AquaMarine_gp PROGMEM;
+extern const TProgmemRGBPalette16 AutumnFire_gp PROGMEM;
+extern const TProgmemRGBPalette16 AzureWaters_gp PROGMEM;
+extern const TProgmemRGBPalette16 BeachElegance_gp PROGMEM;
+extern const TProgmemRGBPalette16 BrightSky_gp PROGMEM;
+extern const TProgmemRGBPalette16 BrownishRed_gp PROGMEM;
+extern const TProgmemRGBPalette16 CalmLake_gp PROGMEM;
+extern const TProgmemRGBPalette16 CalmOasis_gp PROGMEM;
+extern const TProgmemRGBPalette16 CampFire_gp PROGMEM;
+extern const TProgmemRGBPalette16 ColorfulRainbow_gp PROGMEM;
+extern const TProgmemRGBPalette16 CrimsonRhapsody_gp PROGMEM;
+extern const TProgmemRGBPalette16 DarkBlase_gp PROGMEM;
+extern const TProgmemRGBPalette16 DarkMystery_gp PROGMEM;
+extern const TProgmemRGBPalette16 ElectricBloom_gp PROGMEM;
+extern const TProgmemRGBPalette16 EmeraldOasis_gp PROGMEM;
+extern const TProgmemRGBPalette16 EnchantedForest_gp PROGMEM;
+extern const TProgmemRGBPalette16 EtherealEvolution_gp PROGMEM;
+extern const TProgmemRGBPalette16 EtherealSerenade_gp PROGMEM;
+extern const TProgmemRGBPalette16 FieryBlend_gp PROGMEM;
+extern const TProgmemRGBPalette16 FieryFusion_gp PROGMEM;
+extern const TProgmemRGBPalette16 ForestRetreat_gp PROGMEM;
+extern const TProgmemRGBPalette16 GoldenHorizon_gp PROGMEM;
+extern const TProgmemRGBPalette16 GoldenSpice_gp PROGMEM;
+extern const TProgmemRGBPalette16 GrayHarmony_gp PROGMEM;
+extern const TProgmemRGBPalette16 GrayHeaven_gp PROGMEM;
+extern const TProgmemRGBPalette16 GreenOasis_gp PROGMEM;
+extern const TProgmemRGBPalette16 GreenWoods_gp PROGMEM;
+extern const TProgmemRGBPalette16 LimeSplash_gp PROGMEM;
+extern const TProgmemRGBPalette16 LuxuriousVelvet_gp PROGMEM;
+extern const TProgmemRGBPalette16 MarineMystery_gp PROGMEM;
+extern const TProgmemRGBPalette16 MidnightBlue_gp PROGMEM;
+extern const TProgmemRGBPalette16 MidnightCalm_gp PROGMEM;
+extern const TProgmemRGBPalette16 MintyBreeze_gp PROGMEM;
+extern const TProgmemRGBPalette16 MistyMoor_gp PROGMEM;
+extern const TProgmemRGBPalette16 MonochromeChic_gp PROGMEM;
+extern const TProgmemRGBPalette16 MossyWhisper_gp PROGMEM;
+extern const TProgmemRGBPalette16 MysticMidnight_gp PROGMEM;
+extern const TProgmemRGBPalette16 MysticalSpectrum_gp PROGMEM;
+extern const TProgmemRGBPalette16 NaturalBreeze_gp PROGMEM;
+extern const TProgmemRGBPalette16 NeonSpectrum_gp PROGMEM;
+extern const TProgmemRGBPalette16 NightNocturne_gp PROGMEM;
+extern const TProgmemRGBPalette16 OceanAdventure_gp PROGMEM;
+extern const TProgmemRGBPalette16 OceanLook_gp PROGMEM;
+extern const TProgmemRGBPalette16 OceanicBurst_gp PROGMEM;
+extern const TProgmemRGBPalette16 PastelDreams_gp PROGMEM;
+extern const TProgmemRGBPalette16 PeacefulOlive_gp PROGMEM;
+extern const TProgmemRGBPalette16 PurpleSky_gp PROGMEM;
+extern const TProgmemRGBPalette16 QuietWoods_gp PROGMEM;
+extern const TProgmemRGBPalette16 RaspberrySorbet_gp PROGMEM;
+extern const TProgmemRGBPalette16 RedDance_gp PROGMEM;
+extern const TProgmemRGBPalette16 RedInferno_gp PROGMEM;
+extern const TProgmemRGBPalette16 RedSunset_gp PROGMEM;
+extern const TProgmemRGBPalette16 RedTwilight_gp PROGMEM;
+extern const TProgmemRGBPalette16 RosyDawn_gp PROGMEM;
+extern const TProgmemRGBPalette16 RoyalElegance_gp PROGMEM;
+extern const TProgmemRGBPalette16 RusticTerrain_gp PROGMEM;
+extern const TProgmemRGBPalette16 ScarletEssence_gp PROGMEM;
+extern const TProgmemRGBPalette16 SeaDusk_gp PROGMEM;
+extern const TProgmemRGBPalette16 ShadowBlaze_gp PROGMEM;
+extern const TProgmemRGBPalette16 SoftPetals_gp PROGMEM;
+extern const TProgmemRGBPalette16 SunnyMosaic_gp PROGMEM;
+extern const TProgmemRGBPalette16 TwilightSymphony_gp PROGMEM;
+extern const TProgmemRGBPalette16 UrbanDusk_gp PROGMEM;
+extern const TProgmemRGBPalette16 VibrantTropics_gp PROGMEM;
+extern const TProgmemRGBPalette16 VintageRouge_gp PROGMEM;
+extern const TProgmemRGBPalette16 VioletTwilight_gp PROGMEM;
+extern const TProgmemRGBPalette16 WarmAmber_gp PROGMEM;

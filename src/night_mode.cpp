@@ -1,7 +1,5 @@
 #include "night_mode.h"
 
-#include "fx/brightness_effect.h"
-#include "misc/led.h"
 #include "misc/ntp_time.h"
 
 NightModeManager::NightModeManager(const Config &config) : _config(config) {}

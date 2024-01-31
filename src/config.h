@@ -64,8 +64,8 @@ struct __attribute ((packed)) PresetConfig {
     uint8_t scale = 190;
     uint8_t light = 128;
 
-    PaletteEnum palette = PaletteEnum::PARTY;
-    ColorEffectEnum color_effect = ColorEffectEnum::PLASMA;
+    PaletteEnum palette = PaletteEnum::MYSTIC_MIDNIGHT;
+    ColorEffectEnum color_effect = ColorEffectEnum::FIRE;
     BrightnessEffectEnum brightness_effect = BrightnessEffectEnum::FIXED;
 };
 
