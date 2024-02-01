@@ -21,6 +21,8 @@ public:
 
     const PaletteEntry *palette = nullptr;
 
+    CRGBPalette16 current_palette = CRGBPalette16();
+
     explicit Application(Storage<Config> &config_storage,
                          Storage<PresetNames> &preset_names_storage,
                          Storage<PresetConfigs> &preset_configs_storage,

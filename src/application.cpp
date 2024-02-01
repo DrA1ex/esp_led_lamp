@@ -1,11 +1,12 @@
 #include "application.h"
 
-#include "misc/led.h"
-#include "misc/ntp_time.h"
+#include "night_mode.h"
 
 #include "fx/fx.h"
+#include "fx/palette.h"
 
-#include "night_mode.h"
+#include "misc/ntp_time.h"
+
 
 Application::Application(Storage<Config> &config_storage,
                          Storage<PresetNames> &preset_names_storage,
@@ -24,6 +25,12 @@ void Application::load() {
         palette = &Palettes.entries[(int) preset.palette];
     } else {
         palette = &Palettes.entries[0];
+    }
+
+    if (palette->code == PaletteEnum::CUSTOM) {
+        current_palette = Custom_p;
+    } else {
+        current_palette = palette->value;
     }
 }
 

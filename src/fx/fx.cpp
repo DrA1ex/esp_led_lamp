@@ -74,7 +74,7 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::VIOLET_TWILIGHT,     "Violet Twilight",    VioletTwilight_gp},
         {PaletteEnum::WARM_ORANGE,         "Warm Orange",        WarmAmber_gp},
 
-        {PaletteEnum::CUSTOM,              "Custom",             Custom_p},
+        {PaletteEnum::CUSTOM,              "Custom",             CustomPalette_gp},
 };
 
 PaletteConfig Palettes = {

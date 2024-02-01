@@ -2,6 +2,7 @@
 
 #include "application.h"
 #include "fx/fx.h"
+#include "fx/palette.h"
 
 ServerBase::ServerBase(Application &config) : _app(config), _protocol() {}
 
@@ -105,7 +106,7 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
             return _protocol.update_preset_configs(&app().preset_configs, header, data);
 
         case PacketType::UPDATE_CUSTOM_PALETTE:
-            return _protocol.update_palette(&Palettes.entries[(int) PaletteEnum::CUSTOM].value, header, data);
+            return _protocol.update_palette(&Custom_p, header, data);
 
         default:
             D_PRINTF("Unable to update value, bad type: %u\n", (uint8_t) header.type);
@@ -202,7 +203,7 @@ Response ServerBase::process_data_request(const PacketHeader &header) {
             return serialize(app().preset_configs);
 
         case PacketType::GET_PALETTE:
-            return serialize(app().palette->value.entries);
+            return serialize(app().current_palette.entries);
 
         default:
             return Response{ResponseType::CODE, {.code = ResponseCode::BAD_COMMAND}};

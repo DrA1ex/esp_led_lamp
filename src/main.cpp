@@ -161,7 +161,7 @@ void render() {
         return;
     }
 
-    const auto palette = &app.palette->value;
+    const auto palette = &app.current_palette;
     const auto &preset = app.preset();
 
     ColorEffects.call(led, palette, preset, app.config.gamma);
