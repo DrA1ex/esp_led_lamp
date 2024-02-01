@@ -1,5 +1,11 @@
 #pragma once
 
+#define DISABLED                                0
+#define ENABLED                                 1
+
+#define WIFI_AP_MODE                            0
+#define WIFI_STA_MODE                           1
+
 #define FRAMES_PER_SECOND                       (60u)
 
 #define UDP_PORT                                (1423)

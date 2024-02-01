@@ -5,6 +5,7 @@
 #include "constants.h"
 #include "config.h"
 #include "night_mode.h"
+#include "sys_macro.h"
 
 #include "misc/button.h"
 #include "misc/led.h"
@@ -71,12 +72,19 @@ void setup() {
     led.clear();
     led.show();
 
-    button.begin();
-    button.set_on_click(button_on_click);
-    button.set_on_hold(button_on_hold);
+    BUTTON_FN(button.begin());
+    BUTTON_FN(button.set_on_click(button_on_click));
+    BUTTON_FN(button.set_on_hold(button_on_hold));
 
     global_timer.add_interval(render_loop, 1000 / FRAMES_PER_SECOND);
     global_timer.add_interval(service_loop, 20);
+
+#ifdef DEBUG
+    D_PRINTF("Startup Free Heap: %u\n", ESP.getFreeHeap());
+    global_timer.add_interval([](void *) {
+        D_PRINTF("Free Heap: %u\n", ESP.getFreeHeap());
+    }, 5ul * 60 * 1000);
+#endif
 }
 
 
@@ -246,7 +254,7 @@ void service_loop(void *) {
         default:;
     }
 
-    button.handle();
+    BUTTON_FN(button.handle());
 }
 
 void button_on_click(uint8_t cnt) {

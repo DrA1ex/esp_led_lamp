@@ -10,6 +10,8 @@ Button::Button(uint8_t pin) : _pin(pin) {}
 void Button::begin() {
     pinMode(_pin, INPUT);
     attachInterruptArg(digitalPinToInterrupt(_pin), _handle_interrupt, this, CHANGE);
+
+    D_PRINTF("Setup button interruption for pin %u\n", _pin);
 }
 
 void Button::_handle_interrupt(void *arg) {

@@ -3,7 +3,7 @@
 #include "misc/led.h"
 #include "sys_constants.h"
 
-#define WIFI_MODE                               (0u)                    // 0 - AP mode, 1 - STA mode
+#define WIFI_MODE                               (WIFI_AP_MODE)
 #define WIFI_SSID                               "ESP_LED"
 #define WIFI_PASSWORD                           "12345678"
 
@@ -15,6 +15,7 @@
 
 #define MDNS_NAME                               "esp_lamp"
 
+#define BUTTON                                  DISABLED
 #define BUTTON_PIN                              (4u)
 
 #define LED_PIN                                 (5u)
