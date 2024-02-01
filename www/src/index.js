@@ -34,8 +34,9 @@ const params = new Proxy(new URLSearchParams(window.location.search), {
     get: (searchParams, prop) => searchParams.get(prop),
 });
 
+const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 const host = params.host ?? window.location.hostname;
-const gateway = `ws://${host !== "localhost" ? host : DEFAULT_ADDRESS}/ws`;
+const gateway = `${protocol}://${host !== "localhost" ? host : DEFAULT_ADDRESS}/ws`;
 
 window.__app = {};
 initUi();
