@@ -32,10 +32,10 @@ jobs:
           node-version: '18.12.1'
       - name: Install Dependencies
         run: npm install
-        working-directory: data
+        working-directory: www
       - name: Build
         run: npm run build
-        working-directory: data
+        working-directory: www
       - name: Setup Pages
         uses: actions/configure-pages@v2
       - name: Build with Jekyll
