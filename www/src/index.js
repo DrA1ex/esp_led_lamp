@@ -1,24 +1,32 @@
-import {Properties, PropertyConfig} from "./props.js";
 import {Config, Preset} from "./config.js";
+import {Properties, PropertyConfig} from "./props.js";
+import {CONNECTION_TIMEOUT_DELAY_STEP, DEFAULT_ADDRESS, THROTTLE_INTERVAL} from "./constants.js";
+
 
 import {TriggerControl} from "./control/trigger.js";
 import {FrameControl} from "./control/frame.js";
 import {TextControl} from "./control/text.js";
 import {WheelControl} from "./control/wheel.js";
 import {SelectControl} from "./control/select.js";
+import {ButtonControl} from "./control/button.js";
 import {InputControl, InputType} from "./control/input.js";
 
+import {BinaryParser} from "./misc/binary_parser.js";
 import {PacketType} from "./network/cmd.js";
 import {WebSocketInteraction} from "./network/ws.js";
-import {BinaryParser} from "./misc/binary_parser.js";
 
-import * as FunctionUtils from "./utils/function.js"
-import {ButtonControl} from "./control/button.js";
-
-import {CONNECTION_TIMEOUT_DELAY_STEP, DEFAULT_ADDRESS, THROTTLE_INTERVAL} from "./constants.js";
-import {saveFile} from "./utils/file.js";
-import * as FileUtils from "./utils/file.js";
 import {FileAsyncReader} from "./utils/fetch.js";
+import * as FileUtils from "./utils/file.js";
+import * as FunctionUtils from "./utils/function.js"
+
+if ("serviceWorker" in navigator) {
+    try {
+        const registration = await navigator.serviceWorker.register("./service_worker.js");
+        console.log("ServiceWorker registration successful with scope: ", registration.scope);
+    } catch (e) {
+        console.log("ServiceWorker registration failed: ", e);
+    }
+}
 
 const StatusElement = document.getElementById("status");
 
@@ -480,4 +488,4 @@ document.addEventListener("visibilitychange", (e) => {
     } else {
         ws.connect();
     }
-})
+});
