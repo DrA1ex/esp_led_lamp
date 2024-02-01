@@ -6,6 +6,7 @@ ColorEffectManager ColorEffects;
 BrightnessEffectManager BrightnessEffects;
 
 const std::initializer_list<PaletteEntry> palette_init = {
+        {PaletteEnum::ABYSS,               "Abyss",              Abyss_gp},
         {PaletteEnum::AQUA_BLOOM,          "Aqua Bloom",         AquaBloom_gp},
         {PaletteEnum::AQUA_MARINE,         "Aqua Marine",        AquaMarine_gp},
         {PaletteEnum::AUTUMN_FIRE,         "Autumn Fire",        AutumnFire_gp},
@@ -23,6 +24,7 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::ELECTRIC_BLOOM,      "Electric Bloom",     ElectricBloom_gp},
         {PaletteEnum::EMERALD_OASIS,       "Emerald Oasis",      EmeraldOasis_gp},
         {PaletteEnum::ENCHANTED_WOODS,     "Enchanted Woods",    EnchantedForest_gp},
+        {PaletteEnum::ENIGMA,              "Enigma",             Enigma_gp},
         {PaletteEnum::ETHEREAL_EVOLUTION,  "Ethereal Evolution", EtherealEvolution_gp},
         {PaletteEnum::ETHEREAL_SERENADE,   "Ethereal Serenade",  EtherealSerenade_gp},
         {PaletteEnum::FIERY_BLEND,         "Fiery Blend",        FieryBlend_gp},
@@ -48,6 +50,7 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::MYSTERICAL_SPECTRUM, "Mystical Spectrum",  MysticalSpectrum_gp},
         {PaletteEnum::MYSTIC_MIDNIGHT,     "Mystic Midnight",    MysticMidnight_gp},
         {PaletteEnum::NATURAL_BREEZE,      "Natural Breeze",     NaturalBreeze_gp},
+        {PaletteEnum::NEON_CANDY,          "Neon Candy",         NeonCandy_gp},
         {PaletteEnum::NEON_DREAMS,         "Neon Dreams",        NeonDreams_gp},
         {PaletteEnum::NEON_SPECTRUM,       "Neon Spectrum",      NeonSpectrum_gp},
         {PaletteEnum::NIGHT_NOCTURNE,      "Night Nocturne",     NightNocturne_gp},

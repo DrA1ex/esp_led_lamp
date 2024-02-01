@@ -76,3 +76,6 @@ extern const PaletteDataT Limeade_gp PROGMEM;
 extern const PaletteDataT NeonDreams_gp PROGMEM;
 extern const PaletteDataT MagicPlum_gp PROGMEM;
 extern const PaletteDataT AquaBloom_gp PROGMEM;
+extern const PaletteDataT Enigma_gp PROGMEM;
+extern const PaletteDataT NeonCandy_gp PROGMEM;
+extern const PaletteDataT Abyss_gp PROGMEM;

@@ -8,7 +8,7 @@
 #define D_WRITE(x) Serial.print(x)
 
 #if DEBUG_LEVEL == __DEBUG_LEVEL_VERBOSE
-#define VERBOSE(ARG) {ARG}
+#define VERBOSE(ARG) (ARG)
 #else
 #define VERBOSE(ARG)
 #endif
