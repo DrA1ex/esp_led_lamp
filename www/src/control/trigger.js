@@ -11,11 +11,11 @@ export class TriggerControl extends InputControlBase {
     }
 
     setValue(flag) {
-        this.element.setAttribute("data-value", flag.toString());
+        this.setAttribute("data-value", flag.toString());
     }
 
     getValue() {
-        return this.element.getAttribute("data-value") === "true";
+        return this.getAttribute("data-value") === "true";
     }
 
     #onClick() {

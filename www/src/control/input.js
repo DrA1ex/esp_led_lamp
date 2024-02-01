@@ -84,7 +84,7 @@ export class InputControl extends InputControlBase {
 
     _onChange() {
         const valid = this.isValid();
-        this.element.setAttribute("invalid", `${!valid}`);
+        this.setAttribute("invalid", `${!valid}`);
 
         if (valid) {
             const oldValue = this.#value;
@@ -97,6 +97,6 @@ export class InputControl extends InputControlBase {
     setMaxLength(maxlength) {
         if (!Number.isInteger(maxlength)) return;
 
-        this.element.setAttribute("maxLength", maxlength);
+        this.setAttribute("maxLength", maxlength);
     }
 }

@@ -75,9 +75,21 @@ async function request_fx(cmd) {
     return result;
 }
 
-function startSection(title) {
+function startSection(title, lock) {
     const frame = new FrameControl(document.createElement("div"));
     frame.addClass("section");
+
+    if (lock) {
+        const lockBtn = new ButtonControl(document.createElement("a"));
+        lockBtn.addClass("lock");
+        lockBtn.setOnClick(() => {
+            const value = frame.getAttribute("data-locked") === "true";
+            frame.setAttribute("data-locked", !value);
+        });
+
+        frame.setAttribute("data-locked", true);
+        frame.appendChild(lockBtn);
+    }
 
     const sectionTitle = new TextControl(document.createElement("h3"));
     sectionTitle.addClass("section-title");
@@ -101,7 +113,7 @@ function initUi() {
     const Properties = {};
 
     for (const cfg of PropertyConfig) {
-        const section = startSection(cfg.section);
+        const section = startSection(cfg.section, cfg.lock ?? false);
 
         Sections[cfg.key] = {section, cfg, props: {}};
 
@@ -150,7 +162,7 @@ function initUi() {
             }
 
             if (control) {
-                control.element.setAttribute("data-loading", "true");
+                control.setAttribute("data-loading", true);
                 if (prop.displayConverter) control.setDisplayConverter(prop.displayConverter);
 
                 section.appendChild(control);
@@ -218,10 +230,10 @@ function refreshConfig() {
                 control.setValue(value);
             }
 
-            if (control.element.getAttribute("data-loading") === "true") {
+            if (control.getAttribute("data-loading") === "true") {
                 if ("setOnChange" in control) control.setOnChange((value) => config.setProperty(prop.key, value));
 
-                control.element.setAttribute("data-loading", "false");
+                control.setAttribute("data-loading", false);
             }
         }
     }
@@ -259,9 +271,9 @@ function logPaletteColor(buffer) {
 }
 
 async function onExportClicked(sender) {
-    if (sender.element.getAttribute("data-saving") === "true") return;
+    if (sender.getAttribute("data-saving") === "true") return;
 
-    sender.element.setAttribute("data-saving", "true");
+    sender.setAttribute("data-saving", true);
 
     try {
         const [names, configs] = await Promise.all([
@@ -284,14 +296,14 @@ async function onExportClicked(sender) {
         await FileUtils.saveFile(JSON.stringify(result), exportFileName, "application/json");
 
     } finally {
-        sender.element.setAttribute("data-saving", "false");
+        sender.setAttribute("data-saving", false);
     }
 }
 
 async function onImportClicked(sender) {
-    if (sender.element.getAttribute("data-saving") === "true") return;
+    if (sender.getAttribute("data-saving") === "true") return;
 
-    sender.element.setAttribute("data-saving", "true");
+    sender.setAttribute("data-saving", true);
     try {
         const file = await FileUtils.openFile("application/json", false);
         if (!file) return;
@@ -350,14 +362,14 @@ async function onImportClicked(sender) {
 
         await refresh();
     } finally {
-        sender.element.setAttribute("data-saving", "false");
+        sender.setAttribute("data-saving", false);
     }
 }
 
 async function onSendPaletteClicked(sender) {
-    if (sender.element.getAttribute("data-saving") === "true") return;
+    if (sender.getAttribute("data-saving") === "true") return;
 
-    sender.element.setAttribute("data-saving", "true");
+    sender.setAttribute("data-saving", true);
     try {
         const palette = prompt("Enter palette in CSV format");
         if (!palette) return;
@@ -394,7 +406,7 @@ async function onSendPaletteClicked(sender) {
 
         await ws.request(PacketType.UPDATE_CUSTOM_PALETTE, buffer);
     } finally {
-        sender.element.setAttribute("data-saving", "false");
+        sender.setAttribute("data-saving", false);
     }
 }
 
@@ -406,7 +418,7 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
     const control = window.__app.Properties[prop.key].control;
     prop.__busy = true;
     try {
-        if (prop.type !== "wheel") control.element.setAttribute("data-saving", "true");
+        if (prop.type !== "wheel") control.setAttribute("data-saving", true);
 
         if (Array.isArray(prop.cmd)) {
             await ws.request(value ? prop.cmd[0] : prop.cmd[1]);
@@ -446,7 +458,7 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
         control.setValue(oldValue);
     } finally {
         prop.__busy = false;
-        if (prop.type !== "wheel") control.element.setAttribute("data-saving", "false");
+        if (prop.type !== "wheel") control.setAttribute("data-saving", false);
     }
 }, THROTTLE_INTERVAL);
 

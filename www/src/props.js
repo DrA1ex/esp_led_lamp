@@ -16,7 +16,6 @@ export const PropertyConfig = [{
             key: "preset.current.brightnessEffect", title: "Brightness Effect", type: "select", list: "brightnessEffects",
             cmd: PacketType.BRIGHTNESS_EFFECT
         },
-
     ],
 }, {
     key: "tune", section: "Fine Tune", props: [
@@ -25,7 +24,7 @@ export const PropertyConfig = [{
         {key: "preset.current.light", title: "Light", type: "wheel", limit: 255, cmd: PacketType.LIGHT},
     ],
 }, {
-    key: "night_mode", section: "Night Mode", props: [
+    key: "night_mode", section: "Night Mode", lock: true, props: [
         {key: "nightMode.enabled", title: "Enabled", type: "trigger", cmd: PacketType.NIGHT_MODE_ENABLED},
         {key: "nightMode.brightness", title: "Brightness", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_BRIGHTNESS},
         {key: "nightMode.eco", title: "ECO", type: "wheel", limit: 255, cmd: PacketType.NIGHT_MODE_ECO},
@@ -37,7 +36,7 @@ export const PropertyConfig = [{
         },
     ]
 }, {
-    key: "calibration", section: "Calibration", props: [
+    key: "calibration", section: "Calibration", lock: true, props: [
         {key: "colorCorrection.r", title: "Red", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_R},
         {key: "colorCorrection.g", title: "Green", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_G},
         {key: "colorCorrection.b", title: "Blue", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_B},

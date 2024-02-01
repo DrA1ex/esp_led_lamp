@@ -53,6 +53,14 @@ export class Control {
     removeClass(className) {
         this.element.classList.remove(className);
     }
+
+    setAttribute(attribName, value) {
+        this.element.setAttribute(attribName, value.toString());
+    }
+
+    getAttribute(attribName) {
+        return this.element.getAttribute(attribName);
+    }
 }
 
 export class InputControlBase extends Control {
