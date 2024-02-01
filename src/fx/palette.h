@@ -72,3 +72,7 @@ extern const PaletteDataT VibrantTropics_gp PROGMEM;
 extern const PaletteDataT VintageRouge_gp PROGMEM;
 extern const PaletteDataT VioletTwilight_gp PROGMEM;
 extern const PaletteDataT WarmAmber_gp PROGMEM;
+extern const PaletteDataT Limeade_gp PROGMEM;
+extern const PaletteDataT NeonDreams_gp PROGMEM;
+extern const PaletteDataT MagicPlum_gp PROGMEM;
+extern const PaletteDataT AquaBloom_gp PROGMEM;

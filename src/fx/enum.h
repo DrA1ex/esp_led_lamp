@@ -3,6 +3,7 @@
 #include "cctype"
 
 enum class PaletteEnum : uint8_t {
+    AQUA_BLOOM,
     AQUA_MARINE,
     AUTUMN_FIRE,
     AZURE_WATERS,
@@ -30,8 +31,10 @@ enum class PaletteEnum : uint8_t {
     GREEN_HARMONY,
     GREEN_OASIS,
     GREEN_WOODS,
+    LIMEADE,
     LIME_SPLASH,
     LUXURIOUS_VELVET,
+    MAGIC_PLUM,
     MARINE_MYSTERY,
     MIDNIGHT_BLUE,
     MIDNIGHT_CALM,
@@ -42,6 +45,7 @@ enum class PaletteEnum : uint8_t {
     MYSTERICAL_SPECTRUM,
     MYSTIC_MIDNIGHT,
     NATURAL_BREEZE,
+    NEON_DREAMS,
     NEON_SPECTRUM,
     NIGHT_NOCTURNE,
     OCEANIC_BURST,

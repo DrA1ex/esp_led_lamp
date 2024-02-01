@@ -6,6 +6,7 @@ ColorEffectManager ColorEffects;
 BrightnessEffectManager BrightnessEffects;
 
 const std::initializer_list<PaletteEntry> palette_init = {
+        {PaletteEnum::AQUA_BLOOM,          "Aqua Bloom",         AquaBloom_gp},
         {PaletteEnum::AQUA_MARINE,         "Aqua Marine",        AquaMarine_gp},
         {PaletteEnum::AUTUMN_FIRE,         "Autumn Fire",        AutumnFire_gp},
         {PaletteEnum::AZURE_WATERS,        "Azure Waters",       AzureWaters_gp},
@@ -33,8 +34,10 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::GREEN_HARMONY,       "Green Harmony",      GrayHarmony_gp},
         {PaletteEnum::GREEN_OASIS,         "Green Oasis",        GreenOasis_gp},
         {PaletteEnum::GREEN_WOODS,         "Green Woods",        GreenWoods_gp},
+        {PaletteEnum::LIMEADE,             "Limeade",            Limeade_gp},
         {PaletteEnum::LIME_SPLASH,         "Lime Splash",        LimeSplash_gp},
         {PaletteEnum::LUXURIOUS_VELVET,    "Luxurious Velvet",   LuxuriousVelvet_gp},
+        {PaletteEnum::MAGIC_PLUM,          "Magic Plum",         MagicPlum_gp},
         {PaletteEnum::MARINE_MYSTERY,      "Marine Mystery",     MarineMystery_gp},
         {PaletteEnum::MIDNIGHT_BLUE,       "Midnight Blue",      MidnightBlue_gp},
         {PaletteEnum::MIDNIGHT_CALM,       "Midnight Calm",      MidnightCalm_gp},
@@ -45,6 +48,7 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::MYSTERICAL_SPECTRUM, "Mystical Spectrum",  MysticalSpectrum_gp},
         {PaletteEnum::MYSTIC_MIDNIGHT,     "Mystic Midnight",    MysticMidnight_gp},
         {PaletteEnum::NATURAL_BREEZE,      "Natural Breeze",     NaturalBreeze_gp},
+        {PaletteEnum::NEON_DREAMS,         "Neon Dreams",        NeonDreams_gp},
         {PaletteEnum::NEON_SPECTRUM,       "Neon Spectrum",      NeonSpectrum_gp},
         {PaletteEnum::NIGHT_NOCTURNE,      "Night Nocturne",     NightNocturne_gp},
         {PaletteEnum::OCEANIC_BURST,       "Oceanic Burst",      OceanicBurst_gp},
@@ -64,17 +68,17 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::RUSTIC_TERRAIN,      "Rustic Terrain",     RusticTerrain_gp},
         {PaletteEnum::SCARLET_ESSENCE,     "Scarlet Essence",    ScarletEssence_gp},
         {PaletteEnum::SEA_DUSK,            "Sea Dusk",           SeaDusk_gp},
-        {PaletteEnum::SHADOW_BLAZE,        "Shadow Blaze",      ShadowBlaze_gp},
-        {PaletteEnum::SOFT_PETALS,         "Soft Petals",       SoftPetals_gp},
-        {PaletteEnum::SUNNY_MOSAIC,        "Sunny Mosaic",      SunnyMosaic_gp},
-        {PaletteEnum::TWILIGHT_SIMPHONY,   "Twilight Simphony", TwilightSymphony_gp},
-        {PaletteEnum::URBAN_DUSK,          "Urban Dusk",        UrbanDusk_gp},
-        {PaletteEnum::VIBRANT_TROPICS,     "Vibrant Tropics",   VibrantTropics_gp},
-        {PaletteEnum::VINTAGE_ROUGE,       "Vintage Rouge",     VintageRouge_gp},
-        {PaletteEnum::VIOLET_TWILIGHT,     "Violet Twilight",   VioletTwilight_gp},
-        {PaletteEnum::WARM_ORANGE,         "Warm Orange",       WarmAmber_gp},
+        {PaletteEnum::SHADOW_BLAZE,        "Shadow Blaze",       ShadowBlaze_gp},
+        {PaletteEnum::SOFT_PETALS,         "Soft Petals",        SoftPetals_gp},
+        {PaletteEnum::SUNNY_MOSAIC,        "Sunny Mosaic",       SunnyMosaic_gp},
+        {PaletteEnum::TWILIGHT_SIMPHONY,   "Twilight Simphony",  TwilightSymphony_gp},
+        {PaletteEnum::URBAN_DUSK,          "Urban Dusk",         UrbanDusk_gp},
+        {PaletteEnum::VIBRANT_TROPICS,     "Vibrant Tropics",    VibrantTropics_gp},
+        {PaletteEnum::VINTAGE_ROUGE,       "Vintage Rouge",      VintageRouge_gp},
+        {PaletteEnum::VIOLET_TWILIGHT,     "Violet Twilight",    VioletTwilight_gp},
+        {PaletteEnum::WARM_ORANGE,         "Warm Orange",        WarmAmber_gp},
 
-        {PaletteEnum::CUSTOM,              "Custom",            DefaultCustomPalette_gp},
+        {PaletteEnum::CUSTOM,              "Custom",             DefaultCustomPalette_gp},
 };
 
 PaletteConfig Palettes = {
