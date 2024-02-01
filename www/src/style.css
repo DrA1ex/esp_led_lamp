@@ -143,7 +143,7 @@ h3 {
 }
 
 .wheel::before {
-    transition-property: height;
+    transition-property: height, filter;
 }
 
 .button {
@@ -195,7 +195,7 @@ h3 {
 }
 
 .section[data-locked=true] > .lock {
-    background: var(--control-color-inactive);;
+    background: var(--control-color-inactive);
 }
 
 .section[data-locked=true] *:not(.lock) {
@@ -204,6 +204,14 @@ h3 {
 
 .section[data-locked=true] :where(.input, .button, select) {
     color: var(--text-color-inactive);
+}
+
+.section[data-locked=false] .wheel::before {
+    filter: saturate(1);
+}
+
+.section[data-locked=true] .wheel::before {
+    filter: saturate(0.3);
 }
 
 .section:has(+ .section) {
