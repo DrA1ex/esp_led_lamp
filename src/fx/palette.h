@@ -3,8 +3,7 @@
 #include "misc/led.h"
 #include "type.h"
 
-extern const PaletteDataT CustomPalette_gp PROGMEM;
-extern CRGBPalette16 Custom_p;
+extern const PaletteDataT DefaultCustomPalette_gp PROGMEM;
 
 extern const PaletteDataT AquaMarine_gp PROGMEM;
 extern const PaletteDataT AutumnFire_gp PROGMEM;

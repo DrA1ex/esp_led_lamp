@@ -64,17 +64,17 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::RUSTIC_TERRAIN,      "Rustic Terrain",     RusticTerrain_gp},
         {PaletteEnum::SCARLET_ESSENCE,     "Scarlet Essence",    ScarletEssence_gp},
         {PaletteEnum::SEA_DUSK,            "Sea Dusk",           SeaDusk_gp},
-        {PaletteEnum::SHADOW_BLAZE,        "Shadow Blaze",       ShadowBlaze_gp},
-        {PaletteEnum::SOFT_PETALS,         "Soft Petals",        SoftPetals_gp},
-        {PaletteEnum::SUNNY_MOSAIC,        "Sunny Mosaic",       SunnyMosaic_gp},
-        {PaletteEnum::TWILIGHT_SIMPHONY,   "Twilight Simphony",  TwilightSymphony_gp},
-        {PaletteEnum::URBAN_DUSK,          "Urban Dusk",         UrbanDusk_gp},
-        {PaletteEnum::VIBRANT_TROPICS,     "Vibrant Tropics",    VibrantTropics_gp},
-        {PaletteEnum::VINTAGE_ROUGE,       "Vintage Rouge",      VintageRouge_gp},
-        {PaletteEnum::VIOLET_TWILIGHT,     "Violet Twilight",    VioletTwilight_gp},
-        {PaletteEnum::WARM_ORANGE,         "Warm Orange",        WarmAmber_gp},
+        {PaletteEnum::SHADOW_BLAZE,        "Shadow Blaze",      ShadowBlaze_gp},
+        {PaletteEnum::SOFT_PETALS,         "Soft Petals",       SoftPetals_gp},
+        {PaletteEnum::SUNNY_MOSAIC,        "Sunny Mosaic",      SunnyMosaic_gp},
+        {PaletteEnum::TWILIGHT_SIMPHONY,   "Twilight Simphony", TwilightSymphony_gp},
+        {PaletteEnum::URBAN_DUSK,          "Urban Dusk",        UrbanDusk_gp},
+        {PaletteEnum::VIBRANT_TROPICS,     "Vibrant Tropics",   VibrantTropics_gp},
+        {PaletteEnum::VINTAGE_ROUGE,       "Vintage Rouge",     VintageRouge_gp},
+        {PaletteEnum::VIOLET_TWILIGHT,     "Violet Twilight",   VioletTwilight_gp},
+        {PaletteEnum::WARM_ORANGE,         "Warm Orange",       WarmAmber_gp},
 
-        {PaletteEnum::CUSTOM,              "Custom",             CustomPalette_gp},
+        {PaletteEnum::CUSTOM,              "Custom",            DefaultCustomPalette_gp},
 };
 
 PaletteConfig Palettes = {

@@ -38,13 +38,16 @@ Response ServerBase::handle_packet_data(const uint8_t *buffer, uint16_t length) 
                 app().night_mode_manager.reset();
             }
 
+            if (header->type == PacketType::UPDATE_CUSTOM_PALETTE) {
+                app().custom_palette_storage.save();
+            }
+
             app().update();
         }
 
         return response;
     }
 }
-
 
 Response ServerBase::update_parameter(const PacketHeader &header, const void *data) {
     switch (header.type) {
@@ -106,7 +109,7 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
             return _protocol.update_preset_configs(&app().preset_configs, header, data);
 
         case PacketType::UPDATE_CUSTOM_PALETTE:
-            return _protocol.update_palette(&Custom_p, header, data);
+            return _protocol.update_palette(&app().custom_palette_config, header, data);
 
         default:
             D_PRINTF("Unable to update value, bad type: %u\n", (uint8_t) header.type);

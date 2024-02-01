@@ -27,7 +27,7 @@ void Storage<T>::begin() {
 
     if (saved_header == _header && saved_version == _version) {
         EEPROM.get(_offset + header_size, _data);
-        D_PRINTF("Storage+%u: Loaded stored value version: %u\n", _offset, saved_version);
+        D_PRINTF("Storage+%u: Loaded stored value version: %u, size %u\n", _offset, saved_version, header_size + sizeof(T));
     } else {
         D_PRINTF("Storage+%u: Unsupported value, expected version: %u, header: %X\n", _offset, _version, _header);
         D_PRINTF("Storage+%u: Reset value...\n", _offset);

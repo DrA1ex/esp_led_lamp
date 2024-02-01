@@ -8,12 +8,13 @@
 #include "misc/ntp_time.h"
 
 
-Application::Application(Storage<Config> &config_storage,
-                         Storage<PresetNames> &preset_names_storage,
-                         Storage<PresetConfigs> &preset_configs_storage,
+Application::Application(Storage<Config> &config_storage, Storage<PresetNames> &preset_names_storage,
+                         Storage<PresetConfigs> &preset_configs_storage, Storage<CustomPaletteConfig> &custom_palette_storage,
                          NightModeManager &night_mode_manager) :
-        config_storage(config_storage), preset_names_storage(preset_names_storage), preset_configs_storage(preset_configs_storage),
-        config(config_storage.get()), preset_names(preset_names_storage.get()), preset_configs(preset_configs_storage.get()),
+        config_storage(config_storage), preset_names_storage(preset_names_storage),
+        preset_configs_storage(preset_configs_storage), custom_palette_storage(custom_palette_storage),
+        config(config_storage.get()), preset_names(preset_names_storage.get()),
+        preset_configs(preset_configs_storage.get()), custom_palette_config(custom_palette_storage.get()),
         night_mode_manager(night_mode_manager) {}
 
 void Application::load() {
@@ -28,7 +29,7 @@ void Application::load() {
     }
 
     if (palette->code == PaletteEnum::CUSTOM) {
-        current_palette = Custom_p;
+        current_palette = custom_palette_config.updated ? custom_palette_config.colors : palette->value;
     } else {
         current_palette = palette->value;
     }
@@ -82,6 +83,7 @@ void Application::restart() {
     if (config_storage.is_pending_commit()) config_storage.force_save();
     if (preset_names_storage.is_pending_commit()) preset_names_storage.force_save();
     if (preset_configs_storage.is_pending_commit()) preset_configs_storage.force_save();
+    if (custom_palette_storage.is_pending_commit()) custom_palette_storage.force_save();
 
     D_PRINT("Restarting");
 

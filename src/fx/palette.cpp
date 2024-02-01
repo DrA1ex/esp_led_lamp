@@ -1,13 +1,11 @@
 #include "palette.h"
 
-const PaletteDataT CustomPalette_gp = {
+const PaletteDataT DefaultCustomPalette_gp = {
         0xec0075, 0xf11856, 0xf63137, 0xfb4917,
         0xfe5e05, 0xfc6a19, 0xfa762e, 0xf78242,
         0xf79448, 0xfaab3f, 0xfcc236, 0xfed92d,
         0xd5e047, 0x9de26c, 0x64e392, 0x2ce5b7
 };
-
-CRGBPalette16 Custom_p = CustomPalette_gp;
 
 const PaletteDataT ElectricBloom_gp = {
         0xffbe0b, 0xfea20a, 0xfd8709, 0xfc6b08,

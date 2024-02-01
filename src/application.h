@@ -9,10 +9,12 @@ public:
     Storage<Config> &config_storage;
     Storage<PresetNames> &preset_names_storage;
     Storage<PresetConfigs> &preset_configs_storage;
+    Storage<CustomPaletteConfig> &custom_palette_storage;
 
     Config &config;
     PresetNames &preset_names;
     PresetConfigs &preset_configs;
+    CustomPaletteConfig &custom_palette_config;
 
     NightModeManager &night_mode_manager;
 
@@ -23,9 +25,8 @@ public:
 
     CRGBPalette16 current_palette = CRGBPalette16();
 
-    explicit Application(Storage<Config> &config_storage,
-                         Storage<PresetNames> &preset_names_storage,
-                         Storage<PresetConfigs> &preset_configs_storage,
+    explicit Application(Storage<Config> &config_storage, Storage<PresetNames> &preset_names_storage,
+                         Storage<PresetConfigs> &preset_configs_storage, Storage<CustomPaletteConfig> &custom_palette_storage,
                          NightModeManager &night_mode_manager);
 
     void change_state(AppState s);

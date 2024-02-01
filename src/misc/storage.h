@@ -30,6 +30,7 @@ public:
     [[nodiscard]] inline T &get() { return _data; }
     [[nodiscard]] inline const T &get() const { return _data; }
     [[nodiscard]] inline uint16_t size() const { return sizeof(_header) + sizeof(_version) + sizeof(T); }
+    [[nodiscard]] inline uint16_t end_offset() const { return _offset + size(); }
     [[nodiscard]] inline Timer &timer() { return _timer; }
     [[nodiscard]] inline bool is_pending_commit() const { return _save_timer_id != -1; }
 

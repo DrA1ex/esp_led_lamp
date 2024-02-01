@@ -78,3 +78,8 @@ struct __attribute ((packed)) __PresetConfigs {
 
 typedef __PresetNames<PRESET_MAX_COUNT, PRESET_NAME_MAX_SIZE + 1> PresetNames;
 typedef __PresetConfigs<PRESET_MAX_COUNT> PresetConfigs;
+
+struct CustomPaletteConfig {
+    bool updated = false;
+    PaletteDataT colors;
+};

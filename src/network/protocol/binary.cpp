@@ -84,13 +84,30 @@ Response BinaryProtocol::update_preset_configs(PresetConfigs *cfg, const PacketH
     return Response::ok();
 }
 
-Response BinaryProtocol::update_palette(CRGBPalette16 *palette, const PacketHeader &header, const void *data) {
-    if (header.size != sizeof(palette->entries)) {
-        D_PRINTF("Unable to update palette, invalid size. Got %u, expected %u\n", header.size, sizeof(palette->entries));
+Response BinaryProtocol::update_palette(CustomPaletteConfig *palette, const PacketHeader &header, const void *data) {
+    const auto dst_entry_size = sizeof(palette->colors[0]);
+    const auto count = sizeof(palette->colors) / dst_entry_size;
+
+    const auto src_entry_size = sizeof(CRGB);
+    const auto expected_size = count * src_entry_size;
+
+    if (header.size != expected_size) {
+        D_PRINTF("Unable to update palette, invalid size. Got %u, expected %u\n", header.size, expected_size);
         return Response::code(ResponseCode::BAD_REQUEST);
     }
 
-    memcpy(palette->entries, data, header.size);
+
+    uint8_t color[dst_entry_size] = {0};
+    for (size_t i = 0; i < count; ++i) {
+        // Little Endian, 0x00a1b2c3 stored as [c3 b2 a1 00], i.e. [BB GG RR 00]
+        color[0] = *((uint8_t *) data + i * src_entry_size + 2);
+        color[1] = *((uint8_t *) data + i * src_entry_size + 1);
+        color[2] = *((uint8_t *) data + i * src_entry_size + 0);
+
+        memcpy(&palette->colors[i], color, dst_entry_size);
+    }
+
+    palette->updated = true;
 
     D_PRINT("Update palette");
 

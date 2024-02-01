@@ -36,12 +36,13 @@ Timer global_timer;
 uint16_t XY(uint8_t x, uint8_t y) { return led.get_index(x, y); }
 
 Storage<Config> config_storage(global_timer, 0, STORAGE_CONFIG_VERSION);
-Storage<PresetNames> preset_names_storage(global_timer, config_storage.size(), STORAGE_PRESET_NAMES_VERSION);
-Storage<PresetConfigs> preset_configs_storage(global_timer, preset_names_storage.size(), STORAGE_PRESET_CONFIG_VERSION);
+Storage<PresetNames> preset_names_storage(global_timer, config_storage.end_offset(), STORAGE_PRESET_NAMES_VERSION);
+Storage<PresetConfigs> preset_configs_storage(global_timer, preset_names_storage.end_offset(), STORAGE_PRESET_CONFIG_VERSION);
+Storage<CustomPaletteConfig> custom_palette_storage(global_timer, preset_configs_storage.end_offset(), STORAGE_CUSTOM_PALETTE_VERSION);
 
 NightModeManager night_mode_manager(config_storage.get());
 
-Application app(config_storage, preset_names_storage, preset_configs_storage, night_mode_manager);
+Application app(config_storage, preset_names_storage, preset_configs_storage, custom_palette_storage, night_mode_manager);
 
 WifiManager wifi_manager;
 WebServer web_server(WEB_PORT);
@@ -62,6 +63,7 @@ void setup() {
     config_storage.begin();
     preset_names_storage.begin();
     preset_configs_storage.begin();
+    custom_palette_storage.begin();
 
     app.load();
 
