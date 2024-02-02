@@ -81,6 +81,8 @@ protected:
     CodeT _fx = (CodeT) 0;
     StateT _state;
 
+    uint16_t _execution_time;
+
     void _before_call() {
         _state.prev_time = _state.time;
         _state.time = millis();
@@ -88,7 +90,9 @@ protected:
         _save_next_value(_state.prev_time_factor, _state.current_time_factor);
     }
 
-    void _after_call() {}
+    void _after_call() {
+        _execution_time = millis() - _state.time;
+    }
 
     void static _save_next_value(double &prev, double &current) {
         // Avoid overflow to +INF
@@ -134,8 +138,8 @@ public:
 
 template<typename ConfigT, typename StateT>
 size_t FxManagerBase<ConfigT, StateT>::debug(char *dst, size_t length) {
-    return snprintf(dst, length, "prev_time: %lu\ntime: %lu\ndelta: %lu\nprev_time_f: %f\ncurrent_time_f: %f\n",
-                    _state.prev_time, _state.time, _state.delta(), _state.prev_time_factor, _state.current_time_factor);
+    return snprintf(dst, length, "prev_time: %lu\ntime: %lu\ndelta: %lu\nprev_time_f: %f\ncurrent_time_f: %f\ncycle: %u\n",
+                    _state.prev_time, _state.time, _state.delta(), _state.prev_time_factor, _state.current_time_factor, _execution_time);
 }
 
 template<typename T>
