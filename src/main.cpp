@@ -233,7 +233,7 @@ void service_loop(void *) {
 
 
             web_server.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
-                char result[1024] = {};
+                char result[320] = {};
 
                 size_t offset = snprintf(result, sizeof(result), "General:\nHeap: %u\nNow: %lu\nTime: %lu\n",
                                          ESP.getFreeHeap(), millis(), ntp_time.epoch_tz());
