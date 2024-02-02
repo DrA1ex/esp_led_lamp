@@ -1,5 +1,7 @@
 #include "color_effect.h"
 
+#include "sys_macro.h"
+
 #include "misc/led.h"
 #include "utils/palette.h"
 
@@ -30,8 +32,13 @@ void ColorEffectManager::call(Led &led, const PaletteT *palette, const PresetCon
     _state.params.scale = config.scale;
     _state.params.palette = palette;
 
+#if GAMMA_CORRECTION_RT == ENABLED
     _state.params.gamma_correction = gamma > 0;
-    _state.params.gamma = 2.2f + (float) (gamma - 128) / 128.f;
+    _state.params.gamma = GAMMA_V(gamma);
+#else
+    _state.params.gamma_correction = false;
+    _state.params.gamma = 0;
+#endif
 
     _config.entries[(int) _fx].value(led, _state);
     _after_call();

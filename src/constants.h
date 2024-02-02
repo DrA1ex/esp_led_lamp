@@ -30,3 +30,7 @@
 
 #define CALIBRATION_TIMEOUT                     (5000u)                 // Timeout for calibration mode
 #define POWER_CHANGE_TIMEOUT                    (1000u)                 // Timeout for power change animation
+
+#define GAMMA_CORRECTION_RT                     DISABLED                // Real-time gamma correction.
+                                                                        // Warning: rt-correction may have significant performance impact
+                                                                        // when disabled - gamma correction will be applied to palette

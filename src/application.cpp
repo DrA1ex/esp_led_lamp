@@ -1,6 +1,7 @@
 #include "application.h"
 
 #include "night_mode.h"
+#include "sys_macro.h"
 
 #include "fx/fx.h"
 #include "fx/palette.h"
@@ -33,6 +34,12 @@ void Application::load() {
     } else {
         current_palette = palette->value;
     }
+
+#if GAMMA_CORRECTION_RT == DISABLED
+    if (config.gamma != 0) {
+        napplyGamma_video(current_palette.entries, 16, GAMMA_V(config.gamma));
+    }
+#endif
 }
 
 void Application::update() {
