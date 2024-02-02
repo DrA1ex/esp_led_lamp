@@ -37,7 +37,7 @@ void Application::load() {
 
 #if GAMMA_CORRECTION_RT == DISABLED
     if (config.gamma != 0) {
-        napplyGamma_video(current_palette.entries, 16, GAMMA_V(config.gamma));
+        napplyGamma_video(current_palette.entries, 16, gamma_value(config.gamma));
     }
 #endif
 }

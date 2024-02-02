@@ -34,7 +34,7 @@ void ColorEffectManager::call(Led &led, const PaletteT *palette, const PresetCon
 
 #if GAMMA_CORRECTION_RT == ENABLED
     _state.params.gamma_correction = gamma > 0;
-    _state.params.gamma = GAMMA_V(gamma);
+    _state.params.gamma = gamma_value(gamma);
 #else
     _state.params.gamma_correction = false;
     _state.params.gamma = 0;

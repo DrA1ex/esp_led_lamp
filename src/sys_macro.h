@@ -8,4 +8,4 @@
 #define BUTTON_FN(x)
 #endif
 
-#define GAMMA_V(x) (2.2f + (float) (x - 128) / 128.f)
+constexpr float gamma_value(uint8_t x) { return (2.2f + (float) (x - 128) / 128.f); }
