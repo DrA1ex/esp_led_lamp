@@ -1,6 +1,10 @@
 #pragma once
 
+#include <type_traits>
+#include <vector>
+
 #include "constants.h"
+#include "debug.h"
 
 #include "fx/enum.h"
 
@@ -78,13 +82,13 @@ protected:
     StateT _state;
 
     void _before_call() {
-        _state.time = millis();
-    }
-
-    void _after_call() {
         _state.prev_time = _state.time;
+        _state.time = millis();
+
         _save_next_value(_state.prev_time_factor, _state.current_time_factor);
     }
+
+    void _after_call() {}
 
     void static _save_next_value(double &prev, double &current) {
         // Avoid overflow to +INF
@@ -124,7 +128,15 @@ public:
 
     [[nodiscard]] inline const ConfigT &config() const { return _config; }
     [[nodiscard]] inline CodeT fx() const { return _fx; }
+
+    virtual size_t debug(char *dst, size_t length);
 };
+
+template<typename ConfigT, typename StateT>
+size_t FxManagerBase<ConfigT, StateT>::debug(char *dst, size_t length) {
+    return snprintf(dst, length, "prev_time: %lu\ntime: %lu\ndelta: %lu\nprev_time_f: %f\ncurrent_time_f: %f\n",
+                    _state.prev_time, _state.time, _state.delta(), _state.prev_time_factor, _state.current_time_factor);
+}
 
 template<typename T>
 constexpr bool check_entry_order(const std::initializer_list<T> &lst) {

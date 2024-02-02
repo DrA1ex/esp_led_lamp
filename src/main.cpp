@@ -231,6 +231,19 @@ void service_loop(void *) {
             udp_server.begin(UDP_PORT);
             ws_server.begin(web_server);
 
+
+            web_server.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
+                char result[1024] = {};
+
+                size_t offset = snprintf(result, sizeof(result), "General:\nHeap: %u\nNow: %lu\nTime: %lu\n",
+                                         ESP.getFreeHeap(), millis(), ntp_time.epoch_tz());
+
+                offset += BrightnessEffects.debug(result + offset, sizeof(result) - offset);
+                ColorEffects.debug(result + offset, sizeof(result) - offset);
+
+                request->send_P(200, "text/plain", result);
+            });
+
             web_server.begin();
 
             ntp_time.begin(TIME_ZONE);

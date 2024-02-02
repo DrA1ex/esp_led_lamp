@@ -333,3 +333,11 @@ void ColorEffectManager::velum(Led &led, ColorEffectState &state) {
 
     if (gamma_correction) led.apply_gamma_correction(gamma);
 }
+
+
+size_t ColorEffectManager::debug(char *dst, size_t length) {
+    size_t offset = snprintf(dst, length, "ColorEffectManager:\n");
+    offset += FxManagerBase::debug(dst + offset, length - offset);
+
+    return offset;
+}

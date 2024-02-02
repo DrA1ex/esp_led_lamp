@@ -144,3 +144,10 @@ void BrightnessEffectManager::oscillator(Led &led, BrightnessEffectState &state)
         }
     }
 }
+
+size_t BrightnessEffectManager::debug(char *dst, size_t length) {
+    size_t offset = snprintf(dst, length, "BrightnessEffectManager:\n");
+    offset += FxManagerBase::debug(dst + offset, length - offset);
+
+    return offset;
+}
