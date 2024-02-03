@@ -176,14 +176,14 @@ void ColorEffectManager::fire(Led &led, ColorEffectState &state) {
     const auto width = led.width();
 
     state.current_time_factor = state.prev_time_factor + (double) state.delta() * speed * 2 / 255;
-    apply_period(state.current_time_factor, (1LL << 24) - 1);
+    apply_period(state.current_time_factor, (1LL << 24));
 
     auto time_factor = state.current_time_factor;
     auto scale_factor = scale / 2.0;
 
     for (int j = 0; j < height; j++) {
         const auto height_limit = (j * 3584 / height);
-        const auto noise_y = (j * scale_factor) - time_factor;
+        const auto noise_y = (1LL << 24) - (time_factor - (j * scale_factor));
 
         for (int i = 0; i < width; i++) {
             const auto noise_x = i * scale_factor;

@@ -29,7 +29,7 @@ float sin8f(float i) {
 }
 
 float sin16f(float i) {
-    const int k = i / 65536;
+    const int32_t k = i / 65536;
     if (k != 0) {
         i -= k * 65536;
     }
