@@ -383,8 +383,8 @@ async function onSendPaletteClicked(sender) {
         const palette = prompt("Enter palette in CSV format");
         if (!palette) return;
 
-        const colors = palette.split(",")
-            .map(c => c.trim())
+        const colors = palette.split(/\s*,\s*|\s+/)
+            .map(c => c.trim().replace(/^#/, ""))
             .map(c => [
                 Number.parseInt(c.slice(0, 2), 16),
                 Number.parseInt(c.slice(2, 4), 16),
@@ -439,13 +439,7 @@ const sendChanges = FunctionUtils.throttle(async function (config, prop, value, 
 
             const req = new Uint8Array(size);
             const view = new DataView(req.buffer);
-            view[
-
-
-                `set${kind}`
-
-
-                ](0, value, true);
+            view[`set${kind}`](0, value, true);
 
             await ws.request(prop.cmd, req.buffer);
         }
