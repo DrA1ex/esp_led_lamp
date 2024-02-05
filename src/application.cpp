@@ -7,6 +7,7 @@
 #include "fx/palette.h"
 
 #include "misc/ntp_time.h"
+#include "utils/palette.h"
 
 
 Application::Application(Storage<Config> &config_storage, Storage<PresetNames> &preset_names_storage,
@@ -29,10 +30,10 @@ void Application::load() {
         palette = &Palettes.entries[0];
     }
 
-    if (palette->code == PaletteEnum::CUSTOM) {
-        current_palette = custom_palette_config.updated ? custom_palette_config.colors : palette->value;
+    if (palette->code == PaletteEnum::CUSTOM && custom_palette_config.updated) {
+        current_palette = custom_palette_config.colors;
     } else {
-        current_palette = palette->value;
+        set_palette(current_palette, palette->value.data, palette->value.size);
     }
 
 #if GAMMA_CORRECTION_RT == DISABLED

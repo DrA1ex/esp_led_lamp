@@ -12,7 +12,9 @@ struct Config;
 class Led;
 
 typedef CRGBPalette16 PaletteT;
-typedef TProgmemRGBPalette16 PaletteDataT;
+
+typedef uint32_t PaletteColorT;
+typedef PaletteColorT PaletteDataT[];
 
 struct FxStateBase {
     unsigned long time = 0;
@@ -62,7 +64,15 @@ struct FxConfig {
     std::vector<EntryT> entries;
 };
 
-typedef FxConfigEntry<PaletteEnum, const PaletteDataT &> PaletteEntry;
+struct PaletteData {
+    const PaletteColorT *data;
+    uint8_t size;
+
+    template<unsigned int Size>
+    PaletteData(const PaletteColorT (&data)[Size]): data(data), size(Size) {}
+};
+
+typedef FxConfigEntry<PaletteEnum, PaletteData> PaletteEntry;
 typedef FxConfig<PaletteEntry> PaletteConfig;
 
 typedef FxConfigEntry<ColorEffectEnum, ColorEffectFn> ColorEffectEntry;

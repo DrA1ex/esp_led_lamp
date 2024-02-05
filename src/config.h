@@ -64,7 +64,7 @@ struct __attribute ((packed)) PresetConfig {
     uint8_t scale = 190;
     uint8_t light = 128;
 
-    PaletteEnum palette = PaletteEnum::MYSTIC_MIDNIGHT;
+    PaletteEnum palette = PaletteEnum::MAGIC_PLUM;
     ColorEffectEnum color_effect = ColorEffectEnum::FIRE;
     BrightnessEffectEnum brightness_effect = BrightnessEffectEnum::FIXED;
 };
@@ -81,5 +81,5 @@ typedef __PresetConfigs<PRESET_MAX_COUNT> PresetConfigs;
 
 struct CustomPaletteConfig {
     bool updated = false;
-    PaletteDataT colors;
+    PaletteColorT colors[16];
 };
