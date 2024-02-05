@@ -105,7 +105,7 @@ const PaletteDataT Enigma_p = {
 };
 
 const PaletteDataT Ethereal_p = {
-        0x03071e, 0x6a040f, 0xd00000, 0xdc2f02, 0xf48c06
+        0x03071e, 0x600411, 0xbc0103, 0xe14103, 0xf59106, 0xffba08
 };
 
 const PaletteDataT Fiery_p = {
