@@ -12,6 +12,7 @@ const std::initializer_list<PaletteEntry> palette_init = {
         {PaletteEnum::AUTUMN_FIRE,         "Autumn Fire",        AutumnFire_gp},
         {PaletteEnum::AZURE_WATERS,        "Azure Waters",       AzureWaters_gp},
         {PaletteEnum::BEACH_ELEGANCE,      "Beach Elegance",     BeachElegance_gp},
+        {PaletteEnum::BLUE_FLAME,          "Blue Flame",         BlueFlame_gp},
         {PaletteEnum::BRIGHT_SKY,          "Bright Sky",         BrightSky_gp},
         {PaletteEnum::BROWNISH_RED,        "Brownish Red",       BrownishRed_gp},
         {PaletteEnum::CALM_LAKE,           "Calm Lake",          CalmLake_gp},

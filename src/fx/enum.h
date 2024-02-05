@@ -9,6 +9,7 @@ enum class PaletteEnum : uint8_t {
     AUTUMN_FIRE,
     AZURE_WATERS,
     BEACH_ELEGANCE,
+    BLUE_FLAME,
     BRIGHT_SKY,
     BROWNISH_RED,
     CALM_LAKE,
