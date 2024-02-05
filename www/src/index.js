@@ -277,6 +277,7 @@ function logPaletteColor(buffer) {
     const format = hexColors.map(v => "%c██").join("");
     const colorArgs = hexColors.map(v => `color: ${v}`);
     console.log(`PALETTE: ${format}`, ...colorArgs);
+    console.log(hexColors.join(", "));
 }
 
 async function onExportClicked(sender) {
@@ -384,7 +385,7 @@ async function onSendPaletteClicked(sender) {
         if (!palette) return;
 
         const colors = palette.split(/\s*,\s*|\s+/)
-            .map(c => c.trim().replace(/^#/, ""))
+            .map(c => c.trim().replace(/^(?:#|0x)/, ""))
             .map(c => [
                 Number.parseInt(c.slice(0, 2), 16),
                 Number.parseInt(c.slice(2, 4), 16),
