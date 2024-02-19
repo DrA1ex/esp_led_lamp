@@ -12,7 +12,7 @@ public:
 
     static void eco(Led &led, byte level);
 
-    virtual size_t debug(char *dst, size_t length);
+    size_t debug(char *dst, size_t length) override;
 
 protected:
     static void fixed(Led &led, BrightnessEffectState &state);

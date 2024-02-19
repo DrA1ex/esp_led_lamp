@@ -8,4 +8,11 @@
 #define BUTTON_FN(x)
 #endif
 
+
+#if AUDIO == ENABLED
+#define AUDIO_FN(x) (x)
+#else
+#define AUDIO_FN(x)
+#endif
+
 constexpr float gamma_value(uint8_t x) { return (2.2f + (float) (x - 128) / 128.f); }

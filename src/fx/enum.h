@@ -105,3 +105,20 @@ enum class BrightnessEffectEnum : uint8_t {
     DOUBLE_WAVE,
     OSCILLATOR,
 };
+
+enum class AudioEffectEnum : uint8_t {
+    // Wave mode
+
+    WAVE,
+    WAVE_CENTERED,
+
+    // Spectrum mode
+
+    SPECTRUM,
+    SPECTRUM_CENTERED,
+
+    // Control mode
+    SPEED_CONTROL,
+    SCALE_CONTROL,
+    LIGHT_CONTROL,
+};

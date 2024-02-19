@@ -32,5 +32,17 @@
 #define POWER_CHANGE_TIMEOUT                    (1000u)                 // Timeout for power change animation
 
 #define GAMMA_CORRECTION_RT                     DISABLED                // Real-time gamma correction.
-                                                                        // Warning: rt-correction may have significant performance impact
-                                                                        // when disabled - gamma correction will be applied to palette
+// Warning: rt-correction may have significant performance impact
+// when disabled - gamma correction will be applied to palette
+
+
+#define AUDIO                                   DISABLED
+#define AUDIO_PIN                               (0u)
+#define AUDIO_SPECTRUM_SAMPLE_SIZE              (128u)
+#define AUDIO_WAVE_SAMPLE_SIZE                  (16u)
+#define AUDIO_SPECTRUM_UPDATE_RATE              (10u)
+#define AUDIO_WAVE_UPDATE_RATE                  (40u)
+#define AUDIO_PARAMETRIC_UPDATE_RATE            (20u)
+#define AUDIO_GAIN                              (1u)
+#define AUDIO_GATE                              (1u)
+#define AUDIO_WINDOW_DURATION                   (5000u)

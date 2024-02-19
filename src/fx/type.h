@@ -6,6 +6,7 @@
 #include "constants.h"
 #include "debug.h"
 
+#include "audio/base.h"
 #include "fx/enum.h"
 
 struct Config;
@@ -47,6 +48,14 @@ struct BrightnessEffectState : FxStateBase {
 
 typedef void (*BrightnessEffectFn)(Led &led, BrightnessEffectState &state);
 
+struct AudioEffectState : FxStateBase {
+    struct {
+        const SignalProvider *provider = nullptr;
+    } params;
+};
+
+typedef void (*AudioEffectFn)(Led &led, AudioEffectState &state);
+
 template<typename C, typename V>
 struct FxConfigEntry {
     static_assert(std::is_enum_v<C> && std::is_same_v<std::underlying_type_t<C>, uint8_t>);
@@ -80,6 +89,9 @@ typedef FxConfig<ColorEffectEntry> ColorEffectConfig;
 
 typedef FxConfigEntry<BrightnessEffectEnum, BrightnessEffectFn> BrightnessEffectEntry;
 typedef FxConfig<BrightnessEffectEntry> BrightnessEffectConfig;
+
+typedef FxConfigEntry<AudioEffectEnum, AudioEffectFn> AudioEffectEntry;
+typedef FxConfig<AudioEffectEntry> AudioEffectConfig;
 
 template<typename ConfigT, typename StateT>
 class FxManagerBase {

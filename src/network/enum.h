@@ -20,6 +20,11 @@ enum class PacketType : uint8_t {
     NIGHT_MODE_BRIGHTNESS = 44,
     NIGHT_MODE_ECO = 45,
 
+    AUDIO_ENABLED = 50,
+    AUDIO_EFFECT = 51,
+    AUDIO_SIGNAL_GAIN = 52,
+    AUDIO_SIGNAL_GATE = 53,
+
     PRESET_ID = 60,
     PRESET_NAME = 61,
 

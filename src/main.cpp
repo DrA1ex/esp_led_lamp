@@ -7,6 +7,9 @@
 #include "night_mode.h"
 #include "sys_macro.h"
 
+#include "audio/spectrum_analyzer.h"
+#include "audio/volume_analyzer.h"
+
 #include "misc/button.h"
 #include "misc/led.h"
 #include "misc/storage.h"
@@ -29,6 +32,7 @@ void button_on_hold(uint8_t cnt);
 
 void render_loop(void *);
 void service_loop(void *);
+void audio_loop(void *);
 
 Led led(WIDTH, HEIGHT);
 Timer global_timer;
@@ -53,6 +57,17 @@ WebSocketServer ws_server(app);
 NtpTime ntp_time;
 
 Button button(BUTTON_PIN);
+
+#if AUDIO == ENABLED
+SpectrumAnalyzer<AUDIO_SPECTRUM_SAMPLE_SIZE, WIDTH, AUDIO_PIN> spectrum_analyzer(
+        AUDIO_SAMPLE_RATE, 1000 / AUDIO_SPECTRUM_UPDATE_RATE, AUDIO_WINDOW_DURATION,
+        AUDIO_GAIN, AUDIO_GATE);
+
+VolumeAnalyzer<AUDIO_WAVE_SAMPLE_SIZE, WIDTH, AUDIO_PIN> volume_analyzer(
+        AUDIO_SAMPLE_RATE, 1000 / AUDIO_WAVE_UPDATE_RATE, AUDIO_WINDOW_DURATION,
+        AUDIO_GAIN, AUDIO_GATE
+);
+#endif
 
 void setup() {
 #if defined(DEBUG)
@@ -80,6 +95,8 @@ void setup() {
 
     global_timer.add_interval(render_loop, 1000 / FRAMES_PER_SECOND);
     global_timer.add_interval(service_loop, 20);
+
+    AUDIO_FN(global_timer.add_interval(audio_loop, 0));
 
 #ifdef DEBUG
     D_PRINTF("Startup Free Heap: %u\n", ESP.getFreeHeap());
@@ -163,11 +180,41 @@ void render() {
         return;
     }
 
+    const auto &audio_cfg = app.config.audio_config;
+
+    //TODO: Refactor
+    auto preset = app.preset();
+
+#if AUDIO == ENABLED
+    if (audio_cfg.is_parametric()) {
+        const auto value = volume_analyzer.get(0, 255) * 255 / volume_analyzer.MAX_VALUE;
+
+        switch (audio_cfg.effect) {
+            case AudioEffectEnum::SPEED_CONTROL:
+                preset.speed = value;
+                break;
+            case AudioEffectEnum::SCALE_CONTROL:
+                preset.scale = value;
+                break;
+            case AudioEffectEnum::LIGHT_CONTROL:
+                preset.light = value;
+                break;
+
+            default:;
+        }
+    }
+#endif
+
     const auto palette = &app.current_palette;
-    const auto &preset = app.preset();
 
     ColorEffects.call(led, palette, preset, app.config.gamma);
     BrightnessEffects.call(led, preset);
+
+    if (audio_cfg.is_wave()) {
+        AUDIO_FN(AudioEffects.call(led, &volume_analyzer));
+    } else if (audio_cfg.is_spectrum()) {
+        AUDIO_FN(AudioEffects.call(led, &spectrum_analyzer));
+    }
 }
 
 void calibration() {
@@ -270,6 +317,17 @@ void service_loop(void *) {
     }
 
     BUTTON_FN(button.handle());
+}
+
+void audio_loop(void *) {
+    const auto &cfg = app.config.audio_config;
+    if (!cfg.enabled) return;
+
+    if (cfg.is_spectrum()) {
+        AUDIO_FN(spectrum_analyzer.tick());
+    } else {
+        AUDIO_FN(volume_analyzer.tick());
+    }
 }
 
 void button_on_click(uint8_t cnt) {

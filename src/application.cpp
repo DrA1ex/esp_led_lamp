@@ -23,6 +23,7 @@ void Application::load() {
     const auto &preset = this->preset();
     ColorEffects.select(preset.color_effect);
     BrightnessEffects.select(preset.brightness_effect);
+    AudioEffects.select(config.audio_config.effect);
 
     if ((int) preset.palette < Palettes.count) {
         palette = &Palettes.entries[(int) preset.palette];

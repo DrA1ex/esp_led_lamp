@@ -8,7 +8,7 @@ Led::Led(int width, int height) : _width(width), _height(height) {
 }
 
 Led::~Led() {
-    delete _data;
+    delete[] _data;
 }
 
 void Led::set_pixel(int x, int y, const CRGB &color) {

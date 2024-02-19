@@ -31,6 +31,20 @@ struct __attribute ((packed)) NightModeConfig {
     uint16_t switch_interval = (uint32_t) 15 * 60;
 };
 
+struct __attribute ((packed)) AudioConfig {
+    bool enabled = true;
+
+    uint8_t gain = 10;
+    uint8_t gate = 1;
+
+    AudioEffectEnum effect = AudioEffectEnum::WAVE_CENTERED;
+
+
+    [[nodiscard]] inline bool is_wave() const { return enabled && effect >= AudioEffectEnum::WAVE && effect < AudioEffectEnum::SPECTRUM; }
+    [[nodiscard]] inline bool is_spectrum() const {return enabled && effect >= AudioEffectEnum::SPECTRUM && effect < AudioEffectEnum::SPEED_CONTROL;}
+    [[nodiscard]] inline bool is_parametric() const { return enabled && effect >= AudioEffectEnum::SPEED_CONTROL; }
+};
+
 struct __attribute ((packed)) Config {
     bool power = true;
 
@@ -43,6 +57,8 @@ struct __attribute ((packed)) Config {
     NightModeConfig night_mode;
 
     uint8_t gamma = 128; // 2.2
+
+    AudioConfig audio_config;
 };
 
 template<uint8_t N, uint8_t S>

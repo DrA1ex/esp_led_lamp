@@ -96,6 +96,18 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
         case PacketType::NIGHT_MODE_INTERVAL:
             return _protocol.update_parameter_value(&app().config.night_mode.switch_interval, header, data);
 
+        case PacketType::AUDIO_ENABLED:
+            return _protocol.update_parameter_value(&app().config.audio_config.enabled, header, data);
+
+        case PacketType::AUDIO_EFFECT:
+            return _protocol.update_parameter_value(&app().config.audio_config.effect, header, data);
+
+        case PacketType::AUDIO_SIGNAL_GAIN:
+            return _protocol.update_parameter_value(&app().config.audio_config.gain, header, data);
+
+        case PacketType::AUDIO_SIGNAL_GATE:
+            return _protocol.update_parameter_value(&app().config.audio_config.gate, header, data);
+
         case PacketType::PRESET_ID:
             return _protocol.update_parameter_value(&app().config.preset_id, header, data);
 
@@ -110,6 +122,7 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
 
         case PacketType::UPDATE_CUSTOM_PALETTE:
             return _protocol.update_palette(&app().custom_palette_config, header, data);
+
 
         default:
             D_PRINTF("Unable to update value, bad type: %u\n", (uint8_t) header.type);

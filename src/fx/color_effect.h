@@ -8,7 +8,7 @@ public:
 
     void call(Led &led, const PaletteT *palette, const PresetConfig &config, uint8_t gamma);
 
-    virtual size_t debug(char *dst, size_t length);
+    size_t debug(char *dst, size_t length) override;
 
 private:
     static void perlin(Led &led, ColorEffectState &state);
