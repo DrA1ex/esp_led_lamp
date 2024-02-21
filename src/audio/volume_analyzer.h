@@ -27,13 +27,13 @@ class VolumeAnalyzer : public SignalProvider {
 public:
     const uint16_t MAX_VALUE = decltype(_log_scale)::MAX_VALUE;
 
-    VolumeAnalyzer(uint16_t sample_rate, uint16_t update_interval, uint16_t window_duration, uint16_t _gain = 1, uint16_t gate = 0) :
+    VolumeAnalyzer(uint16_t sample_rate, uint16_t update_interval, uint16_t window_duration, uint16_t gain = 1, uint16_t gate = 0) :
             _reader(SampleSize, AnalogPin, sample_rate),
             _log_scale(window_duration / update_interval),
             _sample_rate(sample_rate),
             _update_interval(update_interval),
             _read_interval(_calculate_read_interval(update_interval, SampleSize, _sample_rate)),
-            _gain(_gain),
+            _gain(gain),
             _gate(gate) {}
 
     void tick() override;
@@ -44,6 +44,9 @@ public:
     [[nodiscard]] inline uint16_t delta() const override;
 
     [[nodiscard]] inline uint16_t update_interval() const override { return _update_interval; }
+
+    void set_gain(uint16_t gain) override { _gain = gain; }
+    void set_gate(uint16_t gate) override { _gate = gate; }
 };
 
 template<uint16_t SampleSize, uint16_t BucketCount, uint8_t AnalogPin>
@@ -53,15 +56,10 @@ void VolumeAnalyzer<SampleSize, BucketCount, AnalogPin>::tick() {
     }
 
     if (millis() - _last_update_time >= _update_interval) {
-        const auto data = _reader.data();
-        for (int i = 0; i < SampleSize; ++i) {
-            auto &value = data[i];
+        auto *data = _reader.data();
+        _filter_signal(data, SampleSize, _gain, _gate);
 
-            if (value < _gate) value = 0;
-            value *= _gain;
-        }
-
-        _history[_current_index] = _log_scale.amplitude(_reader.data(), SampleSize);
+        _history[_current_index] = _log_scale.amplitude(data, SampleSize);
         if (++_current_index == BucketCount) _current_index = 0;
 
         _last_update_time = millis();

@@ -42,3 +42,4 @@
 
 
 #define AUDIO_SAMPLE_RATE                       (9400u)
+#define AUDIO_MAX_SIGNAL                        (1024u)

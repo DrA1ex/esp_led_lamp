@@ -44,6 +44,20 @@ void Application::load() {
         napplyGamma_video(current_palette.entries, 16, gamma_value(config.gamma));
     }
 #endif
+
+#if AUDIO == ENABLED
+    const uint16_t gain = config.audio_config.gain * 100 / 255;
+    const uint16_t gate = (int32_t) config.audio_config.gate * AUDIO_MAX_SIGNAL / 255;
+
+    wave_provider->set_gain(gain);
+    wave_provider->set_gate(gate);
+
+    spectrum_provider->set_gain(gain);
+    spectrum_provider->set_gate(gate);
+
+    parametric_provider->set_gain(gain);
+    parametric_provider->set_gate(gate);
+#endif
 }
 
 void Application::update() {

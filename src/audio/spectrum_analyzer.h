@@ -20,6 +20,7 @@ class SpectrumAnalyzer : public SignalProvider {
     uint16_t _update_interval;
     uint16_t _read_interval;
 
+    uint16_t _gain;
     uint16_t _gate;
 
     uint16_t _spectrum_1[SampleSize / 2]{};
@@ -34,14 +35,15 @@ public:
     static constexpr uint16_t SPECTRUM_SIZE = decltype(_fourier)::SPECTRUM_SIZE;
     static constexpr uint16_t MAX_VALUE = decltype(_log_scale)::MAX_VALUE;
 
-    SpectrumAnalyzer(uint16_t sample_rate, uint16_t update_interval, uint16_t window_duration, uint16_t _gain = 1, uint16_t gate = 0) :
-            _fourier(_gain),
+    SpectrumAnalyzer(uint16_t sample_rate, uint16_t update_interval, uint16_t window_duration, uint16_t gain = 1, uint16_t gate = 0) :
+            _fourier(),
             _reader(SampleSize, AnalogPin, sample_rate),
             _log_scale(window_duration / update_interval),
             _resample(sample_rate / SPECTRUM_SIZE, sample_rate),
             _sample_rate(sample_rate),
             _update_interval(update_interval),
             _read_interval(_calculate_read_interval(update_interval, SampleSize, _sample_rate)),
+            _gain(gain),
             _gate(gate) {}
 
     void tick() override;
@@ -52,6 +54,9 @@ public:
     [[nodiscard]] inline uint16_t delta() const override;
 
     [[nodiscard]] inline uint16_t update_interval() const override { return _update_interval; }
+
+    void set_gain(uint16_t gain) override { _gain = gain; }
+    void set_gate(uint16_t gate) override { _gate = gate; }
 };
 
 template<uint16_t SampleSize, uint16_t BucketCount, uint8_t AnalogPin>
@@ -67,7 +72,10 @@ void SpectrumAnalyzer<SampleSize, BucketCount, AnalogPin>::tick() {
         _current_spectrum = _prev_spectrum;
         _prev_spectrum = tmp;
 
-        _fourier.dft(_reader.data(), _current_spectrum);
+        auto *data = _reader.data();
+        _filter_signal(data, SampleSize, _gain, _gate);
+
+        _fourier.dft(data, _current_spectrum);
         _log_scale.scale(_current_spectrum, SPECTRUM_SIZE);
 
         _last_fft_update = start;

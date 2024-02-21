@@ -1,5 +1,27 @@
 import {PacketType} from "./network/cmd.js";
 
+function gammaDisplayConverter(v) {
+    if (v === 0) return "OFF";
+
+    const value = 2.2 + (v - 128) / 128;
+
+    let str = value.toFixed(2);
+    const lastDigit = str.slice(-1);
+    str = str.slice(0, -1);
+
+    if (lastDigit === "0") {
+        return str;
+    } else {
+        return [str, lastDigit];
+    }
+}
+
+function audioSignalParameterDisplayConverter(v) {
+    if (v === 0) return "OFF";
+
+    return undefined;
+}
+
 export const PropertyConfig = [{
     key: "general", section: "General", props: [
         {key: "power", title: "Power", type: "trigger", cmd: [PacketType.POWER_ON, PacketType.POWER_OFF]},
@@ -27,8 +49,14 @@ export const PropertyConfig = [{
     key: "audio", section: "Audio", props: [
         {key: "audio.enabled", title: "Enabled", type: "trigger", cmd: PacketType.AUDIO_ENABLED},
         {key: "audio.effect", title: "Effect", type: "select", list: "audioEffects", cmd: PacketType.AUDIO_EFFECT},
-        {key: "audio.gain", title: "Gain", type: "wheel", limit: 255, cmd: PacketType.AUDIO_SIGNAL_GAIN},
-        {key: "audio.gate", title: "Gate", type: "wheel", limit: 255, cmd: PacketType.AUDIO_SIGNAL_GATE},
+        {
+            key: "audio.gain", title: "Gain", type: "wheel", limit: 255, cmd: PacketType.AUDIO_SIGNAL_GAIN,
+            displayConverter: audioSignalParameterDisplayConverter
+        },
+        {
+            key: "audio.gate", title: "Gate", type: "wheel", limit: 255, cmd: PacketType.AUDIO_SIGNAL_GATE,
+            displayConverter: audioSignalParameterDisplayConverter
+        },
     ]
 }, {
     key: "night_mode", section: "Night Mode", lock: true, props: [
@@ -49,21 +77,7 @@ export const PropertyConfig = [{
         {key: "colorCorrection.b", title: "Blue", type: "wheel", limit: 255, cmd: PacketType.CALIBRATION_B},
         {
             key: "gamma", title: "Gamma correction", type: "wheel", limit: 255, cmd: PacketType.GAMMA,
-            displayConverter: (v) => {
-                if (v === 0) return "OFF";
-
-                const value = 2.2 + (v - 128) / 128;
-
-                let str = value.toFixed(2);
-                const lastDigit = str.slice(-1);
-                str = str.slice(0, -1);
-
-                if (lastDigit === "0") {
-                    return str;
-                } else {
-                    return [str, lastDigit];
-                }
-            }
+            displayConverter: gammaDisplayConverter
         },
     ]
 }, {

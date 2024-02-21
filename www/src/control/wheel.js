@@ -58,7 +58,7 @@ export class WheelControl extends InputControlBase {
 
         let result;
         if (this.#displayConverter) {
-            result = this.#displayConverter(value);
+            result = this.#displayConverter(value) ?? this.#defaultDisplayConverter(value);
         } else {
             result = this.#defaultDisplayConverter(value);
         }
