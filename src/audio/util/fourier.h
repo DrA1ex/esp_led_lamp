@@ -33,7 +33,7 @@ Fourier<SampleSize, CosAmount>::Fourier(uint16_t gain): _gain(gain) {}
 
 template<uint16_t SampleSize, uint16_t CosAmount>
 void Fourier<SampleSize, CosAmount>::dft(const uint16_t *data, uint16_t *result) {
-    auto t_begin = micros();
+    VERBOSE(auto t_begin = micros());
 
     for (uint16_t freq = 0; freq < SPECTRUM_SIZE; ++freq) {
         int32_t freq_amp = 0;

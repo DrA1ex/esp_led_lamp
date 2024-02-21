@@ -30,7 +30,7 @@ private:
 
 template<uint16_t LogCnt, uint16_t MaxValue>
 void LogScale<LogCnt, MaxValue>::scale(uint16_t *data, size_t size) {
-    const auto start_t = micros();
+    VERBOSE(const auto start_t = micros());
 
     _process_data(data, size);
 
