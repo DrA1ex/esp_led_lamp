@@ -32,8 +32,8 @@
 
 #define MAX_SAFE_FLOAT_VALUE                    (9007199254740991LL)    // 2 ** 53
 
-#define PRESET_MAX_COUNT                        (32u)
-#define PRESET_NAME_MAX_SIZE                    (40u)                   // Max size in bytes, UTF-8
+#define PRESET_MAX_COUNT                        (24u)
+#define PRESET_NAME_MAX_SIZE                    (32u)                   // Max size in bytes, UTF-8
 
 #define BTN_SILENCE_INTERVAL                    (40u)
 #define BTN_HOLD_INTERVAL                       (500u)

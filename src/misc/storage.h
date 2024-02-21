@@ -46,18 +46,3 @@ private:
     void _commit_impl();
     bool _check_changed(File &file);
 };
-
-template<typename T>
-bool Storage<T>::_check_changed(File &file) {
-    if (file.size() != size() || !_check_header(file)) return true;
-
-    auto *ptr = (uint8_t *) &_data;
-    uint8_t entry;
-
-    for (size_t i = 0; i < sizeof(T); ++i, ++ptr) {
-        file.read(&entry, 1);
-        if (*ptr != entry) return true;
-    }
-
-    return false;
-}

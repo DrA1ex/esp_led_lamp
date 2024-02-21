@@ -55,7 +55,8 @@ template<typename T>
 void Storage<T>::_commit_impl() {
     if (!_fs) return;
 
-    File file = _fs->open(_get_path(), "w+");
+    File file = _fs->open(_get_path(), "a+");
+    file.seek(0);
 
     if (!_check_changed(file)) {
         D_PRINTF("Storage(%s): Skip commit, data not changed\n", _key);
@@ -63,6 +64,7 @@ void Storage<T>::_commit_impl() {
     }
 
     file.seek(0);
+    file.truncate(0);
 
     file.write((uint8_t *) &_header, sizeof(_header));
     file.write((uint8_t *) &_version, sizeof(_version));
@@ -115,4 +117,19 @@ void Storage<T>::force_save() {
     }
 
     _commit_impl();
+}
+
+template<typename T>
+bool Storage<T>::_check_changed(File &file) {
+    if (file.size() != size() || !_check_header(file)) return true;
+
+    auto *ptr = (uint8_t *) &_data;
+    uint8_t entry;
+
+    for (size_t i = 0; i < sizeof(T); ++i, ++ptr) {
+        file.read(&entry, 1);
+        if (*ptr != entry) return true;
+    }
+
+    return false;
 }
