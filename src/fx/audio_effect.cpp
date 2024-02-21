@@ -6,6 +6,9 @@ AudioEffectManager::AudioEffectManager() {
             {AudioEffectEnum::WAVE_CENTERED,     "Wave Centered",     signal_centered},
             {AudioEffectEnum::SPECTRUM,          "Spectrum",          signal},
             {AudioEffectEnum::SPECTRUM_CENTERED, "Spectrum Centered", signal_centered},
+            {AudioEffectEnum::SPEED_CONTROL,     "Speed Control",     _none},
+            {AudioEffectEnum::SCALE_CONTROL,     "Scale Control",     _none},
+            {AudioEffectEnum::LIGHT_CONTROL,     "Light Control",     _none},
     };
 
     static_assert(check_entry_order(fx_init), "Order isn't valid: item index must be the same as the code");
@@ -57,3 +60,5 @@ void AudioEffectManager::signal_centered(Led &led, AudioEffectState &state) {
         }
     }
 }
+
+void AudioEffectManager::_none(Led &, AudioEffectState &) {}

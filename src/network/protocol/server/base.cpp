@@ -206,6 +206,9 @@ Response ServerBase::process_data_request(const PacketHeader &header) {
         case PacketType::PALETTE_LIST:
             return serialize_fx_config(Palettes);
 
+        case PacketType::AUDIO_EFFECT_LIST:
+            return serialize_fx_config(AudioEffects.config());
+
         case PacketType::GET_CONFIG:
             return serialize(app().config);
 

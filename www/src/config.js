@@ -116,6 +116,7 @@ export class Config extends EventEmitter {
     presetId;
     colorCorrection;
     nightMode;
+    audio;
 
     constructor(ws) {
         super();
@@ -155,6 +156,13 @@ export class Config extends EventEmitter {
         };
 
         this.gamma = parser.readUInt8();
+
+        this.audio = {
+            enabled: parser.readBoolean(),
+            gain: parser.readUInt8(),
+            gate: parser.readUInt8(),
+            effect: parser.readUInt8(),
+        }
 
         this.emitEvent(Config.LOADED);
     }

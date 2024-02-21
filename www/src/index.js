@@ -196,15 +196,16 @@ async function initialize() {
 
     window.__app.Config = config;
 
-    const [_, palette, colorEffects, brightnessEffects] = await Promise.all([
+    const [_, palette, colorEffects, brightnessEffects, audioEffects] = await Promise.all([
         config.load(),
         request_fx(PacketType.PALETTE_LIST),
         request_fx(PacketType.COLOR_EFFECT_LIST),
         request_fx(PacketType.BRIGHTNESS_EFFECT_LIST),
+        request_fx(PacketType.AUDIO_EFFECT_LIST),
     ]);
 
     const Lists = {
-        palette, colorEffects, brightnessEffects, presets: config.preset.list,
+        palette, colorEffects, brightnessEffects, audioEffects, presets: config.preset.list,
     };
 
 
