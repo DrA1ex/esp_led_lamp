@@ -32,10 +32,10 @@ struct __attribute ((packed)) NightModeConfig {
 };
 
 struct __attribute ((packed)) AudioConfig {
-    bool enabled = true;
+    bool enabled = false;
 
-    uint8_t gain = 10;
-    uint8_t gate = 1;
+    uint8_t gain = 0;
+    uint8_t gate = 0;
 
     AudioEffectEnum effect = AudioEffectEnum::WAVE_CENTERED;
 
