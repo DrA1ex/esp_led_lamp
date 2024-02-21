@@ -18,6 +18,10 @@ public:
 
     NightModeManager &night_mode_manager;
 
+    SignalProvider *wave_provider;
+    SignalProvider *spectrum_provider;
+    SignalProvider *parametric_provider;
+
     unsigned long state_change_time = 0;
     AppState state = AppState::INITIALIZATION;
 
@@ -25,9 +29,10 @@ public:
 
     CRGBPalette16 current_palette = CRGBPalette16();
 
-    explicit Application(Storage<Config> &config_storage, Storage<PresetNames> &preset_names_storage,
-                         Storage<PresetConfigs> &preset_configs_storage, Storage<CustomPaletteConfig> &custom_palette_storage,
-                         NightModeManager &night_mode_manager);
+    Application(Storage<Config> &config_storage, Storage<PresetNames> &preset_names_storage,
+                Storage<PresetConfigs> &preset_configs_storage, Storage<CustomPaletteConfig> &custom_palette_storage,
+                NightModeManager &night_mode_manager,
+                SignalProvider *wave_provider, SignalProvider *spectrum_provider, SignalProvider *parametric_provider);
 
     void change_state(AppState s);
     void load();
@@ -43,4 +48,6 @@ public:
 
     inline PresetConfig &preset() { return preset_configs.presets[config.preset_id]; }
     [[nodiscard]] BrightnessSettings get_brightness_settings() const;
+
+    SignalProvider* signal_provider() const;
 };

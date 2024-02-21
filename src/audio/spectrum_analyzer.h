@@ -51,8 +51,7 @@ public:
     [[nodiscard]] uint16_t get(uint16_t index, uint8_t frac) const override;
     [[nodiscard]] inline uint16_t delta() const override;
 
-    [[nodiscard]] virtual inline uint16_t update_interval() const { return _update_interval; }
-    void set_update_interval(uint16_t interval) override;
+    [[nodiscard]] inline uint16_t update_interval() const override { return _update_interval; }
 };
 
 template<uint16_t SampleSize, uint16_t BucketCount, uint8_t AnalogPin>
@@ -100,10 +99,4 @@ uint16_t SpectrumAnalyzer<SampleSize, BucketCount, AnalogPin>::get(uint16_t inde
 template<uint16_t SampleSize, uint16_t BucketCount, uint8_t AnalogPin>
 uint16_t SpectrumAnalyzer<SampleSize, BucketCount, AnalogPin>::delta() const {
     return millis() - _last_fft_update;
-}
-
-template<uint16_t SampleSize, uint16_t BucketCount, uint8_t AnalogPin>
-void SpectrumAnalyzer<SampleSize, BucketCount, AnalogPin>::set_update_interval(uint16_t interval) {
-    _update_interval = interval;
-    _read_interval = _calculate_read_interval(interval, SampleSize, _sample_rate);
 }

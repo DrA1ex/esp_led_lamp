@@ -8,8 +8,7 @@
 #include "night_mode.h"
 #include "sys_macro.h"
 
-#include "audio/spectrum_analyzer.h"
-#include "audio/volume_analyzer.h"
+#include "audio/base.h"
 
 #include "misc/button.h"
 #include "misc/led.h"
@@ -47,7 +46,36 @@ Storage<CustomPaletteConfig> custom_palette_storage(global_timer, "custom_palett
 
 NightModeManager night_mode_manager(config_storage.get());
 
-Application app(config_storage, preset_names_storage, preset_configs_storage, custom_palette_storage, night_mode_manager);
+#if AUDIO == ENABLED
+
+#include "audio/spectrum_analyzer.h"
+#include "audio/volume_analyzer.h"
+
+VolumeAnalyzer<AUDIO_WAVE_SAMPLE_SIZE, WIDTH, AUDIO_PIN> wave_analyzer(
+        AUDIO_SAMPLE_RATE, 1000 / AUDIO_WAVE_UPDATE_RATE, AUDIO_WINDOW_DURATION,
+        AUDIO_GAIN, AUDIO_GATE
+);
+
+SpectrumAnalyzer<AUDIO_SPECTRUM_SAMPLE_SIZE, WIDTH, AUDIO_PIN> spectrum_analyzer(
+        AUDIO_SAMPLE_RATE, 1000 / AUDIO_SPECTRUM_UPDATE_RATE, AUDIO_WINDOW_DURATION,
+        AUDIO_GAIN, AUDIO_GATE);
+
+VolumeAnalyzer<AUDIO_PARAMETRIC_SAMPLE_RATE, WIDTH, AUDIO_PIN> parametric_analyzer(
+        AUDIO_SAMPLE_RATE, 1000 / AUDIO_PARAMETRIC_UPDATE_RATE, AUDIO_WINDOW_DURATION,
+        AUDIO_GAIN, AUDIO_GATE
+);
+
+SignalProvider *wave_provider = &wave_analyzer;
+SignalProvider *spectrum_provider = &spectrum_analyzer;
+SignalProvider *parametric_provider = &parametric_analyzer;
+#else
+SignalProvider *wave_provider = nullptr;
+SignalProvider *spectrum_provider = nullptr;
+SignalProvider *parametric_provider = nullptr;
+#endif
+
+Application app(config_storage, preset_names_storage, preset_configs_storage, custom_palette_storage, night_mode_manager,
+                wave_provider, spectrum_provider, parametric_provider);
 
 WifiManager wifi_manager;
 WebServer web_server(WEB_PORT);
@@ -58,17 +86,6 @@ WebSocketServer ws_server(app);
 NtpTime ntp_time;
 
 Button button(BUTTON_PIN);
-
-#if AUDIO == ENABLED
-SpectrumAnalyzer<AUDIO_SPECTRUM_SAMPLE_SIZE, WIDTH, AUDIO_PIN> spectrum_analyzer(
-        AUDIO_SAMPLE_RATE, 1000 / AUDIO_SPECTRUM_UPDATE_RATE, AUDIO_WINDOW_DURATION,
-        AUDIO_GAIN, AUDIO_GATE);
-
-VolumeAnalyzer<AUDIO_WAVE_SAMPLE_SIZE, WIDTH, AUDIO_PIN> volume_analyzer(
-        AUDIO_SAMPLE_RATE, 1000 / AUDIO_WAVE_UPDATE_RATE, AUDIO_WINDOW_DURATION,
-        AUDIO_GAIN, AUDIO_GATE
-);
-#endif
 
 void setup() {
 #if defined(DEBUG)
@@ -185,14 +202,14 @@ void render() {
         return;
     }
 
-    const auto &audio_cfg = app.config.audio_config;
 
     //TODO: Refactor
     auto preset = app.preset();
+    const auto &audio_cfg = app.config.audio_config;
 
 #if AUDIO == ENABLED
     if (audio_cfg.is_parametric()) {
-        const auto value = volume_analyzer.get(0, 255) * 255 / volume_analyzer.MAX_VALUE;
+        const auto value = parametric_provider->get(0, 255) * 255 / parametric_provider->max_value();
 
         switch (audio_cfg.effect) {
             case AudioEffectEnum::SPEED_CONTROL:
@@ -215,10 +232,8 @@ void render() {
     ColorEffects.call(led, palette, preset, app.config.gamma);
     BrightnessEffects.call(led, preset);
 
-    if (audio_cfg.is_wave()) {
-        AUDIO_FN(AudioEffects.call(led, &volume_analyzer));
-    } else if (audio_cfg.is_spectrum()) {
-        AUDIO_FN(AudioEffects.call(led, &spectrum_analyzer));
+    if (audio_cfg.enabled) {
+        AUDIO_FN(AudioEffects.call(led, app.signal_provider()));
     }
 }
 
@@ -328,11 +343,7 @@ void audio_loop(void *) {
     const auto &cfg = app.config.audio_config;
     if (!cfg.enabled) return;
 
-    if (cfg.is_spectrum()) {
-        AUDIO_FN(spectrum_analyzer.tick());
-    } else {
-        AUDIO_FN(volume_analyzer.tick());
-    }
+    AUDIO_FN(app.signal_provider()->tick());
 }
 
 void button_on_click(uint8_t cnt) {

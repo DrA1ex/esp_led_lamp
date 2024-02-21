@@ -12,7 +12,6 @@ public:
     [[nodiscard]] virtual inline uint16_t delta() const = 0;
 
     [[nodiscard]] virtual inline uint16_t update_interval() const = 0;
-    virtual void set_update_interval(uint16_t interval) = 0;
 
 protected:
     [[nodiscard]] static inline uint16_t _calculate_read_interval(

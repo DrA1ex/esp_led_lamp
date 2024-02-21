@@ -11,9 +11,8 @@ class LogScale {
     Window<WindowMode::MAX> _window_max;
     Window<WindowMode::MIN> _window_min;
 
-    constexpr std::array<int16_t, LogCnt> _init_log_table();
-
-    const std::array<int16_t, LogCnt> _log_table = _init_log_table();
+    static constexpr std::array<int16_t, LogCnt> _init_log_table();
+    static constexpr std::array<int16_t, LogCnt> _log_table = _init_log_table();
 
 public:
     static constexpr uint16_t LOG_CNT = LogCnt;
