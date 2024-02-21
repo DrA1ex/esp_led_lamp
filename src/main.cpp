@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
+#include <LittleFS.h>
 
 #include "application.h"
 #include "constants.h"
@@ -39,10 +40,10 @@ Timer global_timer;
 
 uint16_t XY(uint8_t x, uint8_t y) { return led.get_index(x, y); }
 
-Storage<Config> config_storage(global_timer, 0, STORAGE_CONFIG_VERSION);
-Storage<PresetNames> preset_names_storage(global_timer, config_storage.end_offset(), STORAGE_PRESET_NAMES_VERSION);
-Storage<PresetConfigs> preset_configs_storage(global_timer, preset_names_storage.end_offset(), STORAGE_PRESET_CONFIG_VERSION);
-Storage<CustomPaletteConfig> custom_palette_storage(global_timer, preset_configs_storage.end_offset(), STORAGE_CUSTOM_PALETTE_VERSION);
+Storage<Config> config_storage(global_timer, "config", STORAGE_CONFIG_VERSION);
+Storage<PresetNames> preset_names_storage(global_timer, "preset_names", STORAGE_PRESET_NAMES_VERSION);
+Storage<PresetConfigs> preset_configs_storage(global_timer, "preset_configs", STORAGE_PRESET_CONFIG_VERSION);
+Storage<CustomPaletteConfig> custom_palette_storage(global_timer, "custom_palette", STORAGE_CUSTOM_PALETTE_VERSION);
 
 NightModeManager night_mode_manager(config_storage.get());
 
@@ -75,10 +76,14 @@ void setup() {
     delay(2000);
 #endif
 
-    config_storage.begin();
-    preset_names_storage.begin();
-    preset_configs_storage.begin();
-    custom_palette_storage.begin();
+    if (!LittleFS.begin()) {
+        D_PRINT("Unable to initialize FS");
+    }
+
+    config_storage.begin(&LittleFS);
+    preset_names_storage.begin(&LittleFS);
+    preset_configs_storage.begin(&LittleFS);
+    custom_palette_storage.begin(&LittleFS);
 
     app.load();
 
@@ -291,7 +296,7 @@ void service_loop(void *) {
                 request->send_P(200, "text/plain", result);
             });
 
-            web_server.begin();
+            web_server.begin(&LittleFS);
 
             ntp_time.begin(TIME_ZONE);
             ArduinoOTA.setHostname(MDNS_NAME);

@@ -1,7 +1,5 @@
 #include "web.h"
 
-#include "LittleFS.h"
-
 class WebLogger : public AsyncWebHandler {
     bool canHandle(AsyncWebServerRequest *request) override {
         D_PRINTF("WebServer: %s -> %s %s\n", request->client()->remoteIP().toString().c_str(),
@@ -17,16 +15,14 @@ WebServer::WebServer(uint16_t port) : _port(port), _server(port) {
 #endif
 }
 
-void WebServer::begin() {
-    if (!LittleFS.begin()) {
-        D_PRINT("Unable to initialize FS");
-    }
+void WebServer::begin(FS *fs) {
+    _fs = fs;
 
-    _server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(LittleFS, "/index.html", "text/html");
+    _server.on("/", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        request->send(*_fs, "/index.html", "text/html");
     });
 
-    _server.serveStatic("/", LittleFS, "/");
+    _server.serveStatic("/", *_fs, "/");
 
     _server.begin();
 

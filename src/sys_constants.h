@@ -18,6 +18,7 @@
 
 #define WEB_PORT                                (80)
 
+#define STORAGE_PATH                            ("/__storage/")
 #define STORAGE_HEADER                          ((uint32_t) 0xffaabbcc)
 #define STORAGE_CONFIG_VERSION                  ((uint8_t) 9)
 #define STORAGE_PRESET_NAMES_VERSION            ((uint8_t) 4)
