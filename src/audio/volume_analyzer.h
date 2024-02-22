@@ -52,7 +52,7 @@ public:
 template<uint16_t SampleSize, uint16_t BucketCount, uint8_t AnalogPin>
 void VolumeAnalyzer<SampleSize, BucketCount, AnalogPin>::tick() {
     if (millis() - _last_update_time >= _read_interval) {
-        _reader.read_if_needed();
+        _reader.read_sample();
     }
 
     if (millis() - _last_update_time >= _update_interval) {

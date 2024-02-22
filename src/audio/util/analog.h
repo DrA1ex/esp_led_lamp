@@ -48,6 +48,7 @@ public:
     bool read_if_needed();
 
     void read_sample();
+    void read_sample_fast();
 
     [[nodiscard]] uint16_t *data() { return this->_rearrange(), _data; }
     [[nodiscard]] inline AnalogSample raw_data() { return {_data, _size, _index}; };
@@ -94,6 +95,12 @@ void AnalogReader::read_sample() {
             delayMicroseconds(_read_interval - elapsed);
         }
     }
+}
+
+void AnalogReader::read_sample_fast() {
+    _index = 0;
+
+    system_adc_read_fast(_data, _size, 16);
 }
 
 void AnalogReader::_rearrange() {

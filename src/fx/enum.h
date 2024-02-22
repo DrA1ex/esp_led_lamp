@@ -117,7 +117,12 @@ enum class AudioEffectEnum : uint8_t {
     SPECTRUM,
     SPECTRUM_CENTERED,
 
-    // Control mode
+    // Parametric mode
+    BRIGHTNESS,
+
+    LINE,
+    LINE_CENTERED,
+
     SPEED_CONTROL,
     SCALE_CONTROL,
     LIGHT_CONTROL,

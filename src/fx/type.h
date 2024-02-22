@@ -51,6 +51,9 @@ typedef void (*BrightnessEffectFn)(Led &led, BrightnessEffectState &state);
 struct AudioEffectState : FxStateBase {
     struct {
         const SignalProvider *provider = nullptr;
+
+        uint8_t min = 0;
+        uint8_t max = 255;
     } params;
 };
 

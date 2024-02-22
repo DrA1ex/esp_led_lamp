@@ -39,10 +39,12 @@ struct __attribute ((packed)) AudioConfig {
 
     AudioEffectEnum effect = AudioEffectEnum::WAVE_CENTERED;
 
+    uint8_t min = 0;
+    uint8_t max = 255;
 
     [[nodiscard]] inline bool is_wave() const { return enabled && effect >= AudioEffectEnum::WAVE && effect < AudioEffectEnum::SPECTRUM; }
-    [[nodiscard]] inline bool is_spectrum() const {return enabled && effect >= AudioEffectEnum::SPECTRUM && effect < AudioEffectEnum::SPEED_CONTROL;}
-    [[nodiscard]] inline bool is_parametric() const { return enabled && effect >= AudioEffectEnum::SPEED_CONTROL; }
+    [[nodiscard]] inline bool is_spectrum() const {return enabled && effect >= AudioEffectEnum::SPECTRUM && effect < AudioEffectEnum::BRIGHTNESS;}
+    [[nodiscard]] inline bool is_parametric() const { return enabled && effect >= AudioEffectEnum::BRIGHTNESS; }
 };
 
 struct __attribute ((packed)) Config {

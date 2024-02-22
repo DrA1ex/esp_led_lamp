@@ -43,3 +43,12 @@
 
 #define AUDIO_SAMPLE_RATE                       (9400u)
 #define AUDIO_MAX_SIGNAL                        (1024u)
+
+#define AUDIO_WAVE_SAMPLE_SIZE                  (16u)
+#define AUDIO_WAVE_UPDATE_RATE                  (40u)
+
+#define AUDIO_SPECTRUM_SAMPLE_SIZE              (128u)
+#define AUDIO_SPECTRUM_UPDATE_RATE              (10u)
+
+#define AUDIO_PARAMETRIC_SAMPLE_RATE            (64u)
+#define AUDIO_PARAMETRIC_UPDATE_RATE            (30u)

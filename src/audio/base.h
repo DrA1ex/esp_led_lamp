@@ -19,7 +19,7 @@ public:
 protected:
     [[nodiscard]] static inline uint16_t _calculate_read_interval(
             uint16_t update_interval, uint16_t sample_size, uint16_t sample_rate) {
-        return max(0, update_interval - ((int32_t) 1000 * sample_size / sample_rate) * 2);
+        return max(0, update_interval - ((int32_t) 1000 * sample_size / sample_rate) * 120 / 100);
     }
 
     static void _filter_signal(uint16_t *data, size_t size, uint16_t gain, uint16_t gate) {

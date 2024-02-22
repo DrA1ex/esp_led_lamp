@@ -233,7 +233,7 @@ void render() {
     BrightnessEffects.call(led, preset);
 
     if (audio_cfg.enabled) {
-        AUDIO_FN(AudioEffects.call(led, app.signal_provider()));
+        AUDIO_FN(AudioEffects.call(led, app.signal_provider(), audio_cfg.min, audio_cfg.max));
     }
 }
 
