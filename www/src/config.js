@@ -162,6 +162,8 @@ export class Config extends EventEmitter {
             gain: parser.readUInt8(),
             gate: parser.readUInt8(),
             effect: parser.readUInt8(),
+            min: parser.readUInt8(),
+            max: parser.readUInt8(),
         }
 
         this.emitEvent(Config.LOADED);

@@ -21,6 +21,8 @@ export const PacketType = {
     AUDIO_EFFECT: 51,
     AUDIO_SIGNAL_GAIN: 52,
     AUDIO_SIGNAL_GATE: 53,
+    AUDIO_MIN: 54,
+    AUDIO_MAX: 55,
 
     PRESET_ID: 60,
     PRESET_NAME: 61,

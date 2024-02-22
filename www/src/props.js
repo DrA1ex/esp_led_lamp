@@ -49,6 +49,8 @@ export const PropertyConfig = [{
     key: "audio", section: "Audio", props: [
         {key: "audio.enabled", title: "Enabled", type: "trigger", cmd: PacketType.AUDIO_ENABLED},
         {key: "audio.effect", title: "Effect", type: "select", list: "audioEffects", cmd: PacketType.AUDIO_EFFECT},
+        {key: "audio.min", title: "Min", type: "wheel", limit: 255, cmd: PacketType.AUDIO_MIN},
+        {key: "audio.max", title: "Max", type: "wheel", limit: 255, cmd: PacketType.AUDIO_MAX},
         {
             key: "audio.gain", title: "Gain", type: "wheel", limit: 255, cmd: PacketType.AUDIO_SIGNAL_GAIN,
             displayConverter: audioSignalParameterDisplayConverter

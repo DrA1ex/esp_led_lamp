@@ -208,8 +208,10 @@ void render() {
     const auto &audio_cfg = app.config.audio_config;
 
 #if AUDIO == ENABLED
+    bool audio_applied = true;
+
     if (audio_cfg.is_parametric()) {
-        const auto value = parametric_provider->get(0, 255) * 255 / parametric_provider->max_value();
+        const auto value = AudioEffects.calc(led, app.signal_provider(), audio_cfg.min, audio_cfg.max);
 
         switch (audio_cfg.effect) {
             case AudioEffectEnum::SPEED_CONTROL:
@@ -222,8 +224,11 @@ void render() {
                 preset.light = value;
                 break;
 
-            default:;
+            default:
+                audio_applied = false;
         }
+    } else {
+        audio_applied = false;
     }
 #endif
 
@@ -232,7 +237,7 @@ void render() {
     ColorEffects.call(led, palette, preset, app.config.gamma);
     BrightnessEffects.call(led, preset);
 
-    if (audio_cfg.enabled) {
+    if (!audio_applied && audio_cfg.enabled) {
         AUDIO_FN(AudioEffects.call(led, app.signal_provider(), audio_cfg.min, audio_cfg.max));
     }
 }

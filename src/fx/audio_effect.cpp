@@ -32,6 +32,12 @@ void AudioEffectManager::call(Led &led, const SignalProvider *provider, uint8_t 
     _after_call();
 }
 
+int AudioEffectManager::calc(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value) {
+    call(led, provider, min_value, max_value);
+
+    return _calc_signal_value(_state, 255);
+}
+
 void AudioEffectManager::signal(Led &led, AudioEffectState &state) {
     const auto [
             provider, v_min, v_max
@@ -40,15 +46,13 @@ void AudioEffectManager::signal(Led &led, AudioEffectState &state) {
     const auto frac = min<uint8_t>(255, provider->delta() * 255 / provider->update_interval());
 
     for (int i = 0; i < led.width(); ++i) {
-        const auto v = provider->get(i, frac);
-        auto brightness = dim8_raw(v * 255 / provider->max_value());
+        const auto brightness = dim8_raw(_calc_signal_value(state, 255, i, frac));
 
         for (int j = 0; j < led.height(); ++j) {
             auto &color = led.get_pixel(i, j);
             color.nscale8(brightness);
         }
     }
-
 }
 
 void AudioEffectManager::signal_centered(Led &led, AudioEffectState &state) {
@@ -61,8 +65,8 @@ void AudioEffectManager::signal_centered(Led &led, AudioEffectState &state) {
     const auto center = led.width() / 2;
 
     for (int i = 0; i < led.width(); ++i) {
-        const auto v = i <= center ? provider->get(center - i, frac) : provider->get(i - center, frac);
-        auto brightness = dim8_raw(v * 255 / provider->max_value());
+        const auto index = i <= center ? center - i : i - center;
+        const auto brightness = dim8_raw(_calc_signal_value(state, 255, index, frac));
 
         for (int j = 0; j < led.height(); ++j) {
             auto &color = led.get_pixel(i, j);
@@ -72,12 +76,7 @@ void AudioEffectManager::signal_centered(Led &led, AudioEffectState &state) {
 }
 
 void AudioEffectManager::line(Led &led, AudioEffectState &state) {
-    const auto [
-            provider, v_min, v_max
-    ] = state.params;
-
-    const auto value = provider->get(0, 255);
-    const auto width = value * led.width() / provider->max_value();
+    const auto width = _calc_signal_value(state, led.width());
 
     for (int i = width; i < led.width(); ++i) {
         led.fill_column(i, CRGB::Black);
@@ -85,12 +84,7 @@ void AudioEffectManager::line(Led &led, AudioEffectState &state) {
 }
 
 void AudioEffectManager::line_centered(Led &led, AudioEffectState &state) {
-    const auto [
-            provider, v_min, v_max
-    ] = state.params;
-
-    const auto value = provider->get(0, 255);
-    const auto width = value * led.width() / 2 / provider->max_value();
+    const auto width = _calc_signal_value(state, led.width() / 2);
 
     const auto inactive_width = led.width() / 2 - width;
     for (int i = 0; i < inactive_width; ++i) {
@@ -100,12 +94,7 @@ void AudioEffectManager::line_centered(Led &led, AudioEffectState &state) {
 }
 
 void AudioEffectManager::brightness(Led &led, AudioEffectState &state) {
-    const auto [
-            provider, v_min, v_max
-    ] = state.params;
-
-    const auto value = provider->get(0, 255);
-    const auto brightness = dim8_raw(value * 255 / provider->max_value());
+    const auto brightness = dim8_raw(_calc_signal_value(state, 255));
 
     for (int i = 0; i < led.width(); ++i) {
         for (int j = 0; j < led.height(); ++j) {
@@ -115,3 +104,18 @@ void AudioEffectManager::brightness(Led &led, AudioEffectState &state) {
 }
 
 void AudioEffectManager::_none(Led &, AudioEffectState &) {}
+
+int AudioEffectManager::_calc_signal_value(const AudioEffectState &state, int count, uint16_t index, uint8_t frac) {
+    auto [
+            provider, v_min, v_max
+    ] = state.params;
+
+    if (v_min > v_max) v_min = v_max;
+
+    const auto count_min = v_min * count / 255;
+    const auto count_max = v_max * count / 255;
+    const auto actual = count_max - count_min;
+
+    const auto value = provider->get(index, frac);
+    return count_min + value * actual / provider->max_value();
+}

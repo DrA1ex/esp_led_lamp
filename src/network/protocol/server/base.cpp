@@ -108,6 +108,12 @@ Response ServerBase::update_parameter(const PacketHeader &header, const void *da
         case PacketType::AUDIO_SIGNAL_GATE:
             return _protocol.update_parameter_value(&app().config.audio_config.gate, header, data);
 
+        case PacketType::AUDIO_MIN:
+            return _protocol.update_parameter_value(&app().config.audio_config.min, header, data);
+
+        case PacketType::AUDIO_MAX:
+            return _protocol.update_parameter_value(&app().config.audio_config.max, header, data);
+
         case PacketType::PRESET_ID:
             return _protocol.update_parameter_value(&app().config.preset_id, header, data);
 
