@@ -237,9 +237,11 @@ void render() {
     ColorEffects.call(led, palette, preset, app.config.gamma);
     BrightnessEffects.call(led, preset);
 
+#if AUDIO == ENABLED
     if (!audio_applied && audio_cfg.enabled) {
-        AUDIO_FN(AudioEffects.call(led, app.signal_provider(), audio_cfg.min, audio_cfg.max));
+        AudioEffects.call(led, app.signal_provider(), audio_cfg.min, audio_cfg.max);
     }
+#endif
 }
 
 void calibration() {
