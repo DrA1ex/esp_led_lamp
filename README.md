@@ -2,6 +2,8 @@
 
 Beautifull ambient lighting for LED strips and matrices.
 
+![animation](https://github.com/DrA1ex/esp_led_lamp/assets/1194059/c33b63fe-1197-439c-8b91-698c3b74b915)
+
 
 ## Application UI
 
