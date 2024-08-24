@@ -20,6 +20,7 @@
 
 #include "network/wifi.h"
 #include "network/web.h"
+#include "network/protocol/server/api.h"
 #include "network/protocol/server/udp.h"
 #include "network/protocol/server/ws.h"
 
@@ -80,6 +81,7 @@ Application app(config_storage, preset_names_storage, preset_configs_storage, cu
 WifiManager wifi_manager;
 WebServer web_server(WEB_PORT);
 
+ApiWebServer api_server(app);
 UdpServer udp_server(app);
 WebSocketServer ws_server(app);
 
@@ -302,6 +304,11 @@ void service_loop(void *) {
             break;
 
         case 2:
+#ifdef WEB_AUTH
+            web_server.add_handler(new WebAuthHandler());
+#endif
+
+            api_server.begin(web_server);
             udp_server.begin(UDP_PORT);
             ws_server.begin(web_server);
 
