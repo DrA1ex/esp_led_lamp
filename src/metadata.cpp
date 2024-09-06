@@ -75,5 +75,17 @@ std::map<String, PropertyMetadata> _build_topic_property_metadata_map(
         result[metadata.mqtt_in_topic] = metadata;
     }
 
+    result[MQTT_TOPIC_SPEED] = {NotificationProperty::SPEED, PacketType::SPEED, 0, 0,
+                                MQTT_TOPIC_SPEED, MQTT_OUT_TOPIC_SPEED};
+
+    result[MQTT_TOPIC_SCALE] = {NotificationProperty::SCALE, PacketType::SCALE, 0, 0,
+                                MQTT_TOPIC_SCALE, MQTT_OUT_TOPIC_SCALE};
+
+    result[MQTT_TOPIC_LIGHT] = {NotificationProperty::LIGHT, PacketType::LIGHT, 0, 0,
+                                MQTT_TOPIC_LIGHT, MQTT_OUT_TOPIC_LIGHT};
+
+    result[MQTT_TOPIC_PALETTE] = {NotificationProperty::PALETTE, PacketType::PALETTE, 0, 0,
+                                  MQTT_TOPIC_PALETTE, MQTT_OUT_TOPIC_PALETTE};
+
     return result;
 }

@@ -27,8 +27,6 @@ Application::Application(Storage<Config> &config_storage, Storage<PresetNames> &
 
         if (type == NotificationProperty::COLOR && arg) {
             this->change_color(*(uint32_t *) arg);
-        } else if (type == NotificationProperty::PALETTE && arg) {
-            this->preset().palette = *(PaletteEnum *) arg;
         } else if (type == NotificationProperty::NIGHT_MODE_ENABLED) {
             this->night_mode_manager.reset();
         }

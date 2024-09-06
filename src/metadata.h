@@ -16,10 +16,13 @@ class Application;
 MAKE_ENUM(NotificationProperty, uint8_t,
           POWER, 0,
           BRIGHTNESS, 1,
-          COLOR, 2,
-          PRESET, 3,
-          PALETTE, 4,
-          NIGHT_MODE_ENABLED, 5,
+          SPEED, 2,
+          SCALE, 3,
+          LIGHT, 4,
+          COLOR, 5,
+          PRESET, 6,
+          PALETTE, 7,
+          NIGHT_MODE_ENABLED, 8,
 )
 
 struct PropertyMetadata {

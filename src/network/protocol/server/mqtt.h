@@ -118,7 +118,6 @@ void MqttServer::_on_connect(bool) {
     }
 
     _subscribe(MQTT_TOPIC_COLOR, 1);
-    _subscribe(MQTT_TOPIC_PALETTE, 1);
 
     _last_connection_attempt_time = millis();
     _change_state(MqttServerState::CONNECTED);
@@ -142,12 +141,22 @@ void MqttServer::_on_message(char *topic, char *payload, AsyncMqttClientMessageP
 
     _transform_topic_payload(topic_str, payload_str);
 
-    if (topic_str == MQTT_TOPIC_COLOR) {
-        uint32_t color = payload_str.toInt();
-        _app.event_property_changed.publish(this, NotificationProperty::COLOR, &color);
+    //TODO: Refactor
+    if (topic_str == MQTT_TOPIC_SPEED) {
+        app().preset().speed = payload_str.toInt();
+        _app.event_property_changed.publish(this, NotificationProperty::SPEED);
+    } else if (topic_str == MQTT_TOPIC_SCALE) {
+        app().preset().scale = payload_str.toInt();
+        _app.event_property_changed.publish(this, NotificationProperty::SCALE);
+    } else if (topic_str == MQTT_TOPIC_LIGHT) {
+        app().preset().light = payload_str.toInt();
+        _app.event_property_changed.publish(this, NotificationProperty::LIGHT);
     } else if (topic_str == MQTT_TOPIC_PALETTE) {
-        auto palette_id = (PaletteEnum) payload_str.toInt();
-        _app.event_property_changed.publish(this, NotificationProperty::PALETTE, &palette_id);
+        app().preset().palette = (PaletteEnum) payload_str.toInt();
+        _app.event_property_changed.publish(this, NotificationProperty::PALETTE);
+    } else if (topic_str == MQTT_TOPIC_COLOR) {
+        app().change_color(payload_str.toInt());
+        _app.event_property_changed.publish(this, NotificationProperty::COLOR);
     } else {
         _process_message(topic_str, payload_str);
     }
@@ -212,12 +221,21 @@ void MqttServer::_after_message_process(const PropertyMetadata &meta) {
 
 
 void MqttServer::_process_notification(NotificationProperty prop) {
-    if (prop == NotificationProperty::COLOR) {
+    if (prop == NotificationProperty::SPEED) {
+        String str(_app.preset().speed);
+        _publish(MQTT_OUT_TOPIC_SPEED, 1, str.c_str(), str.length());
+    } else if (prop == NotificationProperty::SCALE) {
+        String str(_app.preset().scale);
+        _publish(MQTT_OUT_TOPIC_SCALE, 1, str.c_str(), str.length());
+    } else if (prop == NotificationProperty::LIGHT) {
+        String str(_app.preset().light);
+        _publish(MQTT_OUT_TOPIC_LIGHT, 1, str.c_str(), str.length());
+    } else if (prop == NotificationProperty::COLOR) {
         String str(_app.current_color());
         _publish(MQTT_OUT_TOPIC_COLOR, 1, str.c_str(), str.length());
         return;
     } else if (prop == NotificationProperty::PALETTE) {
-        String str((int) _app.palette->code);
+        String str((int) _app.preset().palette);
         _publish(MQTT_OUT_TOPIC_PALETTE, 1, str.c_str(), str.length());
         return;
     }
