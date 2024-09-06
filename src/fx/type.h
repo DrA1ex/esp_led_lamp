@@ -36,6 +36,10 @@ struct ColorEffectState : FxStateBase {
         bool gamma_correction = false;
         float gamma = 0;
     } params;
+
+    struct {
+        byte light = 0;
+    } extra;
 };
 
 typedef void(*ColorEffectFn)(Led &led, ColorEffectState &state);

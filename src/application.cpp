@@ -157,6 +157,7 @@ void Application::change_color(uint32_t color) {
     memcpy(preset_names.names[preset_index], preset_name, std::min<uint8_t>(preset_names.length, strlen(preset_name)));
 
     preset.color_effect = ColorEffectEnum::SOLID;
+    preset.brightness_effect = BrightnessEffectEnum::FIXED;
     config.preset_id = preset_index;
 
     auto rgb = CRGB(color);
@@ -167,6 +168,7 @@ void Application::change_color(uint32_t color) {
 
     preset.speed = hsv.h;
     preset.scale = hsv.s;
+    preset.light = hsv.l;
 
     load();
 }
@@ -176,7 +178,7 @@ uint32_t Application::current_color() {
     auto &preset = preset_configs.presets[preset_index];
 
     if (preset.color_effect == ColorEffectEnum::SOLID) {
-        return HSLToRGB({preset.speed, preset.scale, 127});
+        return HSLToRGB({preset.speed, preset.scale, preset.light});
     }
 
     return 0xffffff;

@@ -31,6 +31,8 @@ void ColorEffectManager::call(Led &led, const PaletteT *palette, const PresetCon
     _state.params.scale = config.scale;
     _state.params.palette = palette;
 
+    _state.extra.light = config.brightness_effect == BrightnessEffectEnum::FIXED ? config.light : 127;
+
 #if GAMMA_CORRECTION_RT == ENABLED
     _state.params.gamma_correction = gamma > 0;
     _state.params.gamma = gamma_value(gamma);
@@ -80,7 +82,7 @@ void ColorEffectManager::solid(Led &led, ColorEffectState &state) {
             gamma_correction, gamma
     ] = state.params;
 
-    auto color = HSLToRGB({speed, scale, 127});
+    auto color = HSLToRGB({speed, scale, state.extra.light});
 
     led.fill_solid(color);
     if (gamma_correction) led.apply_gamma_correction(gamma);
