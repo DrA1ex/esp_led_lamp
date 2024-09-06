@@ -25,8 +25,10 @@ Application::Application(Storage<Config> &config_storage, Storage<PresetNames> &
     event_property_changed.subscribe(this, [this](auto sender, auto type, auto arg) {
         if (sender == this) return;
 
-        if (type == NotificationProperty::COLOR) {
+        if (type == NotificationProperty::COLOR && arg) {
             this->change_color(*(uint32_t *) arg);
+        } else if (type == NotificationProperty::PALETTE && arg) {
+            this->preset().palette = *(PaletteEnum *) arg;
         } else if (type == NotificationProperty::NIGHT_MODE_ENABLED) {
             this->night_mode_manager.reset();
         }
@@ -51,6 +53,10 @@ void Application::load() {
         current_palette = custom_palette_config.colors;
     } else {
         set_palette(current_palette, palette->value.data, palette->value.size);
+    }
+
+    if (config.preset_id >= preset_names.count) {
+        config.preset_id = preset_names.count - 1;
     }
 
 #if GAMMA_CORRECTION_RT == DISABLED

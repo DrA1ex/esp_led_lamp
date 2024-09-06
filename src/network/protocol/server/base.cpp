@@ -46,6 +46,8 @@ Response ServerBase::handle_packet_data(const uint8_t *buffer, uint16_t length) 
         auto iter = PacketTypeMetadataMap.find(header->type);
         if (iter != PacketTypeMetadataMap.end()) {
             _app.event_property_changed.publish(this, iter->second.property);
+        } else if (header->type == PacketType::PALETTE) {
+            _app.event_property_changed.publish(this, NotificationProperty::PALETTE);
         }
     }
 

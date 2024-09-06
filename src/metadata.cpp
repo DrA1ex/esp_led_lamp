@@ -30,6 +30,14 @@ std::map<PacketType, PropertyMetadata> PacketTypeMetadataMap = {
                 }
         },
         {
+                PacketType::PRESET_ID,
+                {
+                        NotificationProperty::PRESET,             PacketType::PRESET_ID,
+                        offsetof(Config, preset_id),          sizeof(Config::preset_id),
+                        MQTT_TOPIC_PRESET,     MQTT_OUT_TOPIC_PRESET,
+                }
+        },
+        {
                 PacketType::NIGHT_MODE_ENABLED,
                 {
                         NotificationProperty::NIGHT_MODE_ENABLED, PacketType::NIGHT_MODE_ENABLED,

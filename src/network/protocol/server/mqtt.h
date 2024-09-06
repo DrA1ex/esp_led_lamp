@@ -118,6 +118,7 @@ void MqttServer::_on_connect(bool) {
     }
 
     _subscribe(MQTT_TOPIC_COLOR, 1);
+    _subscribe(MQTT_TOPIC_PALETTE, 1);
 
     _last_connection_attempt_time = millis();
     _change_state(MqttServerState::CONNECTED);
@@ -144,6 +145,9 @@ void MqttServer::_on_message(char *topic, char *payload, AsyncMqttClientMessageP
     if (topic_str == MQTT_TOPIC_COLOR) {
         uint32_t color = payload_str.toInt();
         _app.event_property_changed.publish(this, NotificationProperty::COLOR, &color);
+    } else if (topic_str == MQTT_TOPIC_PALETTE) {
+        auto palette_id = (PaletteEnum) payload_str.toInt();
+        _app.event_property_changed.publish(this, NotificationProperty::PALETTE, &palette_id);
     } else {
         _process_message(topic_str, payload_str);
     }
@@ -211,6 +215,10 @@ void MqttServer::_process_notification(NotificationProperty prop) {
     if (prop == NotificationProperty::COLOR) {
         String str(_app.current_color());
         _publish(MQTT_OUT_TOPIC_COLOR, 1, str.c_str(), str.length());
+        return;
+    } else if (prop == NotificationProperty::PALETTE) {
+        String str((int) _app.palette->code);
+        _publish(MQTT_OUT_TOPIC_PALETTE, 1, str.c_str(), str.length());
         return;
     }
 

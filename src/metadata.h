@@ -17,12 +17,14 @@ MAKE_ENUM(NotificationProperty, uint8_t,
           POWER, 0,
           BRIGHTNESS, 1,
           COLOR, 2,
-          NIGHT_MODE_ENABLED, 3,
+          PRESET, 3,
+          PALETTE, 4,
+          NIGHT_MODE_ENABLED, 5,
 )
 
 struct PropertyMetadata {
-    NotificationProperty property;
-    PacketType packet_type;
+    NotificationProperty property{};
+    PacketType packet_type{};
 
     uint8_t value_offset{};
     uint8_t value_size{};

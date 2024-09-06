@@ -6,16 +6,12 @@
 #include "sys_constants.h"
 
 #define WIFI_MODE                               (WIFI_AP_MODE)
-#define WIFI_SSID                               CREDENTIAL_WIFI_SSID
-#define WIFI_PASSWORD                           CREDENTIAL_WIFI_PASSWORD
 
 #define WIFI_CONNECTION_CHECK_INTERVAL          (5000u)                 // Interval (ms) between Wi-Fi connection check
 #define WIFI_MAX_CONNECTION_ATTEMPT_INTERVAL    (0u)                    // Max time (ms) to wait for Wi-Fi connection before switch to AP mode
                                                                         // 0 - Newer switch to AP mode
 
 #define WEB_AUTH
-#define AUTH_USER                               CREDENTIAL_AUTH_USER
-#define AUTH_PASSWORD                           CREDENTIAL_AUTH_PASSWORD
 
 #define TIME_ZONE                               (5.f)                   // GMT +5:00
 
@@ -49,7 +45,7 @@
 #define AUDIO_WINDOW_DURATION                   (5000u)
 
 
-#define MQTT                                    (0u)                    // MQTT protocol Enabled
+#define MQTT                                    (1u)                    // MQTT protocol Enabled
 
 #define MQTT_CONNECTION_TIMEOUT                 (15000u)                // Connection attempt timeout to MQTT server
 #define MQTT_RECONNECT_TIMEOUT                  (5000u)                 // Time before new reconnection attempt to MQTT server
@@ -58,10 +54,14 @@
 #define MQTT_TOPIC_BRIGHTNESS                   MQTT_PREFIX "/brightness"
 #define MQTT_TOPIC_POWER                        MQTT_PREFIX "/power"
 #define MQTT_TOPIC_COLOR                        MQTT_PREFIX "/color"
+#define MQTT_TOPIC_PRESET                       MQTT_PREFIX "/preset"
+#define MQTT_TOPIC_PALETTE                      MQTT_PREFIX "/palette"
 #define MQTT_TOPIC_NIGHT_MODE                   MQTT_PREFIX "/night_mode"
 
 #define MQTT_OUT_PREFIX                         MQTT_PREFIX "/out"
 #define MQTT_OUT_TOPIC_BRIGHTNESS               MQTT_OUT_PREFIX "/brightness"
 #define MQTT_OUT_TOPIC_POWER                    MQTT_OUT_PREFIX "/power"
 #define MQTT_OUT_TOPIC_COLOR                    MQTT_OUT_PREFIX "/color"
+#define MQTT_OUT_TOPIC_PRESET                   MQTT_OUT_PREFIX "/preset"
+#define MQTT_OUT_TOPIC_PALETTE                  MQTT_OUT_PREFIX "/palette"
 #define MQTT_OUT_TOPIC_NIGHT_MODE               MQTT_OUT_PREFIX "/night_mode"
