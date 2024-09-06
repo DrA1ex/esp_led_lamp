@@ -21,6 +21,7 @@
 #include "network/wifi.h"
 #include "network/web.h"
 #include "network/protocol/server/api.h"
+#include "network/protocol/server/mqtt.h"
 #include "network/protocol/server/udp.h"
 #include "network/protocol/server/ws.h"
 
@@ -82,6 +83,7 @@ WifiManager wifi_manager;
 WebServer web_server(WEB_PORT);
 
 ApiWebServer api_server(app);
+MqttServer mqtt_server(app);
 UdpServer udp_server(app);
 WebSocketServer ws_server(app);
 
@@ -312,6 +314,7 @@ void service_loop(void *) {
             udp_server.begin(UDP_PORT);
             ws_server.begin(web_server);
 
+            if constexpr (MQTT) mqtt_server.begin();
 
             web_server.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
                 char result[320] = {};
@@ -344,6 +347,8 @@ void service_loop(void *) {
 
             udp_server.handle_incoming_data();
             ws_server.handle_incoming_data();
+
+            if constexpr (MQTT) mqtt_server.handle_connection();
             break;
         }
 

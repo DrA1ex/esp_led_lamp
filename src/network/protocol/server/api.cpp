@@ -43,53 +43,16 @@ void ApiWebServer::begin(WebServer &server) {
     server.on((_path + String("/color")).c_str(), HTTP_GET, [this](AsyncWebServerRequest *request) {
         if (!request->hasArg("value")) {
             D_PRINT("Request color status");
-            auto hsv = _app.preset().color_effect == ColorEffectEnum::SOLID
-                       ? CHSV(_app.preset().speed, _app.preset().scale, 255)
-                       : CHSV(255, 255, 225);
-
-            CRGB color{};
-            hsv2rgb_rainbow(hsv, color);
+            auto color = _app.current_color();
 
             return response_with_json(request, JsonPropListT{
                     {"status", "ok"},
-                    {"value",  static_cast<uint32_t>(color) & 0xffffff},
-
-                    {"hue",    hsv.hue},
-                    {"sat",    hsv.sat},
-                    {"bri",    hsv.val},
+                    {"value",  color}
             });
         }
 
-        PresetConfig *preset = nullptr;
-        if (_app.preset().color_effect == ColorEffectEnum::SOLID) {
-            preset = &_app.preset();
-        } else {
-            for (int i = 0; i < _app.preset_configs.count; ++i) {
-                if (_app.preset_configs.presets[i].color_effect == ColorEffectEnum::SOLID) {
-                    _app.change_preset(i);
-                    preset = &_app.preset_configs.presets[i];
-                    break;
-                }
-            }
 
-            if (preset == nullptr) {
-                return response_with_json_status(request, "error");
-            }
-        }
-
-
-        auto new_color = CRGB(request->arg("value").toInt());
-        auto hsv = rgb2hsv_approximate(new_color);
-        preset->speed = hsv.hue;
-        preset->scale = hsv.sat;
-
-        _app.load();
-
-        response_with_json(request, {
-                {"status", "ok"},
-                {"hue", hsv.hue},
-                {"sat", hsv.sat},
-                {"bri", hsv.val},
-        });
+        _app.change_color(request->arg("value").toInt());
+        response_with_json_status(request, "ok");
     });
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OTA=${OTA=0}
+OTA=${OTA:0}
 
 set +v
 
@@ -11,7 +11,7 @@ npm run build || (echo "Failed" && exit 2)
 cd ..
 
 echo "Compress..."
-gzip -9 ./data/*
+gzip -9 -r ./data/*
 
 echo "Uploading..."
 
@@ -20,5 +20,5 @@ if (("$OTA" == 1)); then
   pio run -t uploadfs -e ota "$@"
 else
   echo "*** WIRE mode selected ***"
-  pio run -t uploadfs "$@"
+  pio run -t uploadfs -e release "$@"
 fi

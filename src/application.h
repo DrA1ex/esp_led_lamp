@@ -1,7 +1,9 @@
 #pragma once
 
 #include "config.h"
+#include "metadata.h"
 #include "misc/storage.h"
+#include "misc/event_topic.h"
 #include "night_mode.h"
 
 class Application {
@@ -29,6 +31,8 @@ public:
 
     CRGBPalette16 current_palette = CRGBPalette16();
 
+    EventTopic<NotificationProperty> event_property_changed;
+
     Application(Storage<Config> &config_storage, Storage<PresetNames> &preset_names_storage,
                 Storage<PresetConfigs> &preset_configs_storage, Storage<CustomPaletteConfig> &custom_palette_storage,
                 NightModeManager &night_mode_manager,
@@ -44,10 +48,13 @@ public:
     void brightness_increase();
     void brightness_decrease();
 
+    void change_color(uint32_t color);
+    uint32_t current_color();
+
     void restart();
 
     inline PresetConfig &preset() { return preset_configs.presets[config.preset_id]; }
     [[nodiscard]] BrightnessSettings get_brightness_settings() const;
 
-    SignalProvider* signal_provider() const;
+    SignalProvider *signal_provider() const;
 };

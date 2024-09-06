@@ -7,7 +7,7 @@
 
 class NtpTime;
 
-enum class AppState {
+enum class AppState: uint8_t {
     INITIALIZATION,
     NORMAL,
     CALIBRATION,

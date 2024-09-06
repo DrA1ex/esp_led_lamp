@@ -47,3 +47,21 @@
 #define AUDIO_GAIN                              (1u)
 #define AUDIO_GATE                              (1u)
 #define AUDIO_WINDOW_DURATION                   (5000u)
+
+
+#define MQTT                                    (0u)                    // MQTT protocol Enabled
+
+#define MQTT_CONNECTION_TIMEOUT                 (15000u)                // Connection attempt timeout to MQTT server
+#define MQTT_RECONNECT_TIMEOUT                  (5000u)                 // Time before new reconnection attempt to MQTT server
+
+#define MQTT_PREFIX                             MDNS_NAME
+#define MQTT_TOPIC_BRIGHTNESS                   MQTT_PREFIX "/brightness"
+#define MQTT_TOPIC_POWER                        MQTT_PREFIX "/power"
+#define MQTT_TOPIC_COLOR                        MQTT_PREFIX "/color"
+#define MQTT_TOPIC_NIGHT_MODE                   MQTT_PREFIX "/night_mode"
+
+#define MQTT_OUT_PREFIX                         MQTT_PREFIX "/out"
+#define MQTT_OUT_TOPIC_BRIGHTNESS               MQTT_OUT_PREFIX "/brightness"
+#define MQTT_OUT_TOPIC_POWER                    MQTT_OUT_PREFIX "/power"
+#define MQTT_OUT_TOPIC_COLOR                    MQTT_OUT_PREFIX "/color"
+#define MQTT_OUT_TOPIC_NIGHT_MODE               MQTT_OUT_PREFIX "/night_mode"

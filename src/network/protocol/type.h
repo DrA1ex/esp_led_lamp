@@ -29,9 +29,9 @@ struct Response {
         ResponseCode code;
         const char *str;
 
-        const struct {
+        struct {
             uint16_t size;
-            uint8_t *data;
+            const uint8_t *data;
         } buffer;
     } body;
 

@@ -1,6 +1,7 @@
 #include "base.h"
 
 #include "application.h"
+#include "metadata.h"
 #include "fx/fx.h"
 #include "fx/palette.h"
 
@@ -12,27 +13,22 @@ Response ServerBase::handle_packet_data(const uint8_t *buffer, uint16_t length) 
 
     const auto [header, data] = parseResponse.packet;
 
+    Response response;
     if (header->type >= PacketType::DISCOVERY) {
-        auto response = process_command(*header);
+        response = process_command(*header);
         if (response.is_ok() && header->type >= PacketType::POWER_OFF) app().update();
-
-        return response;
     } else if (header->type >= PacketType::PALETTE_LIST) {
-        auto response = process_data_request(*header);
+        response = process_data_request(*header);
         if (response.is_ok()) D_PRINTF("Data request %u, size: %u \n", (uint8_t) header->type, response.body.buffer.size);
-
-        return response;
     } else if (header->type >= PacketType::CALIBRATION_R) {
-        auto response = calibrate(*header, data);
+        response = calibrate(*header, data);
         if (response.is_ok()) {
             D_PRINTF("Color correction: %Xu\n", app().config.color_correction);
 
             app().config_storage.save();
         }
-
-        return response;
     } else {
-        auto response = update_parameter(*header, data);
+        response = update_parameter(*header, data);
         if (response.is_ok()) {
             if (header->type >= PacketType::NIGHT_MODE_ENABLED && header->type <= PacketType::NIGHT_MODE_INTERVAL) {
                 app().night_mode_manager.reset();
@@ -44,9 +40,16 @@ Response ServerBase::handle_packet_data(const uint8_t *buffer, uint16_t length) 
 
             app().update();
         }
-
-        return response;
     }
+
+    if (response.is_ok()) {
+        auto iter = PacketTypeMetadataMap.find(header->type);
+        if (iter != PacketTypeMetadataMap.end()) {
+            _app.event_property_changed.publish(this, iter->second.property);
+        }
+    }
+
+    return response;
 }
 
 Response ServerBase::update_parameter(const PacketHeader &header, const void *data) {

@@ -19,7 +19,20 @@ Application::Application(Storage<Config> &config_storage, Storage<PresetNames> &
         config(config_storage.get()), preset_names(preset_names_storage.get()),
         preset_configs(preset_configs_storage.get()), custom_palette_config(custom_palette_storage.get()),
         night_mode_manager(night_mode_manager),
-        wave_provider(wave_provider), spectrum_provider(spectrum_provider), parametric_provider(parametric_provider) {}
+        wave_provider(wave_provider), spectrum_provider(spectrum_provider), parametric_provider(parametric_provider) {
+
+    event_property_changed.subscribe(this, [this](auto sender, auto type, auto arg) {
+        if (sender == this) return;
+
+        if (type == NotificationProperty::COLOR) {
+            this->change_color(*(uint32_t *) arg);
+        } else if (type == NotificationProperty::NIGHT_MODE_ENABLED) {
+            this->night_mode_manager.reset();
+        }
+
+        this->load();
+    });
+}
 
 void Application::load() {
     const auto &preset = this->preset();
@@ -133,6 +146,37 @@ void Application::brightness_decrease() {
     if (!config_storage.is_pending_commit()) config_storage.save();
 
     D_PRINT("Decrease brightness");
+}
+
+void Application::change_color(uint32_t color) {
+    auto preset_index = preset_configs.count - 1;
+    auto &preset = preset_configs.presets[preset_index];
+
+    auto preset_name = "API Color";
+    memcpy(preset_names.names[preset_index], preset_name, std::min<uint8_t>(preset_names.length, strlen(preset_name)));
+
+    preset.color_effect = ColorEffectEnum::SOLID;
+    config.preset_id = preset_index;
+
+    auto hsv = rgb2hsv_approximate(color);
+    preset.speed = hsv.hue;
+    preset.scale = hsv.sat;
+
+    load();
+}
+
+uint32_t Application::current_color() {
+    auto preset_index = preset_configs.count - 1;
+    auto &preset = preset_configs.presets[preset_index];
+
+    if (preset.color_effect == ColorEffectEnum::SOLID) {
+        CRGB color{};
+        hsv2rgb_rainbow(CHSV(preset.speed, preset.scale, 255), color);
+
+        return static_cast<uint32_t>(color) & 0xffffff;
+    }
+
+    return 0xffffff;
 }
 
 SignalProvider *Application::signal_provider() const {
