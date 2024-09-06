@@ -1,9 +1,8 @@
 #include "color_effect.h"
 
-#include "sys_macro.h"
-
 #include "misc/led.h"
 #include "utils/palette.h"
+#include "utils/color.h"
 
 ColorEffectManager::ColorEffectManager() {
     static constexpr std::initializer_list<ColorEffectEntry> fx_init = {
@@ -81,7 +80,7 @@ void ColorEffectManager::solid(Led &led, ColorEffectState &state) {
             gamma_correction, gamma
     ] = state.params;
 
-    auto color = CHSV(speed, scale, 255);
+    auto color = HSLToRGB({speed, scale, 127});
 
     led.fill_solid(color);
     if (gamma_correction) led.apply_gamma_correction(gamma);

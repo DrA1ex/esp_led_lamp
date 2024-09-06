@@ -7,6 +7,7 @@
 #include "fx/palette.h"
 
 #include "misc/ntp_time.h"
+#include "utils/color.h"
 #include "utils/palette.h"
 
 
@@ -158,9 +159,14 @@ void Application::change_color(uint32_t color) {
     preset.color_effect = ColorEffectEnum::SOLID;
     config.preset_id = preset_index;
 
-    auto hsv = rgb2hsv_approximate(color);
-    preset.speed = hsv.hue;
-    preset.scale = hsv.sat;
+    auto rgb = CRGB(color);
+    auto hsv = RGBToHSL(color);
+
+    D_PRINTF("Change Color: RGB: #%0.2x%0.2x%0.2x, HSL: (%uº, %u%%, %u%%)\n", rgb.r, rgb.g, rgb.b,
+             hsv.h * 360 / 255, hsv.s * 100 / 255, hsv.l * 100 / 255);
+
+    preset.speed = hsv.h;
+    preset.scale = hsv.s;
 
     load();
 }
@@ -170,10 +176,7 @@ uint32_t Application::current_color() {
     auto &preset = preset_configs.presets[preset_index];
 
     if (preset.color_effect == ColorEffectEnum::SOLID) {
-        CRGB color{};
-        hsv2rgb_rainbow(CHSV(preset.speed, preset.scale, 255), color);
-
-        return static_cast<uint32_t>(color) & 0xffffff;
+        return HSLToRGB({preset.speed, preset.scale, 127});
     }
 
     return 0xffffff;

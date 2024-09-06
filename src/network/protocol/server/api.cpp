@@ -47,7 +47,8 @@ void ApiWebServer::begin(WebServer &server) {
 
             return response_with_json(request, JsonPropListT{
                     {"status", "ok"},
-                    {"value",  color}
+                    {"value",  color},
+                    {"rgb",    String(color, 16).c_str()}
             });
         }
 
