@@ -88,6 +88,7 @@ Customize the application for your specific settings by editing [src/constants.h
 
 Ensure the following are installed:
 
+0. Configure app first: [configuration](#configuration)
 1. [PlatformIO](https://platformio.org/?utm_source=platformio&utm_medium=piohome)
 2. [Node.js](https://nodejs.org)
 
