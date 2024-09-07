@@ -45,7 +45,7 @@
 #define AUDIO_WINDOW_DURATION                   (5000u)
 
 
-#define MQTT                                    (1u)                    // MQTT protocol Enabled
+#define MQTT                                    (0u)                    // MQTT protocol Enabled
 
 #define MQTT_CONNECTION_TIMEOUT                 (15000u)                // Connection attempt timeout to MQTT server
 #define MQTT_RECONNECT_TIMEOUT                  (5000u)                 // Time before new reconnection attempt to MQTT server
