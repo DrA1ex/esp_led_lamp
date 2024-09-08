@@ -2,7 +2,12 @@
 
 Beautifull ambient lighting for LED strips and matrices.
 
+<a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://dra1ex.github.io/esp-launchpad/config.toml">
+    <img alt="Try it with ESP Launchpad" src="https://espressif.github.io/esp-launchpad/assets/try_with_launchpad.png" width="250" height="70">
+</a>
+
 Инструкция на [русском](/README_RUSSIAN.md).
+
 
 <p align="center">
   <img alt="Animation" height="256" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/c33b63fe-1197-439c-8b91-698c3b74b915">
