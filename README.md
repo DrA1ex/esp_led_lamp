@@ -91,7 +91,7 @@ Customize the application for your specific settings by editing [src/constants.h
 
 ## Connection
 
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/b90a65db-6476-4eea-a3be-73a8a7115626">
+![image](https://github.com/user-attachments/assets/f4c72985-7994-4b61-8701-eda145155122)
 
 
 ## Firmware Installation
