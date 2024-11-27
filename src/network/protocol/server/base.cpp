@@ -32,10 +32,12 @@ Response ServerBase::handle_packet_data(const uint8_t *buffer, uint16_t length) 
         if (response.is_ok()) {
             if (header->type >= PacketType::NIGHT_MODE_ENABLED && header->type <= PacketType::NIGHT_MODE_INTERVAL) {
                 app().night_mode_manager.reset();
-            }
-
-            if (header->type == PacketType::UPDATE_CUSTOM_PALETTE) {
+            } else if (header->type == PacketType::UPDATE_CUSTOM_PALETTE) {
                 app().custom_palette_storage.save();
+            } else if (header->type == PacketType::PRESET_NAME) {
+                app().preset_names.custom[app().config.preset_id] = true;
+            } else if (header->type == PacketType::PALETTE || header->type == PacketType::COLOR_EFFECT) {
+                app().refresh_preset_name(app().config.preset_id);
             }
 
             app().update();
@@ -196,12 +198,12 @@ Response serialize_fx_config(const FxConfig<FxConfigEntry<C, V>> &config) {
         return Response::code(ResponseCode::INTERNAL_ERROR);
     }
 
-    return Response{ResponseType::BINARY, {.buffer = {.size = size, .data=buffer}}};
+    return Response{ResponseType::BINARY, {.buffer = {.size = size, .data = buffer}}};
 }
 
 template<typename T>
 Response serialize(const T &obj) {
-    return Response{ResponseType::BINARY, {.buffer = {.size = sizeof(obj), .data=(uint8_t *) &obj}}};
+    return Response{ResponseType::BINARY, {.buffer = {.size = sizeof(obj), .data = (uint8_t *) &obj}}};
 }
 
 Response ServerBase::process_data_request(const PacketHeader &header) {

@@ -69,11 +69,11 @@ struct __attribute ((packed)) __PresetNames {
     uint8_t length = S;
 
     char names[N][S] = {};
+    bool custom[N] = {};
 
     __PresetNames() {
-        for (int i = 0; i < N; ++i) {
-            sprintf(names[i], "Preset %i", i + 1);
-        }
+        memset(names, 0, sizeof(names));
+        memset(custom, 0, sizeof(custom));
     }
 };
 
@@ -82,9 +82,15 @@ struct __attribute ((packed)) PresetConfig {
     uint8_t scale = 190;
     uint8_t light = 128;
 
-    PaletteEnum palette = PaletteEnum::MAGIC_PLUM;
-    ColorEffectEnum color_effect = ColorEffectEnum::FIRE;
-    BrightnessEffectEnum brightness_effect = BrightnessEffectEnum::FIXED;
+    PaletteEnum palette;
+    ColorEffectEnum color_effect;
+    BrightnessEffectEnum brightness_effect;
+
+    PresetConfig() {
+        palette = (PaletteEnum) random((int) PaletteEnum::CUSTOM); // Exclude Custom
+        color_effect = (ColorEffectEnum) random((int) ColorEffectEnum::CHANGE_COLOR); // Exclude CHANGE_COLOR and SOLID
+        brightness_effect = BrightnessEffectEnum::FIXED;
+    }
 };
 
 template<uint8_t N>

@@ -106,7 +106,7 @@ void setup() {
     preset_configs_storage.begin(&LittleFS);
     custom_palette_storage.begin(&LittleFS);
 
-    app.load();
+    app.begin();
 
     led.set_power_limit(MATRIX_VOLTAGE, CURRENT_LIMIT);
     led.set_correction(app.config.color_correction);
@@ -209,9 +209,9 @@ void render() {
 
     //TODO: Refactor
     auto preset = app.preset();
-    const auto &audio_cfg = app.config.audio_config;
 
 #if AUDIO == ENABLED
+    const auto &audio_cfg = app.config.audio_config;
     bool audio_applied = true;
 
     if (audio_cfg.is_parametric()) {
@@ -300,8 +300,7 @@ void service_loop(void *) {
 
         case 1:
             wifi_manager.handle_connection();
-            if (wifi_manager.state() == WifiManagerState::CONNECTED)
-                state++;
+            if (wifi_manager.state() == WifiManagerState::CONNECTED) state++;
 
             break;
 
@@ -372,13 +371,13 @@ void button_on_click(uint8_t cnt) {
             break;
 
         case 2:
-            app.change_preset((app.config.preset_id + 1) % app.preset_names.count);
+            app.change_preset((app.config.preset_id + 1) % app.preset_configs.count);
             break;
 
         case 3:
             app.change_preset(app.config.preset_id > 0
-                              ? (app.config.preset_id - 1) % app.preset_names.count
-                              : app.preset_names.count - 1);
+                              ? (app.config.preset_id - 1) % app.preset_configs.count
+                              : app.preset_configs.count - 1);
             break;
 
         case 5:

@@ -34,6 +34,13 @@ Application::Application(Storage<Config> &config_storage, Storage<PresetNames> &
         this->load();
     });
 }
+void Application::begin() {
+    load();
+
+    for (int i = 0; i < preset_names.count; ++i) {
+        refresh_preset_name(i);
+    }
+}
 
 void Application::load() {
     const auto &preset = this->preset();
@@ -53,8 +60,8 @@ void Application::load() {
         set_palette(current_palette, palette->value.data, palette->value.size);
     }
 
-    if (config.preset_id >= preset_names.count) {
-        config.preset_id = preset_names.count - 1;
+    if (config.preset_id >= preset_configs.count) {
+        config.preset_id = preset_configs.count - 1;
     }
 
 #if GAMMA_CORRECTION_RT == DISABLED
@@ -86,6 +93,56 @@ void Application::update() {
     load();
 }
 
+void Application::refresh_preset_name(uint8 preset_id) {
+    if(preset_names.custom[preset_id]) return;
+
+    auto &preset = preset_configs.presets[preset_id];
+
+    const char *effect_name;
+    switch (preset.color_effect) {
+        case ColorEffectEnum::PERLIN:
+            effect_name = "Noise";
+            break;
+        case ColorEffectEnum::GRADIENT:
+            effect_name = "Gradient";
+            break;
+        case ColorEffectEnum::FIRE:
+            effect_name = "Fire";
+            break;
+        case ColorEffectEnum::AURORA:
+            effect_name = "Aurora";
+            break;
+        case ColorEffectEnum::PLASMA:
+            effect_name = "Plasma";
+            break;
+        case ColorEffectEnum::RIPPLE:
+            effect_name = "Ripple";
+            break;
+        case ColorEffectEnum::VELUM:
+            effect_name = "Velum";
+            break;
+        case ColorEffectEnum::PARTICLES:
+            effect_name = "Sparkles";
+            break;
+        case ColorEffectEnum::CHANGE_COLOR:
+            effect_name = "Colors";
+            break;
+        case ColorEffectEnum::SOLID:
+            effect_name = "Color";
+            break;
+        default:
+            effect_name = "Unknown";
+    }
+
+    if (preset.color_effect != ColorEffectEnum::SOLID) {
+        const char *palette_name = Palettes.entries[(int) preset.palette].name;
+        snprintf(preset_names.names[preset_id], preset_names.length,
+            "%s %s", palette_name, effect_name);
+    } else {
+        snprintf(preset_names.names[preset_id], preset_names.length, "Single Color");
+    }
+}
+
 void Application::change_state(AppState s) {
     state_change_time = millis();
     state = s;
@@ -112,7 +169,7 @@ void Application::set_power(bool on) {
 }
 
 void Application::change_preset(uint8_t preset_id) {
-    if (preset_id >= preset_names.count) return;
+    if (preset_id >= preset_configs.count) return;
 
     config.preset_id = preset_id;
     config_storage.save();
@@ -158,7 +215,8 @@ void Application::change_color(uint32_t color) {
     auto &preset = preset_configs.presets[preset_index];
 
     auto preset_name = "API Color";
-    memcpy(preset_names.names[preset_index], preset_name, std::min<uint8_t>(preset_names.length, strlen(preset_name)));
+    memcpy(preset_names.names[preset_index], preset_name, std::min<uint8_t>(preset_names.length, strlen(preset_name) + 1));
+    preset_names.custom[preset_index] = true;
 
     preset.color_effect = ColorEffectEnum::SOLID;
     preset.brightness_effect = BrightnessEffectEnum::FIXED;

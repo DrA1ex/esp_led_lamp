@@ -38,9 +38,13 @@ public:
                 NightModeManager &night_mode_manager,
                 SignalProvider *wave_provider, SignalProvider *spectrum_provider, SignalProvider *parametric_provider);
 
+    void begin();
+
     void change_state(AppState s);
     void load();
     void update();
+
+    void refresh_preset_name(uint8 preset_id);
 
     void set_power(bool on);
     void change_preset(uint8_t preset_id);
@@ -53,7 +57,7 @@ public:
 
     void restart();
 
-    inline PresetConfig &preset() { return preset_configs.presets[config.preset_id]; }
+    PresetConfig &preset() const { return preset_configs.presets[config.preset_id]; }
     [[nodiscard]] BrightnessSettings get_brightness_settings() const;
 
     SignalProvider *signal_provider() const;

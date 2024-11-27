@@ -3,7 +3,7 @@
 class WebLogger : public AsyncWebHandler {
     bool canHandle(AsyncWebServerRequest *request) override {
         D_PRINTF("WebServer: %s -> %s %s\n", request->client()->remoteIP().toString().c_str(),
-                 request->methodToString(), request->url().c_str());
+                 ((String)request->methodToString()).c_str(), request->url().c_str());
 
         return false;
     }
