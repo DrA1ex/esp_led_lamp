@@ -31,7 +31,7 @@ Application::Application(Storage<Config> &config_storage, Storage<PresetNames> &
             this->night_mode_manager.reset();
         }
 
-        this->load();
+        this->update();
     });
 }
 void Application::begin() {
