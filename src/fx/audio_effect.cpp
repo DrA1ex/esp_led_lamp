@@ -12,6 +12,8 @@ AudioEffectManager::AudioEffectManager() {
             {AudioEffectEnum::SPEED_CONTROL,     "Speed Control",   _none},
             {AudioEffectEnum::SCALE_CONTROL,     "Scale Control",   _none},
             {AudioEffectEnum::LIGHT_CONTROL,     "Light Control",   _none},
+            {AudioEffectEnum::BASS_MID_HIGH,     "Bass / Mid / High", _none},
+            {AudioEffectEnum::BEAT_REACTIVE,     "Beat-aware reactive", _none},
     };
 
     static_assert(check_entry_order(fx_init), "Order isn't valid: item index must be the same as the code");
