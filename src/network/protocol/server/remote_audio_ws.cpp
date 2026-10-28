@@ -37,17 +37,20 @@ void RemoteAudioSocket::onEvent(AsyncWebSocket *, AsyncWebSocketClient *client,
     }
     if (type != WS_EVT_DATA || !arg) return;
     const auto *info = static_cast<AwsFrameInfo *>(arg);
-    if (info->opcode != WS_TEXT && info->opcode != WS_BINARY) return;
-    const size_t maximum = info->opcode == WS_BINARY ? RemoteProtocol::FRAME_SIZE : sizeof(_fragments);
+    // Continuation frames carry opcode 0; use the opcode of their first fragment.
+    const uint8_t opcode = info->opcode == WS_CONTINUATION &&
+                           _fragment_client == client->id() ? _fragment_opcode : info->opcode;
+    if (opcode != WS_TEXT && opcode != WS_BINARY) return;
+    const size_t maximum = opcode == WS_BINARY ? RemoteProtocol::FRAME_SIZE : sizeof(_fragments);
     // WebSocket frame fragments are assembled in one statically bounded scratch area.
     // The owner is single-client; concurrent fragmented messages are rejected.
     if (info->num == 0 && info->index == 0) {
         if (_fragment_client && _fragment_client != client->id()) return;
         _fragment_client = client->id();
-        _fragment_opcode = info->opcode;
+        _fragment_opcode = opcode;
         _fragment_length = 0;
     }
-    if (_fragment_client != client->id() || _fragment_opcode != info->opcode ||
+    if (_fragment_client != client->id() || _fragment_opcode != opcode ||
         len > maximum || _fragment_length > maximum - len) {
         if (_fragment_client == client->id()) {
             _fragment_client = 0;
