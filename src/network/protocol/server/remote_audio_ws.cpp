@@ -150,13 +150,11 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
             reply(client, "error", "invalid_clock");
         } else {
             const int32_t offset = doc["offset_ms"].as<int32_t>();
-            if (offset < -2000000000L || offset > 2000000000L) {
-                reply(client, "error", "invalid_clock");
-            } else {
-                const uint32_t rtt = doc["rtt_ms"] | uint32_t(0);
-                _audio.timeline().setClock(offset, rtt);
-                reply(client, "clock_ack");
-            }
+            // The full signed 32-bit modular offset is valid even if the host
+            // has been up for weeks before the ESP8266 boots.
+            const uint32_t rtt = doc["rtt_ms"] | uint32_t(0);
+            _audio.timeline().setClock(offset, rtt);
+            reply(client, "clock_ack");
         }
     } else if (strcmp(type, "config") == 0) {
         if (configure(doc)) reply(client, "config_ack");
