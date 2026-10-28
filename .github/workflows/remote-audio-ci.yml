@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: remote-audio-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   protocol:
     runs-on: ubuntu-latest
@@ -37,6 +41,7 @@ jobs:
       - name: Compile dual-source variant (local ADC + remote audio)
         run: pio run -e local-audio
       - name: Publish test firmware artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: esp8266-remote-audio-firmware
