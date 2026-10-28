@@ -37,21 +37,68 @@ For iOS:
 
 ## Configuration
 
-Configure credentials by editing [src/credentials.h](src/credentials.h).
+Use device presets to keep credentials and hardware settings outside the source files.
+
+1. Copy [presets/credentials.example.ini](presets/credentials.example.ini) to
+   `presets/credentials.ini` and enter your shared Wi-Fi, web and MQTT credentials.
+2. Copy [presets/device.example.ini](presets/device.example.ini) to, for example,
+   `presets/ceiling.ini` and enter that device's settings.
+3. Build or flash with `--preset ceiling`; see [upload commands](#uploading-firmware).
+
+Local `presets/*.ini` files are ignored by Git; only `*.example.ini` templates are
+versioned. Keep actual passwords out of templates. The old `src/_override/*.h`
+files are no longer included.
+
+```ini
+[firmware]
+WIFI_MODE = WIFI_STA_MODE
+MDNS_NAME = "ceiling_lamp"
+WIDTH = 153
+HEIGHT = 1
+LED_COLOR_ORDER = RGB
+CURRENT_LIMIT = 2000
+MQTT = true
+WEB_AUTH = true
+
+[upload]
+# Optional; otherwise OTA uses ceiling_lamp.local.
+# ota_host = "192.168.1.42"
+# Optional; otherwise USB uses automatic serial port detection.
+# usb_port = "COM3"
+```
+
+INI files use `NAME = value`: double-quoted strings, unquoted numbers, `true` /
+`false`, or firmware symbols such as `WIFI_STA_MODE`, `DISABLED`, `WS2812B` and
+`RGB`. Quoted strings use JSON-style escaping (`\"` for a quote, `\\` for a
+backslash); spaces, `#`, `;` and `%` inside strings are preserved. Put comments on
+separate lines beginning with `#` or `;`, not after values. Setting names are case
+sensitive; unknown settings stop the build. `WEB_AUTH = false` disables web
+authentication.
+
+Settings are applied in this order: defaults in `src/constants.h`,
+`src/credentials.h` and `src/sys_constants.h` → shared `presets/credentials.ini`
+(if present) → the selected device INI. A device can override any shared setting.
+Use `--credentials presets/work.ini` to choose a different shared file.
+Firmware keys correspond to the existing `#define` names in those three headers.
+Without a preset, PlatformIO uses the defaults plus shared credentials if present.
+Generated headers and firmware are stored under `.pio/build/<environment>/presets/<name>/`
+for selected presets; changing a preset or credentials rebuilds the affected firmware.
+
+The following tables describe the defaults, which can be overridden in `[firmware]`.
 
 | Parameter          | Description                                     | Default         |
 |--------------------|-------------------------------------------------|-----------------|
 | `WIFI_SSID`        | The SSID of the Wi-Fi network to connect to     | "ESP_LED"       |
 | `WIFI_PASSWORD`    | The password for the Wi-Fi network               | "12345678"      |
-| `WEBAUTH_USER`     | Username for web authentication                  | "esp_led"       |
-| `WEBAUTH_PASSWORD` | Password for web authentication                  | "password"      |
+| `AUTH_USER`        | Username for web authentication                  | "esp_lamp"      |
+| `AUTH_PASSWORD`    | Password for web authentication                  | "password"      |
 | `MQTT_HOST`        | Hostname or IP address for the MQTT broker      | "example.com"   |
 | `MQTT_PORT`        | Port number for the MQTT broker                  | 1234            |
 | `MQTT_USER`        | Username for MQTT authentication                 | "esp_user"      |
 | `MQTT_PASSWORD`    | Password for MQTT authentication                 | "esp_pass"      |
 
 
-Customize the application for your specific settings by editing [src/constants.h](src/constants.h).
+Hardware and application defaults are defined in [src/constants.h](src/constants.h).
 
 | Parameter                             | Description                                                       | Default           |
 |---------------------------------------|-------------------------------------------------------------------|-------------------|
@@ -106,11 +153,45 @@ Ensure the following are installed:
 
 ### Uploading Firmware
 
-For uploading the firmware, execute the following commands:
+Run from the repository root. The Python wrapper works on Windows, macOS and
+Linux without Bash or additional Python packages; PlatformIO's `pio` must be on
+`PATH`. Use your Python 3 command (`python`, `python3`, or `py -3` on Windows).
+
+```sh
+# Build only (does not flash a device).
+python tools/firmware.py --preset ceiling
+
+# Build and upload over USB/UART (auto-detect the serial port).
+python tools/firmware.py --preset ceiling --upload usb
+
+# Select a serial port explicitly (Windows example).
+python tools/firmware.py --preset ceiling --upload usb --port COM3
+
+# Build and upload over Wi-Fi to MDNS_NAME.local or [upload] ota_host.
+python tools/firmware.py --preset ceiling --upload ota
+
+# Override the destination for this upload only.
+python tools/firmware.py --preset ceiling --upload ota --port 192.168.1.42
+
+# Different shared credentials or build environment.
+python tools/firmware.py --preset ceiling --credentials presets/work.ini --environment debug
+```
+
+An explicit `--port` takes priority over `[upload]`. USB never uses `MDNS_NAME`.
+For the first flash, use USB and `WIFI_MODE = WIFI_STA_MODE` with valid Wi-Fi
+credentials. OTA requires a reachable device already running OTA-capable firmware
+on the same network. If renaming `MDNS_NAME`, set `ota_host` to the device's
+**current** hostname/IP for that upload. `test` and `torus` in the old local
+profiles share a hostname; give devices unique names if using both simultaneously.
+
+For PlatformIO IDE buttons or direct `pio run`, add `custom_preset = ceiling`
+under `[env]` in `platformio.ini` (or set the `LAMP_PRESET` environment variable).
+The same build hook selects the credentials and OTA address. Without this setting,
+the commands below use the default configuration:
 
 - For wire USB upload:
 ```sh
-pio run -e release
+pio run -e release -t upload
 ```
 
 - For OTA upload with default address (`esp_lamp.local`):
@@ -124,6 +205,17 @@ pio run -e ota -t upload --upload-port esp_lamp_2.local
 ```
 
 ### Uploading File System
+
+Once the WebUI has been built and compressed into `data/` using the steps below,
+the same preset selection also works for filesystem images:
+
+```sh
+python tools/firmware.py --preset ceiling --filesystem
+python tools/firmware.py --preset ceiling --filesystem --upload usb
+python tools/firmware.py --preset ceiling --filesystem --upload ota
+```
+
+These commands use the existing `data/`; they do not build or compress the WebUI.
 
 To upload the file system, follow these steps:
 

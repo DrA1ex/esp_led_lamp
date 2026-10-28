@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate device presets and upload selection
+        run: python3 -m unittest discover -s tests -p test_presets.py
       - name: Compile and execute native parser tests
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_audio_protocol.cpp -o /tmp/remote_audio_parser
