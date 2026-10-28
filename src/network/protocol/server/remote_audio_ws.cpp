@@ -93,7 +93,16 @@ void RemoteAudioSocket::onEvent(AsyncWebSocket *, AsyncWebSocketClient *client,
     memcpy(_fragments + _fragment_length, data, len);
     _fragment_length += len;
     if (info->final && info->index + len == info->len) {
-        enqueue(client->id(), _fragment_opcode, _fragments, _fragment_length);
+        if (_fragment_opcode == WS_BINARY) {
+            // The stream can burst ~12 frames within its 240 ms lookahead.
+            // Keep the binary fast path allocation-free rather than funneling
+            // it through the tiny, control-only JSON inbox.
+            RemoteProtocol::Frame frame;
+            if (RemoteProtocol::decode(_fragments, _fragment_length, frame))
+                _audio.receive(client->id(), frame);
+        } else {
+            enqueue(client->id(), _fragment_opcode, _fragments, _fragment_length);
+        }
         _fragment_client = 0;
         _fragment_length = 0;
     }
