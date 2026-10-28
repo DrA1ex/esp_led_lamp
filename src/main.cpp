@@ -295,7 +295,8 @@ void render() {
             case AudioEffectEnum::SPEED_CONTROL: {
                 preset.speed = value;
 #if REMOTE_AUDIO == ENABLED
-                // Lab "Speed floor": keeps e.g. Gradient (neutral at 128) moving.
+                // Optional speed floor from older lab versions (current ones send 0
+                // and use audio_min / the signal window instead).
                 const uint8_t speed_floor = remote_active ? remote_audio.overrides().tuning.speed_floor : 0;
                 if (speed_floor > 0) preset.speed = speed_floor + value * (255 - speed_floor) / 255;
 #endif

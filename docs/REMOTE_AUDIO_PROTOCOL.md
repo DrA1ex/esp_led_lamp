@@ -57,7 +57,7 @@ defaults to 0 on `hello`, which reproduces the stock firmware effects):
 | Field | Range | Effect |
 |---|---|---|
 | `param_source` | 0–7 | Value driving Brightness, Line, Line Center, Speed/Scale/Light: 0 `rms` (loudness), 1 spectral activity (0.45 · strongest band + 0.55 · mean, ×1.55), 2 `bass`, 3 `mid`, 4 `high`, 5 `peak`, 6 onset envelope, 7 predicted beat pulse |
-| `speed_floor` | 0–255 | Speed Control result is mapped into `floor..255` (Gradient stops at 128) |
+| `speed_floor` | 0–255 | Speed Control result is mapped into `floor..255` (Gradient stops at 128). The current lab sends 0 and sets the lower bound through `audio_min` and the signal window, so a gated reaction can stop the effect |
 | `spectrum_shape` | 0–100 % | Wave/Spectrum brightness blends from `dim8_raw` towards `0.25·v + 0.75·√v` |
 | `spectrum_onset` | 0–100 % | Wave/Spectrum columns add `0.22 · onset envelope` of their low/mid/high group |
 | `input_min`, `input_max` | 0–255, `min < max` | Signal window: the input range (of the provider maximum) stretched onto `audio_min..audio_max`; above `input_max` gives `audio_max` |
