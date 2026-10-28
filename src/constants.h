@@ -38,8 +38,12 @@
                                                                         // when disabled - gamma correction will be applied to palette
 
 
+#ifndef REMOTE_AUDIO
 #define REMOTE_AUDIO                            ENABLED                  // Independent of local microphone
+#endif
+#ifndef AUDIO
 #define AUDIO                                   DISABLED
+#endif
 #define AUDIO_PIN                               (0u)
 #define AUDIO_GAIN                              (1u)
 #define AUDIO_GATE                              (1u)
