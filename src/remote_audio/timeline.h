@@ -58,6 +58,7 @@ public:
         // Rebase the still-buffered frames rather than changing times mid-stream.
         const uint32_t adjust = static_cast<uint32_t>(offset_ms) - static_cast<uint32_t>(_offset_ms);
         for (uint8_t i = 0; i < _size; ++i) _frames[i].local_time += adjust;
+        if (_current_valid) _current.local_time += adjust;
         _offset_ms = offset_ms;
         _clock_valid = true;
         _stats.clock_offset_ms = static_cast<uint32_t>(offset_ms);
