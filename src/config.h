@@ -44,7 +44,7 @@ struct __attribute ((packed)) AudioConfig {
 
     [[nodiscard]] inline bool is_wave() const { return enabled && effect >= AudioEffectEnum::WAVE && effect < AudioEffectEnum::SPECTRUM; }
     [[nodiscard]] inline bool is_spectrum() const {return enabled && effect >= AudioEffectEnum::SPECTRUM && effect < AudioEffectEnum::BRIGHTNESS;}
-    [[nodiscard]] inline bool is_parametric() const { return enabled && effect >= AudioEffectEnum::BRIGHTNESS; }
+    [[nodiscard]] inline bool is_parametric() const { return enabled && effect >= AudioEffectEnum::BRIGHTNESS && effect <= AudioEffectEnum::LIGHT_CONTROL; }
 };
 
 struct __attribute ((packed)) Config {
