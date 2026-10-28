@@ -29,7 +29,7 @@ jobs:
           g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_reactive.cpp -o /tmp/remote_audio_reactive
           /tmp/remote_audio_reactive
       - name: Validate synthetic sender
-        run: python3 -m py_compile tools/remote_audio_sender.py
+        run: python3 -m py_compile tools/remote_audio_sender.py tools/ws_idle_soak.py
 
   firmware:
     runs-on: ubuntu-latest
