@@ -2,6 +2,7 @@
 #include "constants.h"
 #if REMOTE_AUDIO == ENABLED
 #include <ESPAsyncWebServer.h>
+#include <ArduinoJson.h>
 #include "network/web.h"
 #include "remote_audio/controller.h"
 #include "application.h"
