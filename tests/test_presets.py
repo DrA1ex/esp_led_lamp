@@ -15,7 +15,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 import firmware as cli
-from presets import PresetError, load_preset, render_header, upload_port
+from presets import PresetError, device_presets, load_preset, render_header, upload_port
 
 
 class BuildEnv(dict):
@@ -111,6 +111,7 @@ class PresetTests(unittest.TestCase):
             '[unknown]\nWIDTH = 5',
             '[upload]\nport = COM3',
             '[upload]\nota_host = ""',
+            '[upload]\nbatch = perhaps',
             '[firmware]\nWEB_AUTH = DISABLED',
             'super-secret-invalid-syntax',
         ]
@@ -130,7 +131,7 @@ class PresetTests(unittest.TestCase):
         self.hook(env, {"LAMP_PRESET": "lamp", "LAMP_UPLOAD_METHOD": "ota"})
         self.assertEqual(env["UPLOAD_PORT"], "192.168.1.90")
         self.assertEqual(env["UPLOAD_PROTOCOL"], "espota")
-        self.assertEqual(Path(env["BUILD_DIR"]).parts[-2:], ("presets", "lamp"))
+        self.assertEqual(Path(env["BUILD_DIR"]), self.root / ".pio/build/release")
         self.assertIn("#define WIDTH 46", (Path(env["CPPPATH"][0]) / "lamp_preset.h").read_text())
 
     def test_direct_platformio_custom_preset_and_header_refresh(self):
@@ -150,14 +151,21 @@ class PresetTests(unittest.TestCase):
         self.assertIn("#define WIDTH 50", header.read_text())
         self.assertNotIn("MDNS_NAME", header.read_text())
 
+        self.write("other", '[firmware]\nWIDTH = 7\n')
+        other = BuildEnv(self.root)
+        self.hook(other, {"LAMP_PRESET": "other"})
+        self.assertEqual(other["BUILD_DIR"], env["BUILD_DIR"])
+        self.assertEqual(other["CPPPATH"], env["CPPPATH"])
+        self.assertIn("#define WIDTH 7", header.read_text())
+
     def test_cli_build_and_upload_routing_without_invoking_an_uploader(self):
         self.write("lamp", '[firmware]\nMDNS_NAME = "lamp"\n[upload]\nusb_port = "COM7"\n')
         cases = [
             ([], "release", None, None),
             (["--upload", "usb"], "release", "upload", "COM7"),
-            (["--upload", "ota"], "ota", "upload", "lamp.local"),
-            (["--upload", "ota", "--port", "192.168.1.42"], "ota", "upload", "192.168.1.42"),
-            (["--filesystem", "--upload", "ota"], "ota", "uploadfs", "lamp.local"),
+            (["--upload", "ota"], "release", "upload", "lamp.local"),
+            (["--upload", "ota", "--port", "192.168.1.42"], "release", "upload", "192.168.1.42"),
+            (["--filesystem", "--upload", "ota"], "release", "uploadfs", "lamp.local"),
             (["--filesystem"], "release", "buildfs", None),
             (["--upload", "ota", "--environment", "debug"], "debug", "upload", "lamp.local"),
         ]
@@ -165,18 +173,160 @@ class PresetTests(unittest.TestCase):
             with self.subTest(args=args), patch.object(cli, "ROOT", self.root), \
                     patch.object(sys, "argv", ["firmware.py", "--preset", "lamp"] + args), \
                     patch.object(cli.shutil, "which", return_value="pio"), \
-                    patch.object(cli.subprocess, "call", return_value=17) as call, \
+                    patch.object(cli, "run_stage", return_value=0) as call, \
                     patch.dict(os.environ, {"LAMP_CREDENTIALS": "stale.ini", "LAMP_UPLOAD_METHOD": "usb"}), \
                     contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(cli.main(), 17)
+                self.assertEqual(cli.main(), 0)
                 command = call.call_args.args[0]
                 self.assertEqual(command[command.index("-e") + 1], environment)
-                self.assertEqual(command[command.index("-t") + 1] if "-t" in command else None, target)
+                targets = [command[i + 1] for i, part in enumerate(command) if part == "-t"]
+                self.assertEqual(targets, (["nobuild", target] if "--upload" in args else [target] if target else []))
                 self.assertEqual(command[command.index("--upload-port") + 1] if port else None, port)
-                process_env = call.call_args.kwargs["env"]
+                process_env = call.call_args.args[1]
                 self.assertEqual(process_env["LAMP_PRESET"], "lamp")
                 self.assertNotIn("LAMP_CREDENTIALS", process_env)
-                self.assertNotIn("shell", call.call_args.kwargs)
+                if "--upload" in args:
+                    self.assertEqual(call.call_count, 2)
+                    self.assertIn("nobuild", command)
+                    self.assertNotIn("--upload-port", call.call_args_list[0].args[0])
+                    self.assertEqual(process_env["LAMP_UPLOAD_METHOD"], args[args.index("--upload") + 1])
+                else:
+                    self.assertEqual(call.call_count, 1)
+                    self.assertNotIn("LAMP_UPLOAD_METHOD", process_env)
+
+    def run_cli(self, args):
+        with patch.object(cli, "ROOT", self.root), \
+                patch.object(sys, "argv", ["firmware.py"] + args), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            code = cli.main()
+        return code, output.getvalue()
+
+    def test_batch_discovers_only_devices_and_honors_opt_out_and_exclusions(self):
+        self.write("zebra", '[firmware]\nMDNS_NAME = "zebra"\n')
+        self.write("alpha", '[firmware]\nMDNS_NAME = "alpha"\n')
+        self.write("device.example", '[firmware]\nMDNS_NAME = "template"\n')
+        self.write("work", '[firmware]\nWIFI_SSID = "work"\n')
+        self.write("credentials", '[firmware]\nWIFI_SSID = "home"\n')
+        self.write("disabled", '[firmware]\nMDNS_NAME = "disabled"\n[upload]\nbatch = false\n')
+        self.assertEqual(device_presets(self.root), ["alpha", "zebra"])
+        self.assertEqual(device_presets(self.root, exclude=["alpha"]), ["zebra"])
+        values, _ = load_preset(self.root, "disabled")
+        self.assertEqual(values["MDNS_NAME"], '"disabled"')
+        for selector in ("all", "*"):
+            with patch.object(cli.shutil, "which", side_effect=AssertionError("dry run must not need pio")):
+                code, output = self.run_cli(["--preset", selector, "--upload", "ota", "--dry-run"])
+            self.assertEqual(code, 0)
+            self.assertIn("[1/2] alpha -> alpha.local", output)
+            self.assertIn("[2/2] zebra -> zebra.local", output)
+        self.assertFalse((self.root / ".pio").exists())
+
+        # A chosen shared file is never mistaken for a device, even with mDNS defaults.
+        shared = self.write("office", '[firmware]\nMDNS_NAME = "office_default"\n')
+        self.assertNotIn("office", device_presets(self.root, shared))
+
+    def test_batch_preflight_rejects_duplicate_targets_before_any_build(self):
+        self.write("one", '[firmware]\nMDNS_NAME = "same"\n')
+        self.write("two", '[firmware]\nMDNS_NAME = "SAME"\n')
+        with patch.object(cli, "run_stage") as stage, contextlib.redirect_stderr(io.StringIO()) as error:
+            with self.assertRaises(SystemExit) as caught:
+                self.run_cli(["--preset", "all", "--upload", "ota"])
+        self.assertEqual(caught.exception.code, 2)
+        self.assertIn("both target", error.getvalue())
+        stage.assert_not_called()
+        code, output = self.run_cli(["--preset", "all", "--upload", "ota", "--exclude", "two", "--dry-run"])
+        self.assertEqual(code, 0)
+        self.assertIn("[1/1] one", output)
+
+    def test_batch_is_sequential_continues_failures_and_never_uploads_failed_build(self):
+        for name in ("alpha", "beta", "gamma"):
+            self.write(name, '[firmware]\nMDNS_NAME = "' + name + '"\n')
+        calls = []
+
+        def stage(command, process_env, log, verbose=False, uploading=False):
+            name = process_env["LAMP_PRESET"]
+            calls.append((name, uploading))
+            # alpha upload fails, beta build fails, gamma still succeeds.
+            return int((name == "alpha" and uploading) or name == "beta")
+
+        with patch.object(cli, "run_stage", side_effect=stage), \
+                patch.object(cli.shutil, "which", return_value="pio"):
+            code, output = self.run_cli(["--preset", "all", "--upload", "ota"])
+        self.assertEqual(code, 1)
+        self.assertEqual(calls, [("alpha", False), ("alpha", True), ("beta", False), ("gamma", False), ("gamma", True)])
+        self.assertIn("1 succeeded, 2 failed, 0 skipped", output)
+        self.assertIn("Failed: alpha, beta", output)
+        self.assertEqual(len(list((self.root / ".pio/logs").glob("*/*.log"))), 3)
+        calls.clear()
+        with patch.object(cli, "run_stage", side_effect=stage), \
+                patch.object(cli.shutil, "which", return_value="pio"):
+            code, output = self.run_cli(["--preset", "all", "--upload", "ota", "--fail-fast"])
+        self.assertEqual(calls, [("alpha", False), ("alpha", True)])
+        self.assertIn("2 skipped", output)
+
+    def test_invalid_batch_options_and_missing_devices_do_not_start_pio(self):
+        self.write("lamp", '[firmware]\nMDNS_NAME = "lamp"\n')
+        cases = [
+            ["--preset", "all", "--upload", "usb"],
+            ["--preset", "all", "--upload", "ota", "--port", "192.168.1.2"],
+            ["--preset", "all", "--exclude", "typo"],
+            ["--preset", "all", "--exclude", "lamp"],
+            ["--preset", "lamp", "--exclude", "lamp"],
+            ["--preset", "lamp", "--port", "COM1"],
+        ]
+        for args in cases:
+            with self.subTest(args=args), patch.object(cli, "run_stage") as stage, \
+                    contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                self.run_cli(args)
+            stage.assert_not_called()
+
+    def test_compact_logging_retains_warnings_and_verbose_shows_them(self):
+        command = [sys.executable, "-c", 'print("warning: noisy"); print("Uploading: 25%"); print("Uploading: 100%")']
+        log = io.StringIO()
+        with patch.object(cli, "ROOT", self.root), contextlib.redirect_stdout(io.StringIO()) as output:
+            code = cli.run_stage(command, os.environ.copy(), log, uploading=True)
+        self.assertEqual(code, 0)
+        self.assertNotIn("warning:", output.getvalue())
+        self.assertIn("Upload: 100%", output.getvalue())
+        self.assertIn("warning: noisy", log.getvalue())
+        with patch.object(cli, "ROOT", self.root), contextlib.redirect_stdout(io.StringIO()) as output:
+            cli.run_stage(command, os.environ.copy(), io.StringIO(), verbose=True)
+        self.assertIn("warning: noisy", output.getvalue())
+
+        failing = [sys.executable, "-c", 'print("warning: noisy"); print("Error: unavailable"); raise SystemExit(7)']
+        log = io.StringIO()
+        with patch.object(cli, "ROOT", self.root), contextlib.redirect_stdout(io.StringIO()) as output:
+            code = cli.run_stage(failing, os.environ.copy(), log)
+        self.assertEqual(code, 7)
+        self.assertIn("Error: unavailable", output.getvalue())
+        self.assertNotIn("warning: noisy", output.getvalue())
+        self.assertIn("warning: noisy", log.getvalue())
+
+    def test_interruption_terminates_child_and_does_not_advance_batch(self):
+        process = unittest.mock.MagicMock()
+        process.stdout.__iter__.side_effect = KeyboardInterrupt
+        process.poll.return_value = None
+        with patch.object(cli.subprocess, "Popen", return_value=process), self.assertRaises(KeyboardInterrupt):
+            cli.run_stage(["pio"], {}, io.StringIO())
+        process.terminate.assert_called_once()
+        process.stdout.close.assert_called_once()
+        for name in ("alpha", "beta"):
+            self.write(name, '[firmware]\nMDNS_NAME = "' + name + '"\n')
+        with patch.object(cli, "run_stage", side_effect=KeyboardInterrupt) as stage, \
+                patch.object(cli.shutil, "which", return_value="pio"):
+            code, output = self.run_cli(["--preset", "all", "--upload", "ota"])
+        self.assertEqual(code, 130)
+        self.assertEqual(stage.call_count, 1)
+        self.assertIn("INTERRUPTED", output)
+
+    def test_build_lock_rejects_overlap_and_releases_on_error(self):
+        with self.assertRaises(RuntimeError):
+            with cli.build_lock(self.root):
+                with self.assertRaises(PresetError):
+                    with cli.build_lock(self.root):
+                        self.fail("overlapping shared builds must be rejected")
+                raise RuntimeError("test")
+        with cli.build_lock(self.root):
+            pass
 
 
 if __name__ == "__main__":

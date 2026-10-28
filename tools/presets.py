@@ -13,8 +13,8 @@ class PresetError(ValueError):
 def preset_path(root, name):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", name):
         raise PresetError("Preset names may contain only letters, digits, '_' and '-'.")
-    if name == "credentials":
-        raise PresetError("'credentials' is reserved for shared credentials.")
+    if name in ("credentials", "all"):
+        raise PresetError("'credentials' and 'all' are reserved names.")
     return Path(root) / "presets" / (name + ".ini")
 
 
@@ -73,6 +73,11 @@ def read_config(path, settings):
     if parser.has_section("upload"):
         for key, value in parser.items("upload"):
             location = str(path) + ': ' + key
+            if key == "batch":
+                if value.lower() not in ("true", "false"):
+                    raise PresetError(location + ': use true or false.')
+                upload[key] = value.lower() == "true"
+                continue
             if key not in ("ota_host", "usb_port"):
                 raise PresetError(location + ': unknown upload setting.')
             # Upload destinations are always strings, with optional quotes.
@@ -88,7 +93,7 @@ def read_config(path, settings):
 
 
 def load_preset(root, name="", credentials=None):
-    root = Path(root)
+    root = Path(root).resolve()
     settings = known_settings(root)
     firmware, upload = {}, {}
     shared = Path(credentials) if credentials else root / "presets" / "credentials.ini"
@@ -101,6 +106,27 @@ def load_preset(root, name="", credentials=None):
         firmware.update(device)
         upload.update(destination)
     return firmware, upload
+
+
+def device_presets(root, credentials=None, exclude=()):
+    """Discover devices, excluding templates and files containing only credentials."""
+    root = Path(root).resolve()
+    shared = Path(credentials).resolve() if credentials else root / "presets/credentials.ini"
+    settings = known_settings(root)
+    devices = []
+    for path in sorted((root / "presets").glob("*.ini")):
+        if (path.name.endswith(".example.ini") or path.stem == "credentials"
+                or path.resolve() == shared or path.stem in exclude):
+            continue
+        firmware, upload = read_config(path, settings)
+        if not upload.get("batch", True):
+            continue
+        if "MDNS_NAME" in firmware or "ota_host" in upload:
+            preset_path(root, path.stem)
+            devices.append(path.stem)
+    if not devices:
+        raise PresetError("No device presets found. Each device needs MDNS_NAME or [upload] ota_host.")
+    return devices
 
 
 def render_header(firmware):

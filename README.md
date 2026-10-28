@@ -81,8 +81,11 @@ Settings are applied in this order: defaults in `src/constants.h`,
 Use `--credentials presets/work.ini` to choose a different shared file.
 Firmware keys correspond to the existing `#define` names in those three headers.
 Without a preset, PlatformIO uses the defaults plus shared credentials if present.
-Generated headers and firmware are stored under `.pio/build/<environment>/presets/<name>/`
-for selected presets; changing a preset or credentials rebuilds the affected firmware.
+All presets in the same environment share `.pio/build/<environment>/`. Changing
+the generated configuration header rebuilds its dependent sources; unchanged
+libraries and Arduino framework objects are reused. The firmware image in this
+directory belongs to the last built preset. The wrapper defaults to `release`
+for both USB and OTA; `debug` and `local-audio` retain separate build directories.
 
 The following tables describe the defaults, which can be overridden in `[firmware]`.
 
@@ -177,6 +180,48 @@ python tools/firmware.py --preset ceiling --upload ota --port 192.168.1.42
 python tools/firmware.py --preset ceiling --credentials presets/work.ini --environment debug
 ```
 
+### Updating multiple devices
+
+```sh
+# Preview the complete OTA plan without building or uploading.
+python tools/firmware.py --preset all --upload ota --dry-run
+
+# Build and update devices sequentially, using each preset's OTA address.
+python tools/firmware.py --preset all --upload ota
+
+# Skip a device (repeat --exclude to skip several).
+python tools/firmware.py --preset all --upload ota --exclude test
+
+# '*' means the same as all; quote it to prevent shell expansion.
+python tools/firmware.py --preset "*" --upload ota
+
+# Build every device without uploading.
+python tools/firmware.py --preset all
+```
+
+`all` selects local INI files in alphabetical order that declare `MDNS_NAME` in
+`[firmware]` or `ota_host` in `[upload]`. Templates, shared `credentials.ini`, the
+explicit `--credentials` file and files containing only credentials are excluded.
+To permanently omit a device from `all`, add `batch = false` under its `[upload]`
+section; it can still be selected by name. Batch uploads support OTA only;
+`--port` is available for a single device.
+
+The complete plan is validated before any build or upload. Duplicate configured
+OTA addresses stop the batch: for the migrated `test`/`torus` profiles, use
+`--exclude test` or `--exclude torus`, or mark one `batch = false`. Each device is
+built and then uploaded before starting the next device. A failed build is never
+uploaded. Device failures are reported and the remaining devices continue;
+`--fail-fast` stops on the first failure. The final summary lists failures and the
+command returns a nonzero exit code if any device failed. Ctrl+C stops the batch.
+`--filesystem` also works with `all`, using the existing WebUI files in `data/`.
+
+Preset commands show compact build/upload stages, occasional progress and a final
+summary. Warnings and full PlatformIO output are saved per device in
+`.pio/logs/<run>/<preset>.log`. Use `--verbose` to show detailed output in the
+terminal. Uploads reuse the just-built image without compiling it a second time.
+The wrapper locks its shared build during a run; run direct `pio` commands
+sequentially with it as well.
+
 An explicit `--port` takes priority over `[upload]`. USB never uses `MDNS_NAME`.
 For the first flash, use USB and `WIFI_MODE = WIFI_STA_MODE` with valid Wi-Fi
 credentials. OTA requires a reachable device already running OTA-capable firmware
@@ -186,7 +231,10 @@ profiles share a hostname; give devices unique names if using both simultaneousl
 
 For PlatformIO IDE buttons or direct `pio run`, add `custom_preset = ceiling`
 under `[env]` in `platformio.ini` (or set the `LAMP_PRESET` environment variable).
-The same build hook selects the credentials and OTA address. Without this setting,
+The same build hook selects the credentials and OTA address. Direct `pio` calls
+keep PlatformIO's standard output; `all` and compact output use the Python wrapper.
+The legacy `ota` environment still has its own build directory; use the wrapper's
+default `release` environment to share builds between USB and OTA. Without a preset setting,
 the commands below use the default configuration:
 
 - For wire USB upload:

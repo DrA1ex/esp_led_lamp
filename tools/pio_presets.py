@@ -17,9 +17,7 @@ def configure(build_env):
     firmware, destination = load_preset(root, name, credentials)
 
     build_dir = Path(build_env.subst("$BUILD_DIR"))
-    if name:
-        build_dir = build_dir / "presets" / name
-        build_env.Replace(BUILD_DIR=str(build_dir))
+    # Stable paths let SCons reuse library objects and rebuild header dependants.
     include_dir = build_dir / "config"
     include_dir.mkdir(parents=True, exist_ok=True)
     header = include_dir / "lamp_preset.h"
