@@ -28,7 +28,7 @@ inline void apply(Led &led, const RemoteAudioController &controller, AudioEffect
             const uint8_t lower = bassMidHigh(band, f.bass, f.mid, f.high,
                                                pulses[0], pulses[1], pulses[2], false, mix);
             for (uint16_t y = 0; y < height; ++y)
-                led.get_pixel(x, y).nscale8(y < height / 2 ? upper : lower);
+                led.get_pixel(x, y).nscale8(uint32_t(y) * 2 < height ? upper : lower);
         }
     }
 }
