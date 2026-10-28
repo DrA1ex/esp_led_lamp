@@ -11,6 +11,7 @@ class RemoteAudioSocket {
     AsyncWebSocket _ws{"/audio"};
     RemoteAudioController &_audio;
     Application &_app;
+    uint32_t _lab_client = 0;
     uint8_t _fragments[512] = {};
     uint32_t _fragment_client = 0;
     uint8_t _fragment_opcode = 0;
