@@ -155,3 +155,17 @@ cd ..
 ```sh
 pio run -t uploadfs -e ota
 ```
+
+
+## Experimental remote audio DSP (feature branch)
+
+The `feature/remote-audio-dsp` branch adds the independent WebSocket
+`/audio` receiver for timestamped desktop DSP features (no ESP8266 ADC or
+local FFT required). Its ten original audio modes are driven by remote RMS
+and 32 frequency bands. Sessions/configuration are runtime-only and never
+persist audio frames to flash. See [protocol, sender and test instructions](docs/REMOTE_AUDIO_PROTOCOL.md).
+
+The GitHub Actions workflow builds ESP8266 `firmware.bin` and publishes it
+as a downloadable artifact for board testing. Real-world latency and hardware
+behavior must be measured on a device; extra modes from the separate WASM lab
+have not yet been ported.
