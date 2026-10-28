@@ -13,8 +13,39 @@ void RemoteAudioSocket::begin(WebServer &server) {
     server.add_handler(&_ws);
 }
 void RemoteAudioSocket::poll() {
-    _ws.cleanupClients();
+    // Process events on the Arduino loop, never from AsyncTCP callbacks.
+    const uint32_t disconnected = _pending_disconnect;
+    _pending_disconnect = 0;
+    if (disconnected) {
+        _audio.disconnected(disconnected);
+        if (_lab_client == disconnected) _lab_client = 0;
+    }
+    uint8_t budget = QUEUE_CAPACITY - 1;
+    while (_tail != _head && budget--) {
+        auto &message = _inbox[_tail];
+        // Never allow already queued messages to resurrect a disconnected session.
+        if (message.client != disconnected)
+            onMessage(message.client, message.opcode, message.payload, message.length);
+        _tail = (_tail + 1) % QUEUE_CAPACITY;
+    }
     _audio.poll();
+    const uint32_t now = millis();
+    if (uint32_t(now - _last_cleanup) >= 1000) {
+        _last_cleanup = now;
+        _ws.cleanupClients();
+    }
+}
+void RemoteAudioSocket::enqueue(uint32_t client, uint8_t opcode,
+                                const uint8_t *data, size_t length) {
+    if (length > sizeof(_inbox[0].payload)) { ++_queue_drops; return; }
+    const uint8_t next = (_head + 1) % QUEUE_CAPACITY;
+    if (next == _tail) { ++_queue_drops; return; }
+    auto &message = _inbox[_head];
+    message.client = client;
+    message.opcode = opcode;
+    message.length = static_cast<uint16_t>(length);
+    memcpy(message.payload, data, length);
+    _head = next; // publish only after copying a complete message
 }
 void RemoteAudioSocket::reply(uint32_t client, const char *type, const char *reason) {
     char response[180];
@@ -28,12 +59,12 @@ void RemoteAudioSocket::reply(uint32_t client, const char *type, const char *rea
 void RemoteAudioSocket::onEvent(AsyncWebSocket *, AsyncWebSocketClient *client,
                                 AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_DISCONNECT || type == WS_EVT_ERROR) {
-        _audio.disconnected(client->id());
-        if (_lab_client == client->id()) _lab_client = 0;
+        // Defer all controller changes to poll(); only publish an ID here.
         if (_fragment_client == client->id()) {
             _fragment_client = 0;
             _fragment_length = 0;
         }
+        if (_audio.owner() == client->id()) _pending_disconnect = client->id();
         return;
     }
     if (type != WS_EVT_DATA || !arg) return;
@@ -62,7 +93,7 @@ void RemoteAudioSocket::onEvent(AsyncWebSocket *, AsyncWebSocketClient *client,
     memcpy(_fragments + _fragment_length, data, len);
     _fragment_length += len;
     if (info->final && info->index + len == info->len) {
-        onMessage(client->id(), _fragment_opcode, _fragments, _fragment_length);
+        enqueue(client->id(), _fragment_opcode, _fragments, _fragment_length);
         _fragment_client = 0;
         _fragment_length = 0;
     }
@@ -198,12 +229,12 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
         reply(client, "stop_ack");
     } else if (strcmp(type, "status") == 0) {
         const auto &stat = _audio.timeline().stats();
-        char response[400];
+        char response[480];
         snprintf(response, sizeof(response),
                  "{\"type\":\"status\",\"session\":%lu,\"playing\":%s,"
                  "\"received\":%lu,\"received_frames\":%lu,\"dropped\":%lu,\"duplicates\":%lu,"
                  "\"stale\":%lu,\"overflow\":%lu,\"frame_age_ms\":%lu,"
-                 "\"clock_offset_ms\":%ld,\"rtt_ms\":%lu,\"buffer\":%u,\"buffer_occupancy\":%u}",
+                 "\"clock_offset_ms\":%ld,\"rtt_ms\":%lu,\"buffer\":%u,\"buffer_occupancy\":%u,""\"heap\":%u,\"heap_max_block\":%u,\"heap_fragmentation\":%u,\"queue_drops\":%lu}",
                  static_cast<unsigned long>(session), _audio.playing() ? "true" : "false",
                  static_cast<unsigned long>(stat.received), static_cast<unsigned long>(stat.received),
                  static_cast<unsigned long>(stat.dropped), static_cast<unsigned long>(stat.duplicate),
@@ -211,7 +242,9 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
                  static_cast<unsigned long>(stat.frame_age_ms),
                  static_cast<long>(static_cast<int32_t>(stat.clock_offset_ms)),
                  static_cast<unsigned long>(stat.rtt_ms),
-                 unsigned(_audio.timeline().occupancy()), unsigned(_audio.timeline().occupancy()));
+                 unsigned(_audio.timeline().occupancy()), unsigned(_audio.timeline().occupancy()),
+                 unsigned(ESP.getFreeHeap()), unsigned(ESP.getMaxFreeBlockSize()),
+                 unsigned(ESP.getHeapFragmentation()), static_cast<unsigned long>(_queue_drops));
         _ws.text(client, response);
     } else reply(client, "error", "unknown_command");
 }
