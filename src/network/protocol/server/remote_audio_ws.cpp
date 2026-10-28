@@ -125,6 +125,20 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         value = static_cast<uint8_t>(v);
         return true;
     };
+    auto intfield = [&](const char *name, int &value, int lower, int upper) {
+        if (doc[name].isNull()) return true;
+        if (!doc[name].is<int>()) return false;
+        const int v = doc[name].as<int>();
+        if (v < lower || v > upper) return false;
+        value = v;
+        return true;
+    };
+    auto boolfield = [&](const char *name, bool &value) {
+        if (doc[name].isNull()) return true;
+        if (!doc[name].is<bool>()) return false;
+        value = doc[name].as<bool>();
+        return true;
+    };
     uint8_t audio_fx = static_cast<uint8_t>(next.audio.effect);
     const bool lab = (_lab_client == _audio.owner());
     if (lab) audio_fx += 1;
@@ -140,6 +154,27 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         !uint8field("speed", next.preset.speed, 255) ||
         !uint8field("scale", next.preset.scale, 255) ||
         !uint8field("light", next.preset.light, 255)) return false;
+    // Optional lab reaction tuning (unknown to older senders: defaults keep stock behaviour).
+    uint8_t source = static_cast<uint8_t>(next.tuning.param_source);
+    if (!uint8field("param_source", source, static_cast<int>(RemoteReactive::ControlSource::COUNT) - 1) ||
+        !uint8field("speed_floor", next.tuning.speed_floor, 255) ||
+        !uint8field("spectrum_shape", next.tuning.spectrum_shape, 100) ||
+        !uint8field("spectrum_onset", next.tuning.spectrum_onset, 100)) return false;
+    next.tuning.param_source = static_cast<RemoteReactive::ControlSource>(source);
+    // Signal window and origin (docs/REMOTE_AUDIO_PROTOCOL.md, "Tuning").
+    auto &origin = next.tuning.origin;
+    int shift = origin.shift, center_y = origin.center_y;
+    if (!uint8field("input_min", next.tuning.window.in_min, 255) ||
+        !uint8field("input_max", next.tuning.window.in_max, 255) ||
+        !boolfield("input_gate", next.tuning.window.gate) ||
+        !intfield("origin_shift", shift, -500, 500) ||
+        !intfield("origin_y", center_y, 0, 1000) ||
+        !boolfield("origin_reverse", origin.reverse) ||
+        !boolfield("origin_ring", origin.ring) ||
+        !boolfield("origin_radial", origin.radial)) return false;
+    if (next.tuning.window.in_min >= next.tuning.window.in_max) return false;
+    origin.shift = static_cast<int16_t>(shift);
+    origin.center_y = static_cast<uint16_t>(center_y);
     if (next.audio.min > next.audio.max) return false;
     next.audio.effect = static_cast<AudioEffectEnum>(lab && audio_fx ? audio_fx - 1 : audio_fx);
     next.audio.enabled = !(lab && audio_fx == 0);
@@ -175,11 +210,11 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
             return;
         }
         _lab_client = lab ? client : 0;
-        char response[240];
+        char response[280];
         snprintf(response, sizeof(response),
                  "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
                  "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[32],"
-                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\"]}",
+                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\"]}",
                  static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT));
         _ws.text(client, response);
         return;

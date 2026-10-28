@@ -51,6 +51,36 @@ optional fields: `audio_effect` (0–11), `audio_enabled` (boolean), `audio_min`
 device palette index), `speed`, `scale`, `light` (all 0–255).
 The saved preset, power, gamma and eco settings remain authoritative.
 
+Reaction tuning (advertised as the `tuning` capability; every field
+defaults to 0 on `hello`, which reproduces the stock firmware effects):
+
+| Field | Range | Effect |
+|---|---|---|
+| `param_source` | 0–7 | Value driving Brightness, Line, Line Center, Speed/Scale/Light: 0 `rms` (loudness), 1 spectral activity (0.45 · strongest band + 0.55 · mean, ×1.55), 2 `bass`, 3 `mid`, 4 `high`, 5 `peak`, 6 onset envelope, 7 predicted beat pulse |
+| `speed_floor` | 0–255 | Speed Control result is mapped into `floor..255` (Gradient stops at 128) |
+| `spectrum_shape` | 0–100 % | Wave/Spectrum brightness blends from `dim8_raw` towards `0.25·v + 0.75·√v` |
+| `spectrum_onset` | 0–100 % | Wave/Spectrum columns add `0.22 · onset envelope` of their low/mid/high group |
+| `input_min`, `input_max` | 0–255, `min < max` | Signal window: the input range (of the provider maximum) stretched onto `audio_min..audio_max`; above `input_max` gives `audio_max` |
+| `input_gate` | bool | Below `input_min`: 0 instead of `audio_min` |
+| `origin_shift` | −500..500 ‰ of WIDTH | Moves the start of Wave / Spectrum / Line / Bass·Mid·High and the centre of the Center modes and Beat-aware |
+| `origin_reverse` | bool | Runs the effect from the other end |
+| `origin_ring` | bool | Closed strip: the shifted effect wraps past the last LED instead of leaving the first LEDs dark |
+| `origin_radial` | bool | Matrices: Center modes and Beat-aware use the 2-D distance from (WIDTH / 2, `origin_y`) |
+| `origin_y` | 0–1000 ‰ of HEIGHT − 1 | Row of the radial centre (default 500) |
+
+The signal window applies to every audio mode that maps a value
+(`audioTransfer()` in `src/audio/transfer.h`). The origin maps each column
+`x` to `x' = (reverse ? WIDTH − 1 − x : x) − round(WIDTH · origin_shift / 1000)`,
+wrapped modulo WIDTH with `origin_ring` and dark outside `0..WIDTH − 1`
+otherwise (`RemoteReactive::OriginMap`); modes are then evaluated at `x'`.
+Defaults (`0`, `255`, `false`, `0`, `500`, `false`) reproduce the stock
+output, and the stock `AudioEffectManager` path is used whenever the origin
+and spectrum shaping are at their defaults. A config with
+`input_min >= input_max` or an out-of-range field is rejected.
+
+These match the lab's new-FFT preview (`src/render.cpp`,
+`web/js/view.js`), so the lamp shows what the browser previews.
+
 ## AUDIO_FRAME
 
 Exactly **102 binary bytes**, little endian, with manual serialization
@@ -66,7 +96,7 @@ and validation rather than a packed C++ struct:
 | 8 | Session ID | uint32 |
 | 12 | Sequence | uint32 |
 | 16 | Sender monotonic presentation milliseconds | uint32 |
-| 20 | RMS | uint16 |
+| 20 | Loudness (normalised RMS envelope) | uint16 |
 | 22 | Bass | uint16 |
 | 24 | Mid | uint16 |
 | 26 | High | uint16 |
@@ -88,7 +118,10 @@ presentation time (device clock = sender timestamp + clock offset),
 drops frames outside the permitted arrival window and interpolates
 continuous RMS/spectral features at the 60 FPS render tick.
 Onset masks are treated as one-shot events rather than interpolated.
-The renderer maintains a 25 ms rolling RMS history for Wave modes.
+The renderer maintains a 25 ms rolling RMS history for Wave modes
+(128 samples, 3.2 s). Senders should put a normalised loudness envelope
+(0–4096, full scale for loud passages) into `rms`, not the raw signal RMS:
+Line, Brightness and the parametric modes use it directly.
 The stream timeout is 300 ms once the buffered frames are consumed.
 
 ## Existing audio modes
@@ -111,14 +144,28 @@ Original IDs, unchanged:
 | 11 | Beat-aware reactive (WASM experimental) |
 
 Spectrum maps all 32 bands to the matrix width; the centered version maps
-all bands to the appropriate half-width. Speed, Scale and Light operate on
+all bands to the appropriate half-width. When there are fewer columns than
+bands (short strips such as 7 LEDs, or a centered 16-wide matrix) each column
+averages its range of bands instead of sampling single bands.
+
+### LED strips
+
+Strips are the same `Led` with `HEIGHT` 1 (or 2, e.g. 72×2). Remote modes
+are geometry-aware:
+
+* Wave / Wave Center use one column per 25 ms sample; spans longer than the
+  128-sample history (e.g. a 153-LED strip) stretch the history instead of
+  wrapping it, which used to repeat the same pattern along the strip.
+* Bass / Mid / High splits rows at `HEIGHT / 2` (upper rows bass, lower mid);
+  a single-row strip blends bass and mid (previously it showed bass only and
+  disagreed with the lab, which showed mid). Speed, Scale and Light operate on
 a temporary preset copy **before** running ColorEffects and
 BrightnessEffects.
 
 ### New experimental modes from the WASM lab
 
 The two appended modes have the same color-preserving design as
-`esp_led_wasm_lab/src/render.cpp` (modes 11 and 12). They modulate
+`esp_led_lab/src/render.cpp` (modes 11 and 12). They modulate
 the *existing* framebuffer by multiplying RGB channels (never inserting
 white flashes or standalone bright pixels).
 
@@ -127,9 +174,9 @@ white flashes or standalone bright pixels).
   respond to different bands. The receiver approximates the browser's
   individual onset envelopes from packet onset masks/strength.
 * `Beat-aware reactive` uses the 32-band spectrum and a center-origin
-  radial beat ripple. The wire protocol transports beat phase/confidence
-  but not the browser DSP's separate `beatPulse`, so the receiver derives
-  a short pulse from phase/confidence and onset strength.
+  radial beat ripple. The wire protocol transports beat phase, BPM and
+  confidence but not the browser DSP's separate `beatPulse`; the receiver
+  reconstructs it as the same 230 ms decay after each beat from phase × BPM.
 
 These are not pixel-identical reproductions of the browser implementation;
 the protocol carries fewer transient/tempo details than the lab's full
@@ -137,7 +184,7 @@ the protocol carries fewer transient/tempo details than the lab's full
 
 ### Compatibility with the supplied browser lab
 
-`esp_led_wasm_lab/web/remote.js` uses an earlier provisional control
+`esp_led_lab/web/js/remote.js` uses an earlier provisional control
 contract: hello without session, `sync.id`, floating-point clock offsets,
 and a `start.session_id`. The receiver recognizes this only for a
 `hello` with `client:"esp-led-wasm-lab"`. The browser's mode
@@ -151,12 +198,15 @@ without disconnecting.
 receiver. Select 32 in Remote Output; the lab's optional 16/64 band
 packets are not part of this fixed-size RFC and will be rejected.
 
-The lab-specific `Audio strength`, `Spectrum expression`,
-`Spectrum onset`, `Speed floor` and `Line fast response`
-modulation sliders are not transmitted by the current browser
-`remoteRuntimeConfig()`, so the ESP applies the core effects
-using the transmitted features, not all the experimental preview
-post-processing knobs.
+The lab transmits its control source, `Speed floor`, `Spectrum expression`,
+`Spectrum onset`, the signal window and the origin as reaction tuning (see
+`config`). `Audio strength`
+(mix) and `Line fast response` are not transmitted: the lamp renders at
+100 % strength and Line follows the selected control source only.
+
+The lab re-synchronises the clock every 5 s, also while streaming, and the
+receiver rebases queued frames on each `clock`, so long sessions do not
+accumulate crystal drift.
 
 ## Build and test
 

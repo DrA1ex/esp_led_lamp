@@ -1,15 +1,28 @@
 #pragma once
 #include <Arduino.h>
 #include "audio/base.h"
+#include "audio/transfer.h"
 #include "config.h"
 #include "remote_audio/timeline.h"
+#include "remote_audio/reactive_math.h"
 
 // Does not modify Application::config or persisted preset storage.
 class RemoteAudioController {
 public:
+    // Lab-only reaction tuning. Zero values reproduce the stock firmware
+    // AudioEffectManager behaviour, so receivers ignoring them stay correct.
+    struct Tuning {
+        RemoteReactive::ControlSource param_source = RemoteReactive::ControlSource::LOUDNESS;
+        uint8_t speed_floor = 0;     // 0..255, Speed Control lower bound
+        uint8_t spectrum_shape = 0;  // 0..100 %, brighter Wave/Spectrum curve
+        uint8_t spectrum_onset = 0;  // 0..100 %, onset accents in Wave/Spectrum
+        AudioWindow window;          // input window / gate before audio min..max
+        RemoteReactive::Origin origin;
+    };
     struct Overrides {
         AudioConfig audio;
         PresetConfig preset;
+        Tuning tuning;
     };
 private:
     RemoteAudio::Timeline _timeline;
@@ -41,6 +54,7 @@ public:
         _overrides.audio = audio;
         _overrides.audio.enabled = true;
         _overrides.preset = preset;
+        _overrides.tuning = Tuning{};
         _last_frame = millis();
         _last_control = millis();
         _playing = false;
@@ -74,6 +88,9 @@ public:
     }
     bool playing() const { return _playing; }
     const uint16_t *pulses() const { return _pulse; }
+    uint16_t controlValue() const {
+        return RemoteReactive::controlValue(_timeline.output(), _pulse, _overrides.tuning.param_source);
+    }
     bool adoptSession(uint32_t client, uint32_t session) {
         if (_owner != client || !session) return false;
         const bool synced = _timeline.clockValid();
@@ -136,15 +153,33 @@ public:
     uint16_t max_value() const override { return RemoteProtocol::MAX_LEVEL; }
     uint16_t get(uint16_t index, uint8_t) const override {
         if (!_controller.playing()) return 0;
-        if (_kind == WAVE) return _controller.timeline().wave(index);
-        if (_kind == PARAMETRIC) return _controller.timeline().output().rms;
-        if (_width < 2) return _controller.timeline().output().bands[0];
-        const uint32_t bandpos = uint32_t(index) * (RemoteProtocol::BAND_COUNT - 1) * 256 / (_width - 1);
+        if (_kind == WAVE) {
+            // One column per 25 ms sample, like the stock VolumeAnalyzer<.., WIDTH>.
+            // Long strips stretch the history instead of repeating it.
+            constexpr uint16_t N = RemoteAudio::WAVE_HISTORY;
+            const uint16_t age = _width > N ? uint32_t(index) * (N - 1) / (_width - 1) : index;
+            return _controller.timeline().wave(age);
+        }
+        if (_kind == PARAMETRIC) return _controller.controlValue();
+        const uint16_t *bands = _controller.timeline().output().bands;
+        constexpr uint16_t B = RemoteProtocol::BAND_COUNT;
+        if (_width < 2) return bands[0];
+        if (_width < B) {
+            // Fewer columns than bands (short strips, centered halves): average
+            // each column's band range instead of skipping bands entirely.
+            const uint16_t first = uint32_t(index) * B / _width;
+            uint16_t last = uint32_t(index + 1) * B / _width;
+            if (last > B) last = B;
+            if (last <= first) return bands[first < B ? first : B - 1];
+            uint32_t sum = 0;
+            for (uint16_t i = first; i < last; ++i) sum += bands[i];
+            return sum / (last - first);
+        }
+        const uint32_t bandpos = uint32_t(index) * (B - 1) * 256 / (_width - 1);
         const uint16_t left = bandpos / 256;
         const uint8_t frac = bandpos & 255;
-        if (left >= RemoteProtocol::BAND_COUNT - 1) return _controller.timeline().output().bands[31];
-        return RemoteAudio::mix(_controller.timeline().output().bands[left],
-                                _controller.timeline().output().bands[left + 1], frac);
+        if (left >= B - 1) return bands[B - 1];
+        return RemoteAudio::mix(bands[left], bands[left + 1], frac);
     }
     uint16_t delta() const override { return 0; } // interpolated in Timeline already
     uint16_t update_interval() const override { return 25; }

@@ -40,6 +40,9 @@ int main() {
     assert(timeline.sample(250));
     assert(timeline.output().rms == 3000);
     assert(timeline.wave(0) != 0);
+    // Long strips may ask for ages past the history: clamp, never wrap to new data.
+    assert(timeline.wave(RemoteAudio::WAVE_HISTORY - 1) == 0);
+    assert(timeline.wave(500) == timeline.wave(RemoteAudio::WAVE_HISTORY - 1));
     // Timeout and new sessions reset the entire buffer and dedupe window.
     timeline.reset();
     assert(timeline.occupancy() == 0 && !timeline.clockValid());

@@ -22,28 +22,29 @@ AudioEffectManager::AudioEffectManager() {
     _config.count = _config.entries.size();
 }
 
-void AudioEffectManager::call(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value) {
+void AudioEffectManager::call(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value,
+                              const AudioWindow &window) {
     _before_call();
 
     _state.params.provider = provider;
     _state.params.min = min_value;
     _state.params.max = max_value;
+    _state.params.window = window;
 
     _config.entries[(int) _fx].value(led, _state);
 
     _after_call();
 }
 
-int AudioEffectManager::calc(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value) {
-    call(led, provider, min_value, max_value);
+int AudioEffectManager::calc(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value,
+                             const AudioWindow &window) {
+    call(led, provider, min_value, max_value, window);
 
     return _calc_signal_value(_state, 255);
 }
 
 void AudioEffectManager::signal(Led &led, AudioEffectState &state) {
-    const auto [
-            provider, v_min, v_max
-    ] = state.params;
+    const auto *provider = state.params.provider;
 
     const auto frac = min<uint8_t>(255, provider->delta() * 255 / provider->update_interval());
 
@@ -58,9 +59,7 @@ void AudioEffectManager::signal(Led &led, AudioEffectState &state) {
 }
 
 void AudioEffectManager::signal_centered(Led &led, AudioEffectState &state) {
-    const auto [
-            provider, v_min, v_max
-    ] = state.params;
+    const auto *provider = state.params.provider;
 
     const auto frac = min<uint8_t>(255, provider->delta() * 255 / provider->update_interval());
 
@@ -108,16 +107,7 @@ void AudioEffectManager::brightness(Led &led, AudioEffectState &state) {
 void AudioEffectManager::_none(Led &, AudioEffectState &) {}
 
 int AudioEffectManager::_calc_signal_value(const AudioEffectState &state, int count, uint16_t index, uint8_t frac) {
-    auto [
-            provider, v_min, v_max
-    ] = state.params;
-
-    if (v_min > v_max) v_min = v_max;
-
-    const auto count_min = v_min * count / 255;
-    const auto count_max = v_max * count / 255;
-    const auto actual = count_max - count_min;
-
-    const auto value = provider->get(index, frac);
-    return count_min + value * actual / provider->max_value();
+    const auto &params = state.params;
+    return audioTransfer(params.provider->get(index, frac), params.provider->max_value(), count,
+                         params.min, params.max, params.window);
 }

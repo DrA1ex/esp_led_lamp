@@ -9,6 +9,10 @@ namespace RemoteAudio {
 constexpr uint8_t BUFFER_CAPACITY = 24;
 constexpr uint32_t STREAM_TIMEOUT_MS = 300;
 constexpr uint32_t WAVE_PERIOD_MS = 25;
+// Rolling loudness history for Wave modes (128 x 25 ms = 3.2 s), the same
+// length as the lab's new_wave buffer. Spans wider than this (long strips)
+// are stretched over the history instead of wrapping around it.
+constexpr uint8_t WAVE_HISTORY = 128;
 inline int32_t distance(uint32_t a, uint32_t b) { return static_cast<int32_t>(a - b); }
 inline uint16_t mix(uint16_t a, uint16_t b, uint8_t frac) {
     return static_cast<uint16_t>((uint32_t(a) * (255 - frac) + uint32_t(b) * frac + 127) / 255);
@@ -35,7 +39,7 @@ class Timeline {
     bool _current_valid = false;
     Queued _current = {};
     RemoteProtocol::Frame _output = {};
-    uint16_t _wave[64] = {};
+    uint16_t _wave[WAVE_HISTORY] = {};
     uint8_t _wave_head = 0;
     uint32_t _wave_at = 0;
     bool _has_sequence = false;
@@ -67,8 +71,9 @@ public:
     const Statistics &stats() const { return _stats; }
     uint8_t occupancy() const { return _size; }
     const RemoteProtocol::Frame &output() const { return _output; }
-    uint16_t wave(uint8_t age) const {
-        return _wave[uint8_t((_wave_head + 64 - 1 - (age % 64)) % 64)];
+    uint16_t wave(uint16_t age) const {
+        if (age >= WAVE_HISTORY) age = WAVE_HISTORY - 1;
+        return _wave[(_wave_head + WAVE_HISTORY - 1 - age) % WAVE_HISTORY];
     }
     uint32_t age() const { return _stats.frame_age_ms; }
 
@@ -156,7 +161,8 @@ public:
         if (_wave_at == 0) _wave_at = now;
         uint8_t limit = 0;
         while (distance(now, _wave_at) >= 0 && limit++ < 4) {
-            _wave[_wave_head++ % 64] = _output.rms;
+            _wave[_wave_head] = _output.rms;
+            _wave_head = (_wave_head + 1) % WAVE_HISTORY;
             _wave_at += WAVE_PERIOD_MS;
         }
         if (distance(now, _wave_at) > 100) _wave_at = now + WAVE_PERIOD_MS;

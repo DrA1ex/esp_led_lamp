@@ -7,6 +7,7 @@
 #include "debug.h"
 
 #include "audio/base.h"
+#include "audio/transfer.h"
 #include "fx/enum.h"
 
 struct Config;
@@ -58,6 +59,7 @@ struct AudioEffectState : FxStateBase {
 
         uint8_t min = 0;
         uint8_t max = 255;
+        AudioWindow window;
     } params;
 };
 

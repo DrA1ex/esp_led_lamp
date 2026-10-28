@@ -98,6 +98,7 @@ WebSocketServer ws_server(app);
 #if REMOTE_AUDIO == ENABLED
 RemoteAudioController remote_audio;
 RemoteSignalProvider remote_wave(remote_audio, RemoteSignalProvider::WAVE, WIDTH);
+RemoteSignalProvider remote_wave_centered(remote_audio, RemoteSignalProvider::WAVE, WIDTH / 2 + 1);
 RemoteSignalProvider remote_spectrum(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH);
 RemoteSignalProvider remote_spectrum_centered(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH / 2 + 1);
 RemoteSignalProvider remote_parametric(remote_audio, RemoteSignalProvider::PARAMETRIC, WIDTH);
@@ -271,7 +272,7 @@ void render() {
     if (remote_active) {
         audio_cfg = remote_audio.overrides().audio;
         audio_enabled = audio_cfg.enabled;
-        if (audio_cfg.is_wave()) provider = &remote_wave;
+        if (audio_cfg.is_wave()) provider = audio_cfg.effect == AudioEffectEnum::WAVE_CENTERED ? &remote_wave_centered : &remote_wave;
         else if (audio_cfg.is_spectrum()) provider = audio_cfg.effect == AudioEffectEnum::SPECTRUM_CENTERED ? &remote_spectrum_centered : &remote_spectrum;
         else provider = &remote_parametric;
     }
@@ -283,10 +284,24 @@ void render() {
         provider = app.signal_provider();
     }
 #endif
+    // Remote "Signal window": the input range stretched onto min..max.
+    AudioWindow audio_window;
+#if REMOTE_AUDIO == ENABLED
+    if (remote_active) audio_window = remote_audio.overrides().tuning.window;
+#endif
     if (audio_enabled && provider && audio_cfg.is_parametric()) {
-        const auto value = AudioEffects.calc(led, provider, audio_cfg.min, audio_cfg.max);
+        const auto value = AudioEffects.calc(led, provider, audio_cfg.min, audio_cfg.max, audio_window);
         switch (audio_cfg.effect) {
-            case AudioEffectEnum::SPEED_CONTROL: preset.speed = value; audio_applied = true; break;
+            case AudioEffectEnum::SPEED_CONTROL: {
+                preset.speed = value;
+#if REMOTE_AUDIO == ENABLED
+                // Lab "Speed floor": keeps e.g. Gradient (neutral at 128) moving.
+                const uint8_t speed_floor = remote_active ? remote_audio.overrides().tuning.speed_floor : 0;
+                if (speed_floor > 0) preset.speed = speed_floor + value * (255 - speed_floor) / 255;
+#endif
+                audio_applied = true;
+                break;
+            }
             case AudioEffectEnum::SCALE_CONTROL: preset.scale = value; audio_applied = true; break;
             case AudioEffectEnum::LIGHT_CONTROL: preset.light = value; audio_applied = true; break;
             default: break;
@@ -301,10 +316,12 @@ void render() {
             (audio_cfg.effect == AudioEffectEnum::BASS_MID_HIGH ||
              audio_cfg.effect == AudioEffectEnum::BEAT_REACTIVE)) {
             RemoteReactive::apply(led, remote_audio, audio_cfg.effect);
+        } else if (remote_active && RemoteReactive::customRender(remote_audio, audio_cfg.effect)) {
+            RemoteReactive::render(led, *provider, remote_audio, audio_cfg.effect, audio_cfg.min, audio_cfg.max);
         } else
 #endif
         {
-            AudioEffects.call(led, provider, audio_cfg.min, audio_cfg.max);
+            AudioEffects.call(led, provider, audio_cfg.min, audio_cfg.max, audio_window);
         }
     }
 }
