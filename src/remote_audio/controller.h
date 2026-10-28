@@ -19,6 +19,8 @@ private:
     uint32_t _last_frame = 0;
     uint32_t _last_control = 0;
     bool _playing = false;
+    uint16_t _pulse[3] = {};
+    uint32_t _last_pulse_tick = 0;
 
 public:
     RemoteAudio::Timeline &timeline() { return _timeline; }
@@ -34,6 +36,7 @@ public:
         if (!client || !session || (_owner && _owner != client)) return false;
         // A new hello, including reconnect using a new session, invalidates old frames.
         _timeline.reset();
+        memset(_pulse, 0, sizeof(_pulse)); _last_pulse_tick = 0;
         _owner = client; _session = session;
         _overrides.audio = audio;
         _overrides.audio.enabled = true;
@@ -51,6 +54,7 @@ public:
         return true;
     }
     void stop() {
+        memset(_pulse, 0, sizeof(_pulse)); _last_pulse_tick = 0;
         _timeline.reset();
         _session = 0; _owner = 0; _playing = false;
     }
@@ -58,6 +62,19 @@ public:
         if (_owner == client) stop();
     }
     bool playing() const { return _playing; }
+    const uint16_t *pulses() const { return _pulse; }
+    bool adoptSession(uint32_t client, uint32_t session) {
+        if (_owner != client || !session) return false;
+        const bool synced = _timeline.clockValid();
+        const int32_t offset = _timeline.offset();
+        const uint32_t rtt = _timeline.stats().rtt_ms;
+        _timeline.reset();
+        if (synced) _timeline.setClock(offset, rtt);
+        _session = session;
+        _playing = false;
+        _last_control = millis();
+        return true;
+    }
     bool receive(uint32_t client, const RemoteProtocol::Frame &frame) {
         if (!_playing || !owns(client, frame.session)) return false;
         const uint32_t now = millis();
@@ -77,7 +94,20 @@ public:
     }
     bool sample(uint32_t now) {
         poll();
-        return _playing && _timeline.sample(now);
+        if (!_playing || !_timeline.sample(now)) return false;
+        const auto &frame = _timeline.output();
+        const uint32_t elapsed = _last_pulse_tick ? uint32_t(now - _last_pulse_tick) : 16u;
+        _last_pulse_tick = now;
+        // Each onset is consumed only once by Timeline; decay envelope ~100 ms.
+        const uint32_t steps = elapsed > 80 ? 5 : (elapsed + 15) / 16;
+        for (uint8_t i = 0; i < 3; ++i) {
+            for (uint8_t j = 0; j < steps; ++j)
+                _pulse[i] = uint32_t(_pulse[i]) * 218 / 256;
+            if (frame.onset_mask & (1u << i)) {
+                if (frame.onset > _pulse[i]) _pulse[i] = frame.onset;
+            }
+        }
+        return true;
     }
 };
 
