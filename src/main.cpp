@@ -27,6 +27,7 @@
 
 #if REMOTE_AUDIO == ENABLED
 #include "remote_audio/controller.h"
+#include "remote_audio/reactive_effects.h"
 #include "network/protocol/server/remote_audio_ws.h"
 #include "utils/palette.h"
 #include "utils/color.h"
@@ -269,7 +270,7 @@ void render() {
 #if REMOTE_AUDIO == ENABLED
     if (remote_active) {
         audio_cfg = remote_audio.overrides().audio;
-        audio_enabled = true;
+        audio_enabled = audio_cfg.enabled;
         if (audio_cfg.is_wave()) provider = &remote_wave;
         else if (audio_cfg.is_spectrum()) provider = audio_cfg.effect == AudioEffectEnum::SPECTRUM_CENTERED ? &remote_spectrum_centered : &remote_spectrum;
         else provider = &remote_parametric;
@@ -294,8 +295,18 @@ void render() {
 
     ColorEffects.call(led, palette, preset, app.config.gamma);
     BrightnessEffects.call(led, preset);
-    if (audio_enabled && provider && !audio_applied)
-        AudioEffects.call(led, provider, audio_cfg.min, audio_cfg.max);
+    if (audio_enabled && provider && !audio_applied) {
+#if REMOTE_AUDIO == ENABLED
+        if (remote_active &&
+            (audio_cfg.effect == AudioEffectEnum::BASS_MID_HIGH ||
+             audio_cfg.effect == AudioEffectEnum::BEAT_REACTIVE)) {
+            RemoteReactive::apply(led, remote_audio, audio_cfg.effect);
+        } else
+#endif
+        {
+            AudioEffects.call(led, provider, audio_cfg.min, audio_cfg.max);
+        }
+    }
 }
 
 void calibration() {
