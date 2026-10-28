@@ -193,8 +193,8 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
             reply(client, "start_ack");
         } else reply(client, "error", "clock_not_set");
     } else if (strcmp(type, "stop") == 0) {
-        _audio.stop();
-        _lab_client = 0;
+        if (lab) _audio.pause();
+        else _audio.stop();
         reply(client, "stop_ack");
     } else if (strcmp(type, "status") == 0) {
         const auto &stat = _audio.timeline().stats();
