@@ -29,6 +29,7 @@ void RemoteAudioSocket::onEvent(AsyncWebSocket *, AsyncWebSocketClient *client,
                                 AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_DISCONNECT || type == WS_EVT_ERROR) {
         _audio.disconnected(client->id());
+        if (_lab_client == client->id()) _lab_client = 0;
         if (_fragment_client == client->id()) {
             _fragment_client = 0;
             _fragment_length = 0;
@@ -85,10 +86,12 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         return true;
     };
     uint8_t audio_fx = static_cast<uint8_t>(next.audio.effect);
+    const bool lab = (_lab_client == _audio.owner());
+    if (lab) audio_fx += 1;
     uint8_t color_fx = static_cast<uint8_t>(next.preset.color_effect);
     uint8_t brightness_fx = static_cast<uint8_t>(next.preset.brightness_effect);
     uint8_t palette = static_cast<uint8_t>(next.preset.palette);
-    if (!uint8field("audio_effect", audio_fx, AudioEffects.config().count - 1) ||
+    if (!uint8field("audio_effect", audio_fx, AudioEffects.config().count - (lab ? 0 : 1)) ||
         !uint8field("audio_min", next.audio.min, 255) ||
         !uint8field("audio_max", next.audio.max, 255) ||
         !uint8field("color_effect", color_fx, ColorEffects.config().count - 1) ||
@@ -98,89 +101,117 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         !uint8field("scale", next.preset.scale, 255) ||
         !uint8field("light", next.preset.light, 255)) return false;
     if (next.audio.min > next.audio.max) return false;
-    next.audio.effect = static_cast<AudioEffectEnum>(audio_fx);
+    next.audio.effect = static_cast<AudioEffectEnum>(lab && audio_fx ? audio_fx - 1 : audio_fx);
+    next.audio.enabled = !(lab && audio_fx == 0);
+    if (!doc["audio_enabled"].isNull()) {
+        if (!doc["audio_enabled"].is<bool>()) return false;
+        next.audio.enabled = doc["audio_enabled"].as<bool>();
+    }
     next.preset.color_effect = static_cast<ColorEffectEnum>(color_fx);
     next.preset.brightness_effect = static_cast<BrightnessEffectEnum>(brightness_fx);
     next.preset.palette = static_cast<PaletteEnum>(palette);
-    next.audio.enabled = true;
     _audio.overrides() = next;
     return true;
 }
 void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t len) {
     JsonDocument doc;
-    const auto err = deserializeJson(doc, data, len);
-    if (err) { reply(client, "error", "invalid_json"); return; }
+    if (deserializeJson(doc, data, len)) { reply(client, "error", "invalid_json"); return; }
     const char *type = doc["type"] | "";
-    const uint32_t session = doc["session"] | uint32_t(0);
+    uint32_t session = doc["session"] | uint32_t(0);
 
     if (strcmp(type, "hello") == 0) {
-        if ((doc["version"] | 0) != 1 || !session) {
-            reply(client, "error", "version_or_session");
-        } else if (!_audio.begin(client, session,
-                                 _app.config.audio_config, _app.preset())) {
-            reply(client, "error", "busy");
-        } else {
-            char response[200];
-            snprintf(response, sizeof(response),
-                     "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
-                     "\"width\":%u,\"height\":%u,\"bands\":32,\"fps\":60,"
-                     "\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\"]}",
-                     static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT));
-            _ws.text(client, response);
+        if ((doc["version"] | 0) != 1) {
+            reply(client, "error", "incompatible_version");
+            return;
         }
+        // The bundled WASM lab sends hello without a session and establishes
+        // the actual session in start(session_id). Standard RFC clients use
+        // hello(session). Both are supported without weakening client ownership.
+        const bool lab = !session && strcmp(doc["client"] | "", "esp-led-wasm-lab") == 0;
+        if (!session && !lab) { reply(client, "error", "missing_session"); return; }
+        if (!session) session = 1; // temporary owner marker, replaced on start
+        if (!_audio.begin(client, session, _app.config.audio_config, _app.preset())) {
+            reply(client, "error", "busy");
+            return;
+        }
+        _lab_client = lab ? client : 0;
+        char response[240];
+        snprintf(response, sizeof(response),
+                 "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
+                 "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[32],"
+                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\"]}",
+                 static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT));
+        _ws.text(client, response);
         return;
     }
+    const bool lab = (_lab_client == client && client && _audio.owner() == client);
+    if (lab) session = _audio.session();
     if (!_audio.owns(client, session)) {
         reply(client, "error", "invalid_session");
         return;
     }
     _audio.activity();
+
     if (strcmp(type, "sync") == 0) {
         const uint32_t t0 = doc["t0"] | uint32_t(0);
         const uint32_t t1 = millis();
-        char response[144];
+        const uint32_t id = doc["id"] | uint32_t(0);
+        char response[180];
         snprintf(response, sizeof(response),
-                 "{\"type\":\"sync_ack\",\"session\":%lu,\"t0\":%lu,\"t1\":%lu,\"t2\":%lu}",
-                 static_cast<unsigned long>(session),
+                 "{\"type\":\"sync_ack\",\"session\":%lu,\"id\":%lu,\"t0\":%lu,"
+                 "\"t1\":%lu,\"t2\":%lu}",
+                 static_cast<unsigned long>(session), static_cast<unsigned long>(id),
                  static_cast<unsigned long>(t0), static_cast<unsigned long>(t1),
                  static_cast<unsigned long>(millis()));
         _ws.text(client, response);
     } else if (strcmp(type, "clock") == 0) {
-        if (!doc["offset_ms"].is<int32_t>() || _audio.playing()) {
+        if (doc["offset_ms"].isNull() || doc["offset_ms"].is<const char *>()) {
             reply(client, "error", "invalid_clock");
         } else {
-            const int32_t offset = doc["offset_ms"].as<int32_t>();
-            // The full signed 32-bit modular offset is valid even if the host
-            // has been up for weeks before the ESP8266 boots.
-            const uint32_t rtt = doc["rtt_ms"] | uint32_t(0);
-            _audio.timeline().setClock(offset, rtt);
-            reply(client, "clock_ack");
+            const double raw = doc["offset_ms"].as<double>();
+            if (raw < -2147483648.0 || raw > 2147483647.0 || raw != raw) {
+                reply(client, "error", "invalid_clock");
+            } else {
+                const int32_t offset = static_cast<int32_t>(raw);
+                const double raw_rtt = doc["rtt_ms"] | 0.0;
+                if (raw_rtt < 0 || raw_rtt > 10000 || raw_rtt != raw_rtt) {
+                    reply(client, "error", "invalid_rtt");
+                    return;
+                }
+                _audio.timeline().setClock(offset, static_cast<uint32_t>(raw_rtt));
+                reply(client, "clock_ack");
+            }
         }
     } else if (strcmp(type, "config") == 0) {
         if (configure(doc)) reply(client, "config_ack");
         else reply(client, "error", "invalid_config");
     } else if (strcmp(type, "start") == 0) {
-        if (_audio.start(client, session)) reply(client, "start_ack");
-        else reply(client, "error", "clock_not_set");
+        const uint32_t next = lab ? (doc["session_id"] | uint32_t(0)) : session;
+        if (lab && !_audio.adoptSession(client, next)) {
+            reply(client, "error", "invalid_session");
+        } else if (_audio.start(client, next)) {
+            reply(client, "start_ack");
+        } else reply(client, "error", "clock_not_set");
     } else if (strcmp(type, "stop") == 0) {
         _audio.stop();
+        _lab_client = 0;
         reply(client, "stop_ack");
     } else if (strcmp(type, "status") == 0) {
         const auto &stat = _audio.timeline().stats();
-        char response[350];
+        char response[400];
         snprintf(response, sizeof(response),
                  "{\"type\":\"status\",\"session\":%lu,\"playing\":%s,"
-                 "\"received\":%lu,\"dropped\":%lu,\"duplicates\":%lu,"
+                 "\"received\":%lu,\"received_frames\":%lu,\"dropped\":%lu,\"duplicates\":%lu,"
                  "\"stale\":%lu,\"overflow\":%lu,\"frame_age_ms\":%lu,"
-                 "\"clock_offset_ms\":%ld,\"rtt_ms\":%lu,\"buffer\":%u}",
+                 "\"clock_offset_ms\":%ld,\"rtt_ms\":%lu,\"buffer\":%u,\"buffer_occupancy\":%u}",
                  static_cast<unsigned long>(session), _audio.playing() ? "true" : "false",
-                 static_cast<unsigned long>(stat.received), static_cast<unsigned long>(stat.dropped),
-                 static_cast<unsigned long>(stat.duplicate), static_cast<unsigned long>(stat.stale),
-                 static_cast<unsigned long>(stat.overflow),
+                 static_cast<unsigned long>(stat.received), static_cast<unsigned long>(stat.received),
+                 static_cast<unsigned long>(stat.dropped), static_cast<unsigned long>(stat.duplicate),
+                 static_cast<unsigned long>(stat.stale), static_cast<unsigned long>(stat.overflow),
                  static_cast<unsigned long>(stat.frame_age_ms),
                  static_cast<long>(static_cast<int32_t>(stat.clock_offset_ms)),
                  static_cast<unsigned long>(stat.rtt_ms),
-                 unsigned(_audio.timeline().occupancy()));
+                 unsigned(_audio.timeline().occupancy()), unsigned(_audio.timeline().occupancy()));
         _ws.text(client, response);
     } else reply(client, "error", "unknown_command");
 }
