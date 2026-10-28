@@ -37,7 +37,8 @@ void WebAuthHandler::handleRequest(AsyncWebServerRequest *request) {
 }
 
 bool WebAuthHandler::canHandle(AsyncWebServerRequest *request) const {
-    bool is_local = (request->client()->getRemoteAddress() & PP_HTONL(0xffff0000UL)) == PP_HTONL(0xc0a80000UL);
+    const IPAddress peer = request->client()->remoteIP();
+    const bool is_local = peer[0] == 192 && peer[1] == 168;
     bool auth_required = _allow_local ? !is_local : true;
 
     return auth_required && !request->authenticate(AUTH_USER, AUTH_PASSWORD);
