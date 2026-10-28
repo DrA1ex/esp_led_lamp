@@ -235,7 +235,7 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
                  "\"received\":%lu,\"received_frames\":%lu,\"dropped\":%lu,\"duplicates\":%lu,"
                  "\"stale\":%lu,\"overflow\":%lu,\"frame_age_ms\":%lu,"
                  "\"clock_offset_ms\":%ld,\"rtt_ms\":%lu,\"buffer\":%u,\"buffer_occupancy\":%u,"
-                 "\"heap\":%u,\"heap_max_block\":%u,\"heap_fragmentation\":%u,\"queue_drops\":%lu}",
+                 "\"heap\":%u,\"heap_max_block\":%u,\"heap_fragmentation\":%u,\"queue_drops\":%lu,\"uptime_ms\":%lu,\"reset_reason\":%u}",
                  static_cast<unsigned long>(session), _audio.playing() ? "true" : "false",
                  static_cast<unsigned long>(stat.received), static_cast<unsigned long>(stat.received),
                  static_cast<unsigned long>(stat.dropped), static_cast<unsigned long>(stat.duplicate),
@@ -245,7 +245,8 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
                  static_cast<unsigned long>(stat.rtt_ms),
                  unsigned(_audio.timeline().occupancy()), unsigned(_audio.timeline().occupancy()),
                  unsigned(ESP.getFreeHeap()), unsigned(ESP.getMaxFreeBlockSize()),
-                 unsigned(ESP.getHeapFragmentation()), static_cast<unsigned long>(_queue_drops));
+                 unsigned(ESP.getHeapFragmentation()), static_cast<unsigned long>(_queue_drops),
+                 static_cast<unsigned long>(millis()), unsigned(ESP.getResetInfoPtr()->reason));
         _ws.text(client, response);
     } else reply(client, "error", "unknown_command");
 }
