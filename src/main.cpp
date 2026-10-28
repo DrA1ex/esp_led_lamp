@@ -98,6 +98,7 @@ WebSocketServer ws_server(app);
 RemoteAudioController remote_audio;
 RemoteSignalProvider remote_wave(remote_audio, RemoteSignalProvider::WAVE, WIDTH);
 RemoteSignalProvider remote_spectrum(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH);
+RemoteSignalProvider remote_spectrum_centered(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH / 2 + 1);
 RemoteSignalProvider remote_parametric(remote_audio, RemoteSignalProvider::PARAMETRIC, WIDTH);
 RemoteAudioSocket remote_audio_ws(remote_audio, app);
 #endif
@@ -270,7 +271,7 @@ void render() {
         audio_cfg = remote_audio.overrides().audio;
         audio_enabled = true;
         if (audio_cfg.is_wave()) provider = &remote_wave;
-        else if (audio_cfg.is_spectrum()) provider = &remote_spectrum;
+        else if (audio_cfg.is_spectrum()) provider = audio_cfg.effect == AudioEffectEnum::SPECTRUM_CENTERED ? &remote_spectrum_centered : &remote_spectrum;
         else provider = &remote_parametric;
     }
 #endif
