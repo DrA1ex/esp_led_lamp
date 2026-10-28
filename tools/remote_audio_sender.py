@@ -68,8 +68,11 @@ if __name__ == "__main__":
     parser.add_argument("--seconds", type=float, default=30)
     parser.add_argument("--lead-ms", type=int, default=45)
     parser.add_argument("--effect", type=int, default=3, help="Original audio mode index 0..9")
+    parser.add_argument("--sweep-modes", action="store_true", help="Run all ten modes sequentially")
     args = parser.parse_args()
     if not (1 <= args.hz <= 100 and args.seconds > 0 and 0 <= args.lead_ms <= 1000
             and 0 <= args.effect <= 9):
         parser.error("invalid hz, seconds, lead-ms or effect")
-    asyncio.run(stream(args.url, args.hz, args.seconds, args.lead_ms, args.effect))
+    for mode in (range(10) if args.sweep_modes else (args.effect,)):
+        print(f"Testing mode {mode}")
+        asyncio.run(stream(args.url, args.hz, args.seconds, args.lead_ms, mode))
