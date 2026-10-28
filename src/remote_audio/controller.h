@@ -53,10 +53,16 @@ public:
         _last_control = _last_frame;
         return true;
     }
-    void stop() {
+    // Stop rendering without dropping a connected browser's control lease.
+    void pause() {
         memset(_pulse, 0, sizeof(_pulse)); _last_pulse_tick = 0;
         _timeline.reset();
-        _session = 0; _owner = 0; _playing = false;
+        _playing = false;
+        _last_control = millis();
+    }
+    void stop() {
+        pause();
+        _session = 0; _owner = 0;
     }
     void disconnected(uint32_t client) {
         if (_owner == client) stop();
@@ -89,7 +95,7 @@ public:
         if (!_owner) return;
         if (_playing) {
             if (uint32_t(now - _last_frame) > RemoteAudio::STREAM_TIMEOUT_MS &&
-                _timeline.occupancy() == 0) stop();
+                _timeline.occupancy() == 0) pause();
         } else if (uint32_t(now - _last_control) > 5000) stop();
     }
     bool sample(uint32_t now) {
