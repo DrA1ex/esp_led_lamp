@@ -46,7 +46,7 @@ Send in this order:
 
 All invalid control messages return an `error` object. `config` is an
 atomic, runtime-only override and cannot persist a preset. Supported
-optional fields: `audio_effect` (0–9), `audio_min`, `audio_max`,
+optional fields: `audio_effect` (0–11), `audio_enabled` (boolean), `audio_min`, `audio_max`,
 `color_effect` (0–9), `brightness_effect` (0–4), `palette` (valid
 device palette index), `speed`, `scale`, `light` (all 0–255).
 The saved preset, power, gamma and eco settings remain authoritative.
@@ -107,11 +107,56 @@ Original IDs, unchanged:
 | 7 | Speed Control |
 | 8 | Scale Control |
 | 9 | Light Control |
+| 10 | Bass / Mid / High (WASM experimental) |
+| 11 | Beat-aware reactive (WASM experimental) |
 
 Spectrum maps all 32 bands to the matrix width; the centered version maps
 all bands to the appropriate half-width. Speed, Scale and Light operate on
 a temporary preset copy **before** running ColorEffects and
 BrightnessEffects.
+
+### New experimental modes from the WASM lab
+
+The two appended modes have the same color-preserving design as
+`esp_led_wasm_lab/src/render.cpp` (modes 11 and 12). They modulate
+the *existing* framebuffer by multiplying RGB channels (never inserting
+white flashes or standalone bright pixels).
+
+* `Bass / Mid / High` uses spectral content across columns, low/mid/high
+  energy and decaying low/mid/high onset pulses. The upper and lower half
+  respond to different bands. The receiver approximates the browser's
+  individual onset envelopes from packet onset masks/strength.
+* `Beat-aware reactive` uses the 32-band spectrum and a center-origin
+  radial beat ripple. The wire protocol transports beat phase/confidence
+  but not the browser DSP's separate `beatPulse`, so the receiver derives
+  a short pulse from phase/confidence and onset strength.
+
+These are not pixel-identical reproductions of the browser implementation;
+the protocol carries fewer transient/tempo details than the lab's full
+159-feature WASM array.
+
+### Compatibility with the supplied browser lab
+
+`esp_led_wasm_lab/web/remote.js` uses an earlier provisional control
+contract: hello without session, `sync.id`, floating-point clock offsets,
+and a `start.session_id`. The receiver recognizes this only for a
+`hello` with `client:"esp-led-wasm-lab"`. The browser's mode
+numbers are shifted because it has an explicit `Off` item:
+browser 0 = Off, browser 1..10 = firmware 0..9,
+browser 11..12 = firmware 10..11. Browser pause/stop preserves the
+connected control lease and synchronization, allowing a new `start`
+without disconnecting.
+
+**Only 32 frequency bands** are accepted and advertised by the ESP8266
+receiver. Select 32 in Remote Output; the lab's optional 16/64 band
+packets are not part of this fixed-size RFC and will be rejected.
+
+The lab-specific `Audio strength`, `Spectrum expression`,
+`Spectrum onset`, `Speed floor` and `Line fast response`
+modulation sliders are not transmitted by the current browser
+`remoteRuntimeConfig()`, so the ESP applies the core effects
+using the transmitted features, not all the experimental preview
+post-processing knobs.
 
 ## Build and test
 
@@ -132,7 +177,7 @@ python -m pip install websockets
 python tools/remote_audio_sender.py ws://192.168.4.1/audio --hz 40 --seconds 30 --effect 3
 ```
 
-Use `--effect 0` through `9` for the ten effects, or `--sweep-modes` to test each of the ten in its own session. `--lead-ms 45`
+Use `--effect 0` through `11` for twelve firmware modes (the sender's default CLI validation will be updated accordingly). `--lead-ms 45`
 controls the scheduled presentation lead (reduce for a lower-latency
 LAN). For normal Wi-Fi setup change `WIFI_MODE` to `WIFI_STA_MODE` in
 `constants.h` and configure `WIFI_SSID`/`WIFI_PASSWORD` in
@@ -149,7 +194,7 @@ Basic authentication depending on the current WebAuthHandler settings.
 The parser/timeline tests run on native C++. Physical matrix tests,
 real-world synchronization/latency, websocket fragment fuzzing and
 long-duration memory stress testing require an ESP8266 device.
-The supplementary WASM-laboratory modes from the separate user archive
-are **not included** here because that archive is not available in this
-GitHub repository or this session. Do not misrepresent the original
-ten effect modes as those extra modes.
+The two supplementary WASM experimental reactive modes are included as
+separate enum entries, without changing the ten stock mode IDs.
+The physical matrix, browser control path, real-world latency and
+synchronization accuracy still require device-side measurements.
