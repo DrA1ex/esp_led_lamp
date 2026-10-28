@@ -414,6 +414,10 @@ void service_loop(void *) {
 }
 
 void audio_loop(void *) {
+#if REMOTE_AUDIO == ENABLED
+    // Avoid unnecessary ADC sampling/FFT while a remote session is driving the LEDs.
+    if (remote_audio.playing()) return;
+#endif
     const auto &cfg = app.config.audio_config;
     if (!cfg.enabled) return;
 
