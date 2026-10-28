@@ -56,7 +56,7 @@ public:
     int32_t offset() const { return _offset_ms; }
     void setClock(int32_t offset_ms, uint32_t rtt_ms) {
         // Rebase the still-buffered frames rather than changing times mid-stream.
-        const int32_t adjust = offset_ms - _offset_ms;
+        const uint32_t adjust = static_cast<uint32_t>(offset_ms) - static_cast<uint32_t>(_offset_ms);
         for (uint8_t i = 0; i < _size; ++i) _frames[i].local_time += adjust;
         _offset_ms = offset_ms;
         _clock_valid = true;
