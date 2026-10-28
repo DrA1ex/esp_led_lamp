@@ -115,7 +115,7 @@ BrightnessEffects.
 
 ## Build and test
 
-PlatformIO: `pio run -e release`.
+PlatformIO: `pio run -e release`. GitHub Actions uploads the generated `firmware.bin` as the `esp8266-remote-audio-firmware` artifact (14-day retention) after a successful branch build.
 Host parser tests:
 
 ```sh
@@ -132,7 +132,7 @@ python -m pip install websockets
 python tools/remote_audio_sender.py ws://192.168.4.1/audio --hz 40 --seconds 30 --effect 3
 ```
 
-Use `--effect 0` through `9` for the ten effects. `--lead-ms 45`
+Use `--effect 0` through `9` for the ten effects, or `--sweep-modes` to test each of the ten in its own session. `--lead-ms 45`
 controls the scheduled presentation lead (reduce for a lower-latency
 LAN). For normal Wi-Fi setup change `WIFI_MODE` to `WIFI_STA_MODE` in
 `constants.h` and configure `WIFI_SSID`/`WIFI_PASSWORD` in
