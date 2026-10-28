@@ -56,7 +56,12 @@ public:
     // Stop rendering without dropping a connected browser's control lease.
     void pause() {
         memset(_pulse, 0, sizeof(_pulse)); _last_pulse_tick = 0;
+        // Clear pending data without losing clock sync across browser pause.
+        const bool synced = _timeline.clockValid();
+        const int32_t offset = _timeline.offset();
+        const uint32_t rtt = _timeline.stats().rtt_ms;
         _timeline.reset();
+        if (synced) _timeline.setClock(offset, rtt);
         _playing = false;
         _last_control = millis();
     }
