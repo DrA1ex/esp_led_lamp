@@ -126,4 +126,8 @@ enum class AudioEffectEnum : uint8_t {
     SPEED_CONTROL,
     SCALE_CONTROL,
     LIGHT_CONTROL,
+
+    // Remote DSP experimental effects, appended to preserve original IDs 0..9.
+    BASS_MID_HIGH,
+    BEAT_REACTIVE,
 };
