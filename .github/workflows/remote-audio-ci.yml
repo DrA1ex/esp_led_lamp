@@ -34,3 +34,10 @@ jobs:
         run: python -m pip install platformio
       - name: Compile ESP8266 firmware (remote enabled, local microphone disabled)
         run: pio run -e release
+      - name: Publish test firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp8266-remote-audio-firmware
+          path: .pio/build/release/firmware.bin
+          if-no-files-found: error
+          retention-days: 14
