@@ -198,3 +198,42 @@ The two supplementary WASM experimental reactive modes are included as
 separate enum entries, without changing the ten stock mode IDs.
 The physical matrix, browser control path, real-world latency and
 synchronization accuracy still require device-side measurements.
+
+## ESP8266 idle WebSocket stability regression (October 2026)
+
+The browser companion sends status approximately every 2 seconds and
+sync/clock approximately every 10 seconds **even without music playing**.
+This idle control traffic is sufficient to exercise the transport code.
+
+The remote endpoint now places complete incoming messages in a fixed-sized
+4-slot ring (3 usable messages); AsyncTCP callbacks only copy the bytes,
+while parsing JSON, modifying sessions and issuing WebSocket replies are
+performed in the 20 ms service loop. Full queues drop messages instead of
+blocking the callback. Client cleanup was reduced to once per second for
+both `/audio` and the legacy `/ws` endpoint.
+
+The WebSocket dependencies are pinned to:
+- `ESP32Async/ESPAsyncWebServer@3.12.1`
+- `ESP32Async/ESPAsyncTCP@2.0.0` **for ESP8266**, not AsyncTCP for ESP32.
+
+To reproduce the *no-audio* freeze/restart report and monitor the fix:
+
+```sh
+python -m pip install websockets
+python tools/ws_idle_soak.py ws://192.168.4.1/audio --minutes 20
+```
+
+The tool connects with the same browser `hello` client ID, does not send
+binary audio frames, keeps synchronizing the clock and querying status,
+and checks for an unexpected disconnect or device uptime rollback.
+The `status` response includes raw `reset_reason`, `uptime_ms`,
+`heap`, `heap_max_block`, `heap_fragmentation` and `queue_drops`.
+The browser UI need not display these diagnostics; the test tool does.
+
+**Acceptance still requires running the soak on a real ESP8266**, ideally
+with no playback and then separately during playback. A successful native
+build does not establish that a network-induced reset has been eliminated.
+If a reset occurs, record the reason, status telemetry and the serial
+exception trace (UART at 115200 for debug firmware, 74880 for the ROM boot
+message). For the watchdog or an exception, decode the stack addresses
+against the exact ELF of that build.
