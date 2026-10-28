@@ -205,12 +205,14 @@ The browser companion sends status approximately every 2 seconds and
 sync/clock approximately every 10 seconds **even without music playing**.
 This idle control traffic is sufficient to exercise the transport code.
 
-The remote endpoint now places complete incoming messages in a fixed-sized
-4-slot ring (3 usable messages); AsyncTCP callbacks only copy the bytes,
-while parsing JSON, modifying sessions and issuing WebSocket replies are
-performed in the 20 ms service loop. Full queues drop messages instead of
-blocking the callback. Client cleanup was reduced to once per second for
-both `/audio` and the legacy `/ws` endpoint.
+The remote endpoint now places incoming **JSON control messages** in a
+fixed-sized 4-slot ring (3 usable messages). JSON parsing, session changes
+and WebSocket replies run in the 20 ms service loop, not inside AsyncTCP
+callbacks. Full control queues drop messages instead of blocking the callback.
+Binary audio frames stay on a separate, allocation-free fast path so the
+browser's normal 240 ms lookahead bursts aren't limited by the smaller
+control queue. Client cleanup runs once per second for both `/audio`
+and the legacy `/ws` endpoint, instead of 50 times per second.
 
 The WebSocket dependencies are pinned to:
 - `ESP32Async/ESPAsyncWebServer@3.12.1`
