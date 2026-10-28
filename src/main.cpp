@@ -25,6 +25,13 @@
 #include "network/protocol/server/udp.h"
 #include "network/protocol/server/ws.h"
 
+#if REMOTE_AUDIO == ENABLED
+#include "remote_audio/controller.h"
+#include "network/protocol/server/remote_audio_ws.h"
+#include "utils/palette.h"
+#include "utils/color.h"
+#endif
+
 void initialization_animation();
 void render();
 void calibration();
@@ -86,6 +93,14 @@ ApiWebServer api_server(app);
 MqttServer mqtt_server(app);
 UdpServer udp_server(app);
 WebSocketServer ws_server(app);
+
+#if REMOTE_AUDIO == ENABLED
+RemoteAudioController remote_audio;
+RemoteSignalProvider remote_wave(remote_audio, RemoteSignalProvider::WAVE, WIDTH);
+RemoteSignalProvider remote_spectrum(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH);
+RemoteSignalProvider remote_parametric(remote_audio, RemoteSignalProvider::PARAMETRIC, WIDTH);
+RemoteAudioSocket remote_audio_ws(remote_audio, app);
+#endif
 
 NtpTime ntp_time;
 
@@ -207,45 +222,79 @@ void render() {
     }
 
 
-    //TODO: Refactor
+    // Work with a copy: audio-driven controls must never modify persistent presets.
     auto preset = app.preset();
+    const PaletteT *palette = &app.current_palette;
 
-#if AUDIO == ENABLED
-    const auto &audio_cfg = app.config.audio_config;
-    bool audio_applied = true;
-
-    if (audio_cfg.is_parametric()) {
-        const auto value = AudioEffects.calc(led, app.signal_provider(), audio_cfg.min, audio_cfg.max);
-
-        switch (audio_cfg.effect) {
-            case AudioEffectEnum::SPEED_CONTROL:
-                preset.speed = value;
-                break;
-            case AudioEffectEnum::SCALE_CONTROL:
-                preset.scale = value;
-                break;
-            case AudioEffectEnum::LIGHT_CONTROL:
-                preset.light = value;
-                break;
-
-            default:
-                audio_applied = false;
-        }
-    } else {
-        audio_applied = false;
+#if REMOTE_AUDIO == ENABLED
+    const bool remote_active = remote_audio.sample(millis());
+    static bool remote_was_active = false;
+    if (!remote_active && remote_was_active) {
+        // Restore saved palette and effects without writing flash.
+        app.load();
+        preset = app.preset();
+        palette = &app.current_palette;
     }
+    remote_was_active = remote_active;
+    PaletteT remote_palette;
+    if (remote_active) {
+        const auto &override = remote_audio.overrides();
+        preset = override.preset;
+        ColorEffects.select(preset.color_effect);
+        BrightnessEffects.select(preset.brightness_effect);
+        AudioEffects.select(override.audio.effect);
+        if (preset.palette != app.preset().palette) {
+            if (preset.palette == PaletteEnum::CUSTOM && app.custom_palette_config.updated) {
+                remote_palette = app.custom_palette_config.colors;
+            } else {
+                const auto &entry = Palettes.entries[(uint8_t)preset.palette];
+                set_palette(remote_palette, entry.value.data, entry.value.size);
+            }
+#if GAMMA_CORRECTION_RT == DISABLED
+            if (app.config.gamma != 0)
+                napplyGamma_video(remote_palette.entries, 16, gamma_value(app.config.gamma));
+#endif
+            palette = &remote_palette;
+        }
+    }
+#else
+    const bool remote_active = false;
 #endif
 
-    const auto palette = &app.current_palette;
+    bool audio_applied = false;
+    bool audio_enabled = false;
+    SignalProvider *provider = nullptr;
+    AudioConfig audio_cfg;
+#if REMOTE_AUDIO == ENABLED
+    if (remote_active) {
+        audio_cfg = remote_audio.overrides().audio;
+        audio_enabled = true;
+        if (audio_cfg.is_wave()) provider = &remote_wave;
+        else if (audio_cfg.is_spectrum()) provider = &remote_spectrum;
+        else provider = &remote_parametric;
+    }
+#endif
+#if AUDIO == ENABLED
+    if (!remote_active && app.config.audio_config.enabled) {
+        audio_cfg = app.config.audio_config;
+        audio_enabled = true;
+        provider = app.signal_provider();
+    }
+#endif
+    if (audio_enabled && provider && audio_cfg.is_parametric()) {
+        const auto value = AudioEffects.calc(led, provider, audio_cfg.min, audio_cfg.max);
+        switch (audio_cfg.effect) {
+            case AudioEffectEnum::SPEED_CONTROL: preset.speed = value; audio_applied = true; break;
+            case AudioEffectEnum::SCALE_CONTROL: preset.scale = value; audio_applied = true; break;
+            case AudioEffectEnum::LIGHT_CONTROL: preset.light = value; audio_applied = true; break;
+            default: break;
+        }
+    }
 
     ColorEffects.call(led, palette, preset, app.config.gamma);
     BrightnessEffects.call(led, preset);
-
-#if AUDIO == ENABLED
-    if (!audio_applied && audio_cfg.enabled) {
-        AudioEffects.call(led, app.signal_provider(), audio_cfg.min, audio_cfg.max);
-    }
-#endif
+    if (audio_enabled && provider && !audio_applied)
+        AudioEffects.call(led, provider, audio_cfg.min, audio_cfg.max);
 }
 
 void calibration() {
@@ -312,6 +361,9 @@ void service_loop(void *) {
             api_server.begin(web_server);
             udp_server.begin(UDP_PORT);
             ws_server.begin(web_server);
+#if REMOTE_AUDIO == ENABLED
+            remote_audio_ws.begin(web_server);
+#endif
 
             if constexpr (MQTT) mqtt_server.begin();
 
@@ -346,6 +398,9 @@ void service_loop(void *) {
 
             udp_server.handle_incoming_data();
             ws_server.handle_incoming_data();
+#if REMOTE_AUDIO == ENABLED
+            remote_audio_ws.poll();
+#endif
 
             if constexpr (MQTT) mqtt_server.handle_connection();
             break;
