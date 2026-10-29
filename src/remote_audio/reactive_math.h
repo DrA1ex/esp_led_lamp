@@ -101,7 +101,6 @@ public:
         _row = float(_height - 1) * (origin.center_y > 1000 ? 1000 : origin.center_y) / 1000.f;
     }
     int width() const { return _width; }
-    float row() const { return _row; }
     // Mapped column, or -1 when it falls outside a non-ring strip.
     int x(int column) const {
         int v = (_origin.reverse ? _width - 1 - column : column) - _shift;

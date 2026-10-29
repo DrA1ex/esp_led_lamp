@@ -20,7 +20,7 @@ public:
         AudioWindow window;          // input window / gate before audio min..max
         RemoteReactive::Origin origin;
         uint8_t viz_color = 0;       // visualizations: 0 palette colours, 1 mask the colour effect
-        Viz::Settings viz;           // visualizations: mirror, auto-level, decay, motion
+        Viz::Settings viz;           // visualizations: mirror, auto-level, decay / motion %
     };
     struct Overrides {
         AudioConfig audio;

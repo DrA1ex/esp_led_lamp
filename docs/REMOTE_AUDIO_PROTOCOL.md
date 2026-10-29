@@ -222,10 +222,15 @@ the control source (`param_source`). Building with `-DVIZ_WITH_HEAVY=0` drops
 the per-pixel modes 20, 21, 23 and 24 (noise, angles, fields) and removes them
 from `visualizations`.
 
-Cost on the ESP8266: about 18 KB flash and, for a 16×16 matrix, 2.4 KB RAM
-(1.3 KB of per-band meter state plus two bytes per LED). The engine uses
-floats; the `status` response reports the last visualization frame time as
-`viz_us`, which should stay well under the 16 ms frame budget.
+The engine is integer only, since the ESP8266 has no FPU and soft-float costs
+hundreds of cycles per operation: levels are Q12 (the stream's 0..4096),
+time is in ms, 2-D positions are 1/16 LED, phases Q16 turns; square roots
+and angles are integer approximations. `tests/check_viz_integer.sh` compiles
+it with the xtensa toolchain and fails on any soft-float call. Cost: about
+13 KB flash and, for a 16×16 matrix, 1.8 KB RAM (0.9 KB of per-band meter
+state plus two bytes per LED). The `status` response reports the last
+visualization frame time as `viz_us`, which should stay well under the 16 ms
+frame budget.
 
 ### Compatibility with the supplied browser lab
 
@@ -270,6 +275,7 @@ g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_audio_timeline.cpp -o /tm
 /tmp/remote_audio_timeline
 g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_viz.cpp -o /tmp/remote_viz
 /tmp/remote_viz
+tests/check_viz_integer.sh
 ```
 
 Synthetic sender:

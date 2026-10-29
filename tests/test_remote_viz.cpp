@@ -19,19 +19,22 @@ struct TestHost {
 
     int width() const { return w; }
     int height() const { return h; }
+    bool round = false;
+    // The test keeps its signals as 0..1 floats; the engine sees Q12 integers.
+    static int q(float x) { return int(std::lround(x * 4096)); }
     int originX(int x) const { return x; }
-    bool radial() const { return false; }
-    float radialRow() const { return (h - 1) / 2.f; }
-    float transfer(float x) const { return int(x * 1000) / 1000.f; }
-    float control() const { return ctrl; }
-    float lineSource() const { return ctrl; }
-    float level(int g) const { return levels[g]; }
-    float pulse(int g) const { return pulses[g]; }
+    bool radial() const { return round; }
+    int radialRow() const { return (h - 1) * 128; }
+    int transfer(int x) const { return x; }
+    int control() const { return q(ctrl); }
+    int lineSource() const { return q(ctrl); }
+    int level(int g) const { return q(levels[g]); }
+    int pulse(int g) const { return q(pulses[g]); }
     int bandCount() const { return count; }
-    float band(int i) const { return bands[i]; }
-    float wave(int index, int span) const {
+    int band(int i) const { return q(bands[i]); }
+    int wave(int index, int span) const {
         if (span > 128) index = index * 127 / (span - 1);
-        return waves[index < 127 ? index : 127];
+        return q(waves[index < 127 ? index : 127]);
     }
     uint8_t random8() { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return uint8_t(seed); }
     int16_t sin16(uint16_t t) const { return int16_t(std::lround(std::sin(t * 6.2831853 / 65536) * 32767)); }
@@ -40,10 +43,9 @@ struct TestHost {
         const double a = x / 65536.0, b = y / 65536.0, c = z / 65536.0;
         return uint16_t(32768 + 16000 * std::sin(a * 2.1 + c * 1.3) * std::cos(b * 1.7 - c * .9));
     }
-    void put(int x, int y, float value, int hue_value) {
+    void put(int x, int y, uint8_t value, uint8_t hue_value) {
         assert(x >= 0 && x < w && y >= 0 && y < h);
-        assert(value >= 0.f && value <= 1.f && hue_value >= 0 && hue_value <= 255);
-        v[y * w + x] = value; hue[y * w + x] = hue_value;
+        v[y * w + x] = value / 255.f; hue[y * w + x] = hue_value;
     }
     int lit() const { int n = 0; for (float x: v) n += x > .1f; return n; }
 };
@@ -66,7 +68,7 @@ static void silence(TestHost &t, int) {
 
 template<int PIX>
 static TestHost run(int w, int h, uint8_t mode, void (*fill)(TestHost &, int), int frames = 40,
-                    bool mirror = false, int count = 32, bool autolevel = false) {
+                    bool mirror = false, int count = 32, bool autolevel = false, bool round = false) {
     static Viz::Engine<TestHost, PIX> engine;
     engine.invalidate();
     engine.settings = Viz::Settings{};
@@ -74,11 +76,26 @@ static TestHost run(int w, int h, uint8_t mode, void (*fill)(TestHost &, int), i
     engine.settings.autolevel = autolevel;
     TestHost t(w, h);
     t.count = count;
-    for (int k = 0; k < frames; k++) { fill(t, k); engine.render(t, mode, .0167f); }
+    t.round = round;
+    for (int k = 0; k < frames; k++) { fill(t, k); engine.render(t, mode, 17); }
     return t;
 }
 
 int main() {
+    // Integer helpers: exact square roots, angles within 0.001 turn of atan2.
+    for (uint32_t v = 0; v < 2000000; v += 997) {
+        const uint32_t r = Viz::detail::isqrt(v);
+        assert(r * r <= v && (r + 1) * (r + 1) > v);
+    }
+    for (int a = 0; a < 360; a += 3) {
+        const double rad = a * 3.14159265358979 / 180;
+        const int x = int(std::lround(std::cos(rad) * 900)), y = int(std::lround(std::sin(rad) * 900));
+        double turns = Viz::detail::angle16(y, x) / 65536.0, want = std::atan2(y, x) / 6.28318530718;
+        if (want < 0) want += 1;
+        double err = std::fabs(turns - want);
+        if (err > .5) err = 1 - err;
+        assert(err < .001);
+    }
     const int geometries[][2] = {{7, 1}, {153, 1}, {72, 2}, {16, 16}, {46, 1}};
     for (uint8_t mode = 0; mode < Viz::MODE_COUNT; mode++) {
         assert(Viz::available(mode));
@@ -112,6 +129,11 @@ int main() {
     {
         const TestHost t = run<256>(100, 1, Viz::VU_METER, [](TestHost &h, int) { h.ctrl = .5f; });
         assert(t.v[10] > .1f && t.v[80] == 0.f);
+    }
+    // Radial VU on a matrix: lit around the centre, dark in the corners at half level.
+    {
+        const TestHost t = run<256>(16, 16, Viz::VU_METER, [](TestHost &h, int) { h.ctrl = .5f; }, 40, false, 32, false, true);
+        assert(t.v[8 * 16 + 8] > .1f && t.v[0] == 0.f && t.v[255] == 0.f);
     }
     // A geometry above the pixel budget renders nothing instead of overflowing.
     {
