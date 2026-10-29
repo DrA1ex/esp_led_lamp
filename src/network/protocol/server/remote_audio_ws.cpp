@@ -229,13 +229,14 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
             if (!Viz::available(m)) continue;
             n += snprintf(modes + n, sizeof(modes) - n, "%s%u", n ? "," : "", unsigned(RemoteViz::FIRST + m));
         }
-        char response[380];
+        char response[420];
         snprintf(response, sizeof(response),
                  "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
                  "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[16,32,64],"
-                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\"],"
-                 "\"visualizations\":[%s]}",
-                 static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT), modes);
+                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\",\"control\"],"
+                 "\"visualizations\":[%s],\"power\":%s,\"brightness\":%u}",
+                 static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT), modes,
+                 _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));
         _ws.text(client, response);
         return;
     }
@@ -291,15 +292,33 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
         if (lab) _audio.pause();
         else _audio.stop();
         reply(client, "stop_ack");
+    } else if (strcmp(type, "power") == 0 || strcmp(type, "brightness") == 0) {
+        // Lamp controls ("control" capability): persistent, like /api/power and /api/brightness.
+        if (strcmp(type, "power") == 0) {
+            if (!doc["on"].is<bool>()) { reply(client, "error", "invalid_power"); return; }
+            if (doc["on"].as<bool>() != _app.config.power) _app.set_power(doc["on"].as<bool>());
+        } else {
+            if (!doc["value"].is<int>() || doc["value"].as<int>() < 0 || doc["value"].as<int>() > 255) {
+                reply(client, "error", "invalid_brightness");
+                return;
+            }
+            _app.config.max_brightness = static_cast<uint8_t>(doc["value"].as<int>());
+            if (!_app.config_storage.is_pending_commit()) _app.config_storage.save();
+        }
+        char response[80];
+        snprintf(response, sizeof(response), "{\"type\":\"control_ack\",\"power\":%s,\"brightness\":%u}",
+                 _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));
+        _ws.text(client, response);
     } else if (strcmp(type, "status") == 0) {
         const auto &stat = _audio.timeline().stats();
-        char response[520];
+        char response[600];
         snprintf(response, sizeof(response),
                  "{\"type\":\"status\",\"session\":%lu,\"playing\":%s,"
                  "\"received\":%lu,\"received_frames\":%lu,\"dropped\":%lu,\"duplicates\":%lu,"
                  "\"stale\":%lu,\"overflow\":%lu,\"frame_age_ms\":%lu,"
                  "\"clock_offset_ms\":%ld,\"rtt_ms\":%lu,\"buffer\":%u,\"buffer_occupancy\":%u,"
-                 "\"heap\":%u,\"heap_max_block\":%u,\"heap_fragmentation\":%u,\"queue_drops\":%lu,\"uptime_ms\":%lu,\"reset_reason\":%u,\"viz_us\":%lu}",
+                 "\"heap\":%u,\"heap_max_block\":%u,\"heap_fragmentation\":%u,\"queue_drops\":%lu,\"uptime_ms\":%lu,\"reset_reason\":%u,\"viz_us\":%lu,"
+                 "\"power\":%s,\"brightness\":%u}",
                  static_cast<unsigned long>(session), _audio.playing() ? "true" : "false",
                  static_cast<unsigned long>(stat.received), static_cast<unsigned long>(stat.received),
                  static_cast<unsigned long>(stat.dropped), static_cast<unsigned long>(stat.duplicate),
@@ -311,7 +330,8 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
                  unsigned(ESP.getFreeHeap()), unsigned(ESP.getMaxFreeBlockSize()),
                  unsigned(ESP.getHeapFragmentation()), static_cast<unsigned long>(_queue_drops),
                  static_cast<unsigned long>(millis()), unsigned(ESP.getResetInfoPtr()->reason),
-                 static_cast<unsigned long>(RemoteViz::lastRenderMicros()));
+                 static_cast<unsigned long>(RemoteViz::lastRenderMicros()),
+                 _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));
         _ws.text(client, response);
     } else reply(client, "error", "unknown_command");
 }

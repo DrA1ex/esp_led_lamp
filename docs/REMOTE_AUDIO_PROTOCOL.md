@@ -44,6 +44,14 @@ Send in this order:
    RTT and buffer occupancy. `status` is infrequent, never per frame.
 8. `{"type":"stop","session":12345}` -> `stop_ack`. Any disconnect or
    stream timeout also restores the ordinary visual effect.
+9. Lamp controls (the `control` capability), allowed at any time after
+   `hello`, streaming or not: `{"type":"power","session":12345,"on":false}`
+   and `{"type":"brightness","session":12345,"value":128}` (0–255, the
+   lamp's maximum brightness). Both reply
+   `{"type":"control_ack","power":true,"brightness":128}`. Unlike `config`
+   they persist, like `/api/power` and `/api/brightness`. `hello_ack` and
+   `status` also carry the current `power` and `brightness`, so changes
+   from the lamp's own UI or button show up within one status period.
 
 All invalid control messages return an `error` object. `config` is an
 atomic, runtime-only override and cannot persist a preset. Supported
