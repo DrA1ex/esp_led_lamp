@@ -66,7 +66,9 @@ def run_stage(command, process_env, log, verbose=False, uploading=False):
                 if re.search(r"error:|^Error\b|Preset error:|timed out|No Answer", clean, re.IGNORECASE):
                     errors.append(clean[:240])
                     errors = errors[-3:]
-                match = re.search(r"(\d{1,3})%", clean) if uploading else None
+                # The incremental check also prints RAM/Flash percentages.
+                match = (re.search(r"(\d{1,3})\s*%", clean)
+                         if uploading and clean.startswith(("Uploading:", "Writing at ")) else None)
                 if match and 0 <= int(match[1]) <= 100:
                     value = int(match[1])
                     if value >= percentage + 25 or (value == 100 and percentage != 100):
@@ -150,7 +152,10 @@ def execute(args, credentials, plan, pio, environment):
                 code = run_stage(build_command, process_env, log, args.verbose)
                 if not code and args.upload:
                     print("    Uploading via " + args.upload.upper() + "...", flush=True)
-                    upload_command = command + ["-t", "nobuild", "-t", "uploadfs" if args.filesystem else "upload"]
+                    # ESP8266's nobuild skips Arduino setup, including the LD
+                    # script needed by upload/uploadfs. Let SCons check the
+                    # existing build and reuse its up-to-date firmware objects.
+                    upload_command = command + ["-t", "uploadfs" if args.filesystem else "upload"]
                     if port:
                         upload_command += ["--upload-port", port]
                     code = run_stage(upload_command, process_env, log, args.verbose, uploading=True)

@@ -218,7 +218,8 @@ command returns a nonzero exit code if any device failed. Ctrl+C stops the batch
 Preset commands show compact build/upload stages, occasional progress and a final
 summary. Warnings and full PlatformIO output are saved per device in
 `.pio/logs/<run>/<preset>.log`. Use `--verbose` to show detailed output in the
-terminal. Uploads reuse the just-built image without compiling it a second time.
+terminal. The upload stage uses PlatformIO's normal incremental build check,
+reusing up-to-date firmware objects. Filesystem images may be regenerated.
 The wrapper locks its shared build during a run; run direct `pio` commands
 sequentially with it as well.
 

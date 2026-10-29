@@ -166,6 +166,7 @@ class PresetTests(unittest.TestCase):
             (["--upload", "ota"], "release", "upload", "lamp.local"),
             (["--upload", "ota", "--port", "192.168.1.42"], "release", "upload", "192.168.1.42"),
             (["--filesystem", "--upload", "ota"], "release", "uploadfs", "lamp.local"),
+            (["--filesystem", "--upload", "usb"], "release", "uploadfs", "COM7"),
             (["--filesystem"], "release", "buildfs", None),
             (["--upload", "ota", "--environment", "debug"], "debug", "upload", "lamp.local"),
         ]
@@ -180,15 +181,19 @@ class PresetTests(unittest.TestCase):
                 command = call.call_args.args[0]
                 self.assertEqual(command[command.index("-e") + 1], environment)
                 targets = [command[i + 1] for i, part in enumerate(command) if part == "-t"]
-                self.assertEqual(targets, (["nobuild", target] if "--upload" in args else [target] if target else []))
+                self.assertEqual(targets, [target] if target else [])
                 self.assertEqual(command[command.index("--upload-port") + 1] if port else None, port)
                 process_env = call.call_args.args[1]
                 self.assertEqual(process_env["LAMP_PRESET"], "lamp")
                 self.assertNotIn("LAMP_CREDENTIALS", process_env)
                 if "--upload" in args:
                     self.assertEqual(call.call_count, 2)
-                    self.assertIn("nobuild", command)
-                    self.assertNotIn("--upload-port", call.call_args_list[0].args[0])
+                    self.assertNotIn("nobuild", command)
+                    build_command = call.call_args_list[0].args[0]
+                    self.assertNotIn("--upload-port", build_command)
+                    self.assertEqual(build_command, ["pio", "run", "--project-dir", str(self.root),
+                                                     "-e", environment]
+                                     + (["-t", "buildfs"] if "--filesystem" in args else []))
                     self.assertEqual(process_env["LAMP_UPLOAD_METHOD"], args[args.index("--upload") + 1])
                 else:
                     self.assertEqual(call.call_count, 1)
@@ -280,12 +285,16 @@ class PresetTests(unittest.TestCase):
             stage.assert_not_called()
 
     def test_compact_logging_retains_warnings_and_verbose_shows_them(self):
-        command = [sys.executable, "-c", 'print("warning: noisy"); print("Uploading: 25%"); print("Uploading: 100%")']
+        command = [sys.executable, "-c", 'print("warning: noisy"); print("RAM: 74.1%"); '
+                   'print("Flash: 50.8%"); print("Uploading: 25%"); '
+                   'print("Writing at 0x00000000... (50 %)"); print("Uploading: 100%")']
         log = io.StringIO()
         with patch.object(cli, "ROOT", self.root), contextlib.redirect_stdout(io.StringIO()) as output:
             code = cli.run_stage(command, os.environ.copy(), log, uploading=True)
         self.assertEqual(code, 0)
         self.assertNotIn("warning:", output.getvalue())
+        self.assertEqual([line.strip() for line in output.getvalue().splitlines()],
+                         ["Upload: 25%", "Upload: 50%", "Upload: 100%"])
         self.assertIn("Upload: 100%", output.getvalue())
         self.assertIn("warning: noisy", log.getvalue())
         with patch.object(cli, "ROOT", self.root), contextlib.redirect_stdout(io.StringIO()) as output:
