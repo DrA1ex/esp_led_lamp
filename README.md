@@ -301,7 +301,9 @@ pio run -t uploadfs -e ota
 
 The `feature/remote-audio-dsp` branch adds the independent WebSocket
 `/audio` receiver for timestamped desktop DSP features (no ESP8266 ADC or
-local FFT required). Its ten original modes plus the two experimental WASM-lab modes are driven by remote RMS,
+local FFT required). Its ten original modes, the two experimental WASM-lab modes and 13 remote-only
+visualizations that adapt to strips and matrices (VU meter, spectrum bars, flow, pulses, sparkles, mood,
+waveform, band meters, fire, aurora, juggle, radial spectrum, blobs) are driven by remote RMS,
 onsets, beats and 16, 32 or 64 frequency bands. Sessions/configuration are runtime-only and never
 persist audio frames to flash. See [protocol, sender and test instructions](docs/REMOTE_AUDIO_PROTOCOL.md).
 

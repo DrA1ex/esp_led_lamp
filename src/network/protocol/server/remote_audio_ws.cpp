@@ -4,6 +4,7 @@
 #include <ArduinoJson.h>
 #include <string.h>
 #include "fx/fx.h"
+#include "remote_audio/visualizations.h"
 
 void RemoteAudioSocket::begin(WebServer &server) {
     _ws.onEvent([this](AsyncWebSocket *s, AsyncWebSocketClient *c,
@@ -145,7 +146,7 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
     uint8_t color_fx = static_cast<uint8_t>(next.preset.color_effect);
     uint8_t brightness_fx = static_cast<uint8_t>(next.preset.brightness_effect);
     uint8_t palette = static_cast<uint8_t>(next.preset.palette);
-    if (!uint8field("audio_effect", audio_fx, AudioEffects.config().count - (lab ? 0 : 1)) ||
+    if (!uint8field("audio_effect", audio_fx, 255) ||
         !uint8field("audio_min", next.audio.min, 255) ||
         !uint8field("audio_max", next.audio.max, 255) ||
         !uint8field("color_effect", color_fx, ColorEffects.config().count - 1) ||
@@ -174,11 +175,24 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         !boolfield("origin_ring", origin.ring) ||
         !boolfield("origin_radial", origin.radial)) return false;
     if (next.tuning.window.in_min >= next.tuning.window.in_max) return false;
+    // Visualizations (AudioEffectEnum::VU_METER..BLOBS): colours, mirror, auto-level, fall-off and motion in %.
+    auto &viz = next.tuning.viz;
+    uint8_t decay = uint8_t(viz.decay * 100.f + .5f), motion = uint8_t(viz.speed * 100.f + .5f);
+    if (!uint8field("viz_color", next.tuning.viz_color, 1) ||
+        !boolfield("viz_mirror", viz.mirror) ||
+        !boolfield("viz_auto", viz.autolevel) ||
+        !uint8field("viz_decay", decay, 100) ||
+        !uint8field("viz_motion", motion, 100)) return false;
+    viz.decay = decay / 100.f;
+    viz.speed = motion / 100.f;
     origin.shift = static_cast<int16_t>(shift);
     next.tuning.window.curve = static_cast<uint16_t>(curve);
     origin.center_y = static_cast<uint16_t>(center_y);
     if (next.audio.min > next.audio.max) return false;
     next.audio.effect = static_cast<AudioEffectEnum>(lab && audio_fx ? audio_fx - 1 : audio_fx);
+    // Stock and experimental effects, or a visualization this build renders.
+    if (!(lab && audio_fx == 0) && uint8_t(next.audio.effect) >= AudioEffects.config().count &&
+        !RemoteViz::handles(next.audio.effect)) return false;
     next.audio.enabled = !(lab && audio_fx == 0);
     if (!doc["audio_enabled"].isNull()) {
         if (!doc["audio_enabled"].is<bool>()) return false;
@@ -212,12 +226,19 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
             return;
         }
         _lab_client = lab ? client : 0;
-        char response[280];
+        // Visualization effect ids this build renders (firmware numbering).
+        char modes[80] = "";
+        for (uint8_t m = 0, n = 0; m < Viz::MODE_COUNT; ++m) {
+            if (!Viz::available(m)) continue;
+            n += snprintf(modes + n, sizeof(modes) - n, "%s%u", n ? "," : "", unsigned(RemoteViz::FIRST + m));
+        }
+        char response[380];
         snprintf(response, sizeof(response),
                  "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
                  "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[16,32,64],"
-                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\"]}",
-                 static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT));
+                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\"],"
+                 "\"visualizations\":[%s]}",
+                 static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT), modes);
         _ws.text(client, response);
         return;
     }
@@ -275,13 +296,13 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
         reply(client, "stop_ack");
     } else if (strcmp(type, "status") == 0) {
         const auto &stat = _audio.timeline().stats();
-        char response[480];
+        char response[520];
         snprintf(response, sizeof(response),
                  "{\"type\":\"status\",\"session\":%lu,\"playing\":%s,"
                  "\"received\":%lu,\"received_frames\":%lu,\"dropped\":%lu,\"duplicates\":%lu,"
                  "\"stale\":%lu,\"overflow\":%lu,\"frame_age_ms\":%lu,"
                  "\"clock_offset_ms\":%ld,\"rtt_ms\":%lu,\"buffer\":%u,\"buffer_occupancy\":%u,"
-                 "\"heap\":%u,\"heap_max_block\":%u,\"heap_fragmentation\":%u,\"queue_drops\":%lu,\"uptime_ms\":%lu,\"reset_reason\":%u}",
+                 "\"heap\":%u,\"heap_max_block\":%u,\"heap_fragmentation\":%u,\"queue_drops\":%lu,\"uptime_ms\":%lu,\"reset_reason\":%u,\"viz_us\":%lu}",
                  static_cast<unsigned long>(session), _audio.playing() ? "true" : "false",
                  static_cast<unsigned long>(stat.received), static_cast<unsigned long>(stat.received),
                  static_cast<unsigned long>(stat.dropped), static_cast<unsigned long>(stat.duplicate),
@@ -292,7 +313,8 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
                  unsigned(_audio.timeline().occupancy()), unsigned(_audio.timeline().occupancy()),
                  unsigned(ESP.getFreeHeap()), unsigned(ESP.getMaxFreeBlockSize()),
                  unsigned(ESP.getHeapFragmentation()), static_cast<unsigned long>(_queue_drops),
-                 static_cast<unsigned long>(millis()), unsigned(ESP.getResetInfoPtr()->reason));
+                 static_cast<unsigned long>(millis()), unsigned(ESP.getResetInfoPtr()->reason),
+                 static_cast<unsigned long>(RemoteViz::lastRenderMicros()));
         _ws.text(client, response);
     } else reply(client, "error", "unknown_command");
 }

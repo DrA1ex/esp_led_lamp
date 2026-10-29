@@ -130,4 +130,20 @@ enum class AudioEffectEnum : uint8_t {
     // Remote DSP experimental effects, appended to preserve original IDs 0..9.
     BASS_MID_HIGH,
     BEAT_REACTIVE,
+
+    // Remote-only visualizations (remote_audio/viz_engine.h, lab modes 13..25).
+    // Not in AudioEffects' list, so the lamp UI does not offer them.
+    VU_METER,
+    SPECTRUM_BARS,
+    FLOW,
+    PULSES,
+    SPARKLES,
+    MOOD,
+    WAVEFORM,
+    BAND_METERS,
+    FIRE,
+    AURORA,
+    JUGGLE,
+    RADIAL_SPECTRUM,
+    BLOBS,
 };

@@ -18,7 +18,8 @@ the same WebSocket client. Only one client may own the session at a time.
 Send in this order:
 
 1. `{"type":"hello","version":1,"session":12345}` ->
-   `hello_ack` with dimensions, the accepted band counts (`band_counts: [16, 32, 64]`), fps and capabilities.
+   `hello_ack` with dimensions, the accepted band counts (`band_counts: [16, 32, 64]`), fps, capabilities
+   and the visualization effect ids this build renders (`visualizations: [12, …, 24]`).
 2. `{"type":"sync","session":12345,"t0":123456789}` ->
    `sync_ack` with `t0`, `t1` (device receive), `t2` (device reply).
    Capture `t3` as soon as the sender receives `sync_ack`.
@@ -46,7 +47,7 @@ Send in this order:
 
 All invalid control messages return an `error` object. `config` is an
 atomic, runtime-only override and cannot persist a preset. Supported
-optional fields: `audio_effect` (0–11), `audio_enabled` (boolean), `audio_min`, `audio_max`,
+optional fields: `audio_effect` (0–11, or a listed visualization 12–24), `audio_enabled` (boolean), `audio_min`, `audio_max`,
 `color_effect` (0–9), `brightness_effect` (0–4), `palette` (valid
 device palette index), `speed`, `scale`, `light` (all 0–255).
 The saved preset, power, gamma and eco settings remain authoritative.
@@ -68,6 +69,11 @@ defaults to 0 on `hello`, which reproduces the stock firmware effects):
 | `origin_ring` | bool | Closed strip: the shifted effect wraps past the last LED instead of leaving the first LEDs dark |
 | `origin_radial` | bool | Matrices: Center modes and Beat-aware use the 2-D distance from (WIDTH / 2, `origin_y`) |
 | `origin_y` | 0–1000 ‰ of HEIGHT − 1 | Row of the radial centre (default 500) |
+| `viz_color` | 0–1 | Visualizations: 0 draws with the palette, 1 uses the level as a mask over the colour effect |
+| `viz_mirror` | bool | Visualizations: strips run out from the centre both ways, matrices mirror around the middle row |
+| `viz_auto` | bool (default true) | Visualizations: auto-level, each band / meter stretched over its own recent ~3 s range |
+| `viz_decay` | 0–100 % (default 50) | Visualizations: meter release, peak fall and trail length |
+| `viz_motion` | 0–100 % (default 50) | Visualizations: motion speed (Flow, Pulses, Fire, Aurora, Juggle, Radial Spectrum, Blobs) |
 
 The signal window applies to every audio mode that maps a value
 (`audioTransfer()` in `src/audio/transfer.h`). The origin maps each column
@@ -183,6 +189,44 @@ These are not pixel-identical reproductions of the browser implementation;
 the protocol carries fewer transient/tempo details than the lab's full
 159-feature WASM array.
 
+### Visualizations (12–24)
+
+Remote-only modes appended after the experimental ones, not offered by the
+lamp's own UI (`AudioEffects` does not list them). They live in
+`src/remote_audio/viz_engine.h`, which is a byte-identical copy of
+`esp_led_lab/src/viz_engine.h`, the engine the lab preview renders, so the
+lamp computes the same picture (only random sparks differ).
+`src/remote_audio/visualizations.h` feeds it the stream and draws with the
+current palette.
+
+| Id | Lab | Mode | Strip (HEIGHT < 4, all rows equal) | Matrix |
+|---|---|---|---|---|
+| 12 | 13 | VU Meter | fill from the origin or both ways from the centre, peak dot | fill from the bottom / middle row, or a circle with `origin_radial` |
+| 13 | 14 | Spectrum Bars | bands spread along the LEDs | a bar per column with falling peaks |
+| 14 | 15 | Flow | loudness river coloured by tone | scrolling spectrogram |
+| 15 | 16 | Pulses | onsets launch comets | onsets launch rings |
+| 16 | 17 | Sparkles | treble and onsets sprinkle sparks over a bass glow | same |
+| 17 | 18 | Mood | the whole lamp breathes, colour follows the tone | same |
+| 18 | 19 | Waveform | loudness history | history bars or a mirrored waveform |
+| 19 | 20 | Bass · Mid · Treble | three segments | three bars |
+| 20 | 21 | Fire | flames from the start or the centre | a flame per band from the bottom |
+| 21 | 22 | Aurora | slow noise growing with the music | same in 2-D |
+| 22 | 23 | Juggle | eight band dots swinging with trails | Lissajous dots |
+| 23 | 24 | Radial Spectrum | symmetric spectrum rolling along | rotating spectrum sun |
+| 24 | 25 | Blobs | four band blobs merging | lava lamp |
+
+Levels go through the signal window and `audio_min..audio_max` like every
+other mode; the origin (shift / reverse / ring / radial centre) applies. The
+lab's fast line envelope is not on the wire, so modes following loudness use
+the control source (`param_source`). Building with `-DVIZ_WITH_HEAVY=0` drops
+the per-pixel modes 20, 21, 23 and 24 (noise, angles, fields) and removes them
+from `visualizations`.
+
+Cost on the ESP8266: about 18 KB flash and, for a 16×16 matrix, 2.4 KB RAM
+(1.3 KB of per-band meter state plus two bytes per LED). The engine uses
+floats; the `status` response reports the last visualization frame time as
+`viz_us`, which should stay well under the 16 ms frame budget.
+
 ### Compatibility with the supplied browser lab
 
 `esp_led_lab/web/js/remote.js` uses an earlier provisional control
@@ -191,7 +235,9 @@ and a `start.session_id`. The receiver recognizes this only for a
 `hello` with `client:"esp-led-wasm-lab"`. The browser's mode
 numbers are shifted because it has an explicit `Off` item:
 browser 0 = Off, browser 1..10 = firmware 0..9,
-browser 11..12 = firmware 10..11. Browser pause/stop preserves the
+browser 11..12 = firmware 10..11, browser 13..25 = visualizations 12..24
+(sent only to lamps that list them in `visualizations`; others get Off).
+Browser pause/stop preserves the
 connected control lease and synchronization, allowing a new `start`
 without disconnecting.
 
@@ -222,6 +268,8 @@ g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_audio_protocol.cpp -o /tm
 /tmp/remote_audio_protocol
 g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_audio_timeline.cpp -o /tmp/remote_audio_timeline
 /tmp/remote_audio_timeline
+g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_viz.cpp -o /tmp/remote_viz
+/tmp/remote_viz
 ```
 
 Synthetic sender:
@@ -231,7 +279,7 @@ python -m pip install websockets
 python tools/remote_audio_sender.py ws://192.168.4.1/audio --hz 40 --seconds 30 --effect 3
 ```
 
-Use `--effect 0` through `11` for twelve firmware modes. `--lead-ms 45`
+Use `--effect 0` through `24`: twelve firmware modes and the 13 visualizations. `--lead-ms 45`
 controls the scheduled presentation lead (reduce for a lower-latency
 LAN). For normal Wi-Fi setup change `WIFI_MODE` to `WIFI_STA_MODE` in
 `constants.h` and configure `WIFI_SSID`/`WIFI_PASSWORD` in
@@ -283,7 +331,8 @@ The tool connects with the same browser `hello` client ID, does not send
 binary audio frames, keeps synchronizing the clock and querying status,
 and checks for an unexpected disconnect or device uptime rollback.
 The `status` response includes raw `reset_reason`, `uptime_ms`,
-`heap`, `heap_max_block`, `heap_fragmentation` and `queue_drops`.
+`heap`, `heap_max_block`, `heap_fragmentation`, `queue_drops` and `viz_us`
+(the last visualization frame time).
 The browser UI need not display these diagnostics; the test tool does.
 
 **Acceptance still requires running the soak on a real ESP8266**, ideally

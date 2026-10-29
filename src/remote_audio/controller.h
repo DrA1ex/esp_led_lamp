@@ -5,6 +5,7 @@
 #include "config.h"
 #include "remote_audio/timeline.h"
 #include "remote_audio/reactive_math.h"
+#include "remote_audio/viz_engine.h"
 
 // Does not modify Application::config or persisted preset storage.
 class RemoteAudioController {
@@ -18,6 +19,8 @@ public:
         uint8_t spectrum_onset = 0;  // 0..100 %, onset accents in Wave/Spectrum
         AudioWindow window;          // input window / gate before audio min..max
         RemoteReactive::Origin origin;
+        uint8_t viz_color = 0;       // visualizations: 0 palette colours, 1 mask the colour effect
+        Viz::Settings viz;           // visualizations: mirror, auto-level, decay, motion
     };
     struct Overrides {
         AudioConfig audio;

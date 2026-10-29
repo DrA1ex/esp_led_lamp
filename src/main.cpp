@@ -28,6 +28,7 @@
 #if REMOTE_AUDIO == ENABLED
 #include "remote_audio/controller.h"
 #include "remote_audio/reactive_effects.h"
+#include "remote_audio/visualizations.h"
 #include "network/protocol/server/remote_audio_ws.h"
 #include "utils/palette.h"
 #include "utils/color.h"
@@ -317,6 +318,8 @@ void render() {
             (audio_cfg.effect == AudioEffectEnum::BASS_MID_HIGH ||
              audio_cfg.effect == AudioEffectEnum::BEAT_REACTIVE)) {
             RemoteReactive::apply(led, remote_audio, audio_cfg.effect);
+        } else if (remote_active && RemoteViz::handles(audio_cfg.effect)) {
+            RemoteViz::render(led, remote_audio, *palette, audio_cfg.effect, audio_cfg.min, audio_cfg.max);
         } else if (remote_active && RemoteReactive::customRender(remote_audio, audio_cfg.effect)) {
             RemoteReactive::render(led, *provider, remote_audio, audio_cfg.effect, audio_cfg.min, audio_cfg.max);
         } else
