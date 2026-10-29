@@ -62,6 +62,7 @@ defaults to 0 on `hello`, which reproduces the stock firmware effects):
 | `spectrum_onset` | 0–100 % | Wave/Spectrum columns add `0.22 · onset envelope` of their low/mid/high group |
 | `input_min`, `input_max` | 0–255, `min < max` | Signal window: the input range (of the provider maximum) stretched onto `audio_min..audio_max`; above `input_max` gives `audio_max` |
 | `input_gate` | bool | Below `input_min`: 0 instead of `audio_min` |
+| `input_curve` | 25–400 (exponent × 100) | Curve inside the window: position `t` becomes `t^(input_curve / 100)`. 100 is linear; above 100 keeps low and mid signals dim and spreads the top (LED brightness looks logarithmic, so 200–250 makes the reaction look even); below 100 lifts quiet signals |
 | `origin_shift` | −500..500 ‰ of WIDTH | Moves the start of Wave / Spectrum / Line / Bass·Mid·High and the centre of the Center modes and Beat-aware |
 | `origin_reverse` | bool | Runs the effect from the other end |
 | `origin_ring` | bool | Closed strip: the shifted effect wraps past the last LED instead of leaving the first LEDs dark |
@@ -73,7 +74,7 @@ The signal window applies to every audio mode that maps a value
 `x` to `x' = (reverse ? WIDTH − 1 − x : x) − round(WIDTH · origin_shift / 1000)`,
 wrapped modulo WIDTH with `origin_ring` and dark outside `0..WIDTH − 1`
 otherwise (`RemoteReactive::OriginMap`); modes are then evaluated at `x'`.
-Defaults (`0`, `255`, `false`, `0`, `500`, `false`) reproduce the stock
+Defaults (`0`, `255`, `false`, `100`, `0`, `500`, `false`) reproduce the stock
 output, and the stock `AudioEffectManager` path is used whenever the origin
 and spectrum shaping are at their defaults. A config with
 `input_min >= input_max` or an out-of-range field is rejected.

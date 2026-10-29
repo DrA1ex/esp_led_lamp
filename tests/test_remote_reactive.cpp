@@ -81,6 +81,21 @@ int main() {
     assert(audioTransfer(49, 255, 255, 150, 250, window) == 0);
     assert(audioTransfer(50, 255, 255, 150, 250, window) == 150);
 
+    // Curve: 100 is linear, > 100 keeps the middle dim, ends stay fixed.
+    AudioWindow curved;
+    for (uint32_t v = 0; v <= 4096; v += 64)
+        assert(audioTransfer(v, 4096, 255, 0, 255, curved) == int32_t(v * 255 / 4096));
+    curved.curve = 200;
+    assert(audioTransfer(0, 255, 255, 0, 255, curved) == 0);
+    assert(audioTransfer(255, 255, 255, 0, 255, curved) == 255);
+    const int32_t half = audioTransfer(128, 255, 255, 0, 255, curved);
+    assert(half >= 62 && half <= 66); // (128/255)^2 * 255 = 64
+    curved.curve = 50;
+    const int32_t lifted = audioTransfer(64, 255, 255, 0, 255, curved);
+    assert(lifted >= 125 && lifted <= 129); // sqrt(64/255) * 255 = 127.7
+    for (uint32_t v = 1; v <= 255; ++v)
+        assert(audioTransfer(v, 255, 255, 0, 255, curved) >= audioTransfer(v - 1, 255, 255, 0, 255, curved));
+
     // Origin: the default reproduces the stock column / centre geometry.
     for (int width : {1, 7, 16, 153}) {
         const OriginMap stock(width, 1, Origin{});

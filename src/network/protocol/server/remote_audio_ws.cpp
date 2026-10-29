@@ -163,10 +163,11 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
     next.tuning.param_source = static_cast<RemoteReactive::ControlSource>(source);
     // Signal window and origin (docs/REMOTE_AUDIO_PROTOCOL.md, "Tuning").
     auto &origin = next.tuning.origin;
-    int shift = origin.shift, center_y = origin.center_y;
+    int shift = origin.shift, center_y = origin.center_y, curve = next.tuning.window.curve;
     if (!uint8field("input_min", next.tuning.window.in_min, 255) ||
         !uint8field("input_max", next.tuning.window.in_max, 255) ||
         !boolfield("input_gate", next.tuning.window.gate) ||
+        !intfield("input_curve", curve, 25, 400) ||
         !intfield("origin_shift", shift, -500, 500) ||
         !intfield("origin_y", center_y, 0, 1000) ||
         !boolfield("origin_reverse", origin.reverse) ||
@@ -174,6 +175,7 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         !boolfield("origin_radial", origin.radial)) return false;
     if (next.tuning.window.in_min >= next.tuning.window.in_max) return false;
     origin.shift = static_cast<int16_t>(shift);
+    next.tuning.window.curve = static_cast<uint16_t>(curve);
     origin.center_y = static_cast<uint16_t>(center_y);
     if (next.audio.min > next.audio.max) return false;
     next.audio.effect = static_cast<AudioEffectEnum>(lab && audio_fx ? audio_fx - 1 : audio_fx);
