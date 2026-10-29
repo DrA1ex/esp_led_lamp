@@ -173,11 +173,11 @@ inline uint16_t controlValue(const RemoteProtocol::Frame &f, const uint16_t *pul
             // Lab new_param_value(): 0.45 * strongest band + 0.55 * mean, x1.55.
             uint32_t sum = 0;
             uint16_t peak = 0;
-            for (uint8_t i = 0; i < RemoteProtocol::BAND_COUNT; ++i) {
+            for (uint8_t i = 0; i < f.band_count; ++i) {
                 sum += f.bands[i];
                 if (f.bands[i] > peak) peak = f.bands[i];
             }
-            const float mean = float(sum) / RemoteProtocol::BAND_COUNT;
+            const float mean = float(sum) / f.band_count;
             const float v = (.45f * peak + .55f * mean) * 1.55f;
             return v > MAX ? MAX : uint16_t(v);
         }

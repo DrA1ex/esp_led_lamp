@@ -73,7 +73,7 @@ void RemoteAudioSocket::onEvent(AsyncWebSocket *, AsyncWebSocketClient *client,
     const uint8_t opcode = info->opcode == WS_CONTINUATION &&
                            _fragment_client == client->id() ? _fragment_opcode : info->opcode;
     if (opcode != WS_TEXT && opcode != WS_BINARY) return;
-    const size_t maximum = opcode == WS_BINARY ? RemoteProtocol::FRAME_SIZE : sizeof(_fragments);
+    const size_t maximum = opcode == WS_BINARY ? RemoteProtocol::MAX_FRAME_SIZE : sizeof(_fragments);
     // WebSocket frame fragments are assembled in one statically bounded scratch area.
     // The owner is single-client; concurrent fragmented messages are rejected.
     if (info->num == 0 && info->index == 0) {
@@ -215,7 +215,7 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
         char response[280];
         snprintf(response, sizeof(response),
                  "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
-                 "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[32],"
+                 "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[16,32,64],"
                  "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\"]}",
                  static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT));
         _ws.text(client, response);

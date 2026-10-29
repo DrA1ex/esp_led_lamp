@@ -153,8 +153,11 @@ public:
                 _output.mid = mix(_output.mid, next.mid, frac);
                 _output.high = mix(_output.high, next.high, frac);
                 _output.peak = mix(_output.peak, next.peak, frac);
-                for (uint8_t i = 0; i < RemoteProtocol::BAND_COUNT; ++i) {
-                    _output.bands[i] = mix(_output.bands[i], next.bands[i], frac);
+                // A new session may change the band count: no mixing across it.
+                if (next.band_count == _output.band_count) {
+                    for (uint8_t i = 0; i < _output.band_count; ++i) {
+                        _output.bands[i] = mix(_output.bands[i], next.bands[i], frac);
+                    }
                 }
             }
         }

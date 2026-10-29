@@ -161,8 +161,9 @@ public:
             return _controller.timeline().wave(age);
         }
         if (_kind == PARAMETRIC) return _controller.controlValue();
-        const uint16_t *bands = _controller.timeline().output().bands;
-        constexpr uint16_t B = RemoteProtocol::BAND_COUNT;
+        const auto &output = _controller.timeline().output();
+        const uint16_t *bands = output.bands;
+        const uint16_t B = output.band_count;
         if (_width < 2) return bands[0];
         if (_width < B) {
             // Fewer columns than bands (short strips, centered halves): average

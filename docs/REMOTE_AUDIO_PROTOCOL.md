@@ -18,7 +18,7 @@ the same WebSocket client. Only one client may own the session at a time.
 Send in this order:
 
 1. `{"type":"hello","version":1,"session":12345}` ->
-   `hello_ack` with dimensions, 32-band count, fps and capabilities.
+   `hello_ack` with dimensions, the accepted band counts (`band_counts: [16, 32, 64]`), fps and capabilities.
 2. `{"type":"sync","session":12345,"t0":123456789}` ->
    `sync_ack` with `t0`, `t1` (device receive), `t2` (device reply).
    Capture `t3` as soon as the sender receives `sync_ack`.
@@ -84,8 +84,8 @@ These match the lab's new-FFT preview (`src/render.cpp`,
 
 ## AUDIO_FRAME
 
-Exactly **102 binary bytes**, little endian, with manual serialization
-and validation rather than a packed C++ struct:
+**38 + 2 × band count bytes** (16 → 70, 32 → 102, 64 → 166), little endian,
+with manual serialization and validation rather than a packed C++ struct:
 
 | Offset | Field | Type |
 |---|---|---|
@@ -93,7 +93,7 @@ and validation rather than a packed C++ struct:
 | 4 | Version 1 | uint8 |
 | 5 | Type 1 | uint8 |
 | 6 | Flags (bit 0 = live input) | uint8 |
-| 7 | Band count 32 | uint8 |
+| 7 | Band count: 16, 32 or 64 | uint8 |
 | 8 | Session ID | uint32 |
 | 12 | Sequence | uint32 |
 | 16 | Sender monotonic presentation milliseconds | uint32 |
@@ -108,7 +108,7 @@ and validation rather than a packed C++ struct:
 | 34 | BPM × 10 (0 if unknown) | uint16 |
 | 36 | Beat confidence | uint8 |
 | 37 | Reserved 0 | uint8 |
-| 38 | 32 logarithmic frequency bands (~40 Hz–8 kHz) | 32 × uint16 |
+| 38 | Logarithmic frequency bands (the lab's analysed range, 40 Hz–8 kHz by default) | count × uint16 |
 
 Amplitudes and bands must be within 0–4096 inclusive. The session ID
 must match the active sender. Sequence numbers are tracked in a 32-packet
@@ -144,7 +144,7 @@ Original IDs, unchanged:
 | 10 | Bass / Mid / High (WASM experimental) |
 | 11 | Beat-aware reactive (WASM experimental) |
 
-Spectrum maps all 32 bands to the matrix width; the centered version maps
+Spectrum maps all received bands to the matrix width; the centered version maps
 all bands to the appropriate half-width. When there are fewer columns than
 bands (short strips such as 7 LEDs, or a centered 16-wide matrix) each column
 averages its range of bands instead of sampling single bands.
@@ -174,7 +174,7 @@ white flashes or standalone bright pixels).
   energy and decaying low/mid/high onset pulses. The upper and lower half
   respond to different bands. The receiver approximates the browser's
   individual onset envelopes from packet onset masks/strength.
-* `Beat-aware reactive` uses the 32-band spectrum and a center-origin
+* `Beat-aware reactive` uses the received spectrum and a center-origin
   radial beat ripple. The wire protocol transports beat phase, BPM and
   confidence but not the browser DSP's separate `beatPulse`; the receiver
   reconstructs it as the same 230 ms decay after each beat from phase × BPM.
@@ -195,9 +195,12 @@ browser 11..12 = firmware 10..11. Browser pause/stop preserves the
 connected control lease and synchronization, allowing a new `start`
 without disconnecting.
 
-**Only 32 frequency bands** are accepted and advertised by the ESP8266
-receiver. Select 32 in Remote Output; the lab's optional 16/64 band
-packets are not part of this fixed-size RFC and will be rejected.
+**16, 32 or 64 frequency bands** are accepted and advertised
+(`band_counts`). Each frame states its count; the receiver stores up to 64
+bands per queued frame (about 1.7 KB more RAM than the former fixed 32) and
+does not interpolate across a change of count. Spectrum modes average or
+interpolate the received bands over the columns, so more bands give long
+strips and wide matrices finer detail, fewer bands a calmer picture.
 
 The lab transmits its control source, `Speed floor`, `Spectrum expression`,
 `Spectrum onset`, the signal window and the origin as reaction tuning (see

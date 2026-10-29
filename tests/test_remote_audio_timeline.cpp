@@ -10,7 +10,7 @@ static RemoteProtocol::Frame frame(uint32_t seq, uint32_t timestamp, uint16_t le
     f.rms = level;
     f.onset_mask = seq == 1 ? 1 : seq == 2 ? 2 : 0;
     f.onset = level;
-    for (unsigned i = 0; i < RemoteProtocol::BAND_COUNT; ++i) f.bands[i] = level;
+    for (unsigned i = 0; i < f.band_count; ++i) f.bands[i] = level;
     return f;
 }
 int main() {

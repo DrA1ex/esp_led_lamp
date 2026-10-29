@@ -24,9 +24,9 @@ inline void apply(Led &led, const RemoteAudioController &controller, AudioEffect
             continue;
         }
         // Lab features[x * 16 / W] are aggregated from the same logarithmic
-        // FFT; remote wire format has 32 bands, mapped over the full width.
-        const uint8_t index = uint32_t(xp) * RemoteProtocol::BAND_COUNT / width;
-        const uint16_t band = f.bands[index < 32 ? index : 31];
+        // FFT; the remote bands (16/32/64) are mapped over the full width.
+        const uint8_t index = uint32_t(xp) * f.band_count / width;
+        const uint16_t band = f.bands[index < f.band_count ? index : f.band_count - 1];
         for (uint16_t y = 0; y < height; ++y) {
             const uint8_t scale = mode == AudioEffectEnum::BEAT_REACTIVE
                     ? beatReactiveAt(band, beat, origin.beatRadius(xp, y), mix)

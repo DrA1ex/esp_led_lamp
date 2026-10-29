@@ -5,10 +5,14 @@
 #include <stdint.h>
 
 namespace RemoteProtocol {
-constexpr size_t FRAME_SIZE = 102;
 constexpr uint8_t VERSION = 1;
-constexpr uint8_t BAND_COUNT = 32;
+// A frame carries 16, 32 or 64 bands (byte 7); its size is 38 + 2 * count.
+constexpr uint8_t MAX_BANDS = 64;
+constexpr size_t HEADER_SIZE = 38;
+constexpr size_t MAX_FRAME_SIZE = HEADER_SIZE + 2 * MAX_BANDS;
 constexpr uint16_t MAX_LEVEL = 4096;
+inline bool validBandCount(uint8_t n) { return n == 16 || n == 32 || n == 64; }
+inline size_t frameSize(uint8_t bands) { return HEADER_SIZE + 2 * size_t(bands); }
 
 struct Frame {
     uint8_t flags = 0;
@@ -19,7 +23,8 @@ struct Frame {
     uint8_t onset_mask = 0, beat_phase = 0;
     uint16_t bpm_x10 = 0;
     uint8_t beat_confidence = 0;
-    uint16_t bands[BAND_COUNT] = {};
+    uint8_t band_count = 32;
+    uint16_t bands[MAX_BANDS] = {};
 };
 
 inline uint16_t read16(const uint8_t *p) {
@@ -32,10 +37,10 @@ inline bool validLevel(uint16_t n) { return n <= MAX_LEVEL; }
 
 // Explicit byte decoding; never cast the incoming bytes to a packed struct.
 inline bool decode(const uint8_t *data, size_t len, Frame &out) {
-    if (!data || len != FRAME_SIZE ||
+    if (!data || len < HEADER_SIZE || !validBandCount(data[7]) || len != frameSize(data[7]) ||
         data[0] != 'E' || data[1] != 'L' || data[2] != 'A' || data[3] != 'F' ||
         data[4] != VERSION || data[5] != 1 ||
-        (data[6] & ~uint8_t(1)) != 0 || data[7] != BAND_COUNT ||
+        (data[6] & ~uint8_t(1)) != 0 ||
         (data[32] & ~uint8_t(7)) != 0 || data[37] != 0) return false;
 
     Frame parsed;
@@ -53,12 +58,13 @@ inline bool decode(const uint8_t *data, size_t len, Frame &out) {
     parsed.beat_phase = data[33];
     parsed.bpm_x10 = read16(data + 34);
     parsed.beat_confidence = data[36];
+    parsed.band_count = data[7];
     if (!validLevel(parsed.rms) || !validLevel(parsed.bass) ||
         !validLevel(parsed.mid) || !validLevel(parsed.high) ||
         !validLevel(parsed.peak) || !validLevel(parsed.onset) ||
         parsed.session == 0) return false;
-    for (uint8_t i = 0; i < BAND_COUNT; ++i) {
-        parsed.bands[i] = read16(data + 38 + 2 * i);
+    for (uint8_t i = 0; i < parsed.band_count; ++i) {
+        parsed.bands[i] = read16(data + HEADER_SIZE + 2 * i);
         if (!validLevel(parsed.bands[i])) return false;
     }
     out = parsed;
