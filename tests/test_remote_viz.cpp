@@ -13,7 +13,7 @@ struct TestHost {
     int w, h;
     std::vector<float> v;
     std::vector<int> hue;
-    float bands[64] = {}, levels[3] = {}, pulses[3] = {}, ctrl = 0, waves[128] = {}, beats = 0;
+    float bands[64] = {}, levels[3] = {}, pulses[3] = {}, ctrl = 0, waves[128] = {}, beats = 0, phase = 0, confidence = 0;
     int count = 32;
     uint32_t seed = 1337;
     uint64_t trace = 0; // every pixel of every frame, hashed
@@ -33,6 +33,8 @@ struct TestHost {
     int level(int g) const { return q(levels[g]); }
     int pulse(int g) const { return q(pulses[g]); }
     int beat() const { return q(beats); }
+    int beatPhase() const { return int(std::lround(phase * 65536)) & 0xffff; }
+    int tempoConfidence() const { return q(confidence); }
     int bandCount() const { return count; }
     int band(int i) const { return q(bands[i]); }
     int wave(int index, int span) const {
@@ -69,13 +71,15 @@ static void music(TestHost &t, int k) {
     for (int i = 0; i < 128; i++) t.waves[i] = .4f + .5f * std::fabs(std::sin(i * .2f));
     t.levels[0] = .7f; t.levels[1] = .5f; t.levels[2] = .6f;
     t.beats = k % 30 < 4 ? 1.f - (k % 30) * .25f : 0.f;
+    // A tempo the beat tracker is sure of from frame 20: a beat every 30 frames.
+    t.phase = (k % 30) / 30.f; t.confidence = k < 20 ? 0.f : 1.f;
     // A broadband hit every 10 frames for the per-band onsets.
     if (k % 10 == 0) for (int i = 0; i < 64; i++) t.bands[i] = 1.f;
 }
 static void silence(TestHost &t, int) {
     for (float &b: t.bands) b = 0;
     for (int g = 0; g < 3; g++) t.levels[g] = t.pulses[g] = 0;
-    t.ctrl = 0; t.beats = 0;
+    t.ctrl = 0; t.beats = 0; t.phase = 0; t.confidence = 0;
     for (float &x: t.waves) x = 0;
 }
 
@@ -195,6 +199,41 @@ int main() {
                 if (!changed && h >= 4) { std::printf("mode %u param %d changes nothing on %dx%d\n", mode, p, w, h); return 1; }
             }
         }
+    }
+    // Groove moves with the beat phase. At a steady 100 BPM (30 frames of 20 ms
+    // per beat) without hits, the default step of half a period per beat brings
+    // the picture back every two beats, not after one or half a beat.
+    {
+        static Viz::Engine<TestHost, 256> engine;
+        auto groove = [&](float confidence, bool hits, int frames) {
+            engine.invalidate();
+            engine.settings = Viz::Settings{};
+            TestHost t(16, 16);
+            std::vector<std::vector<float>> seen;
+            for (int k = 0; k < frames; k++) {
+                for (int i = 0; i < 64; i++) t.bands[i] = .5f;
+                t.levels[0] = .7f; t.levels[1] = .5f; t.levels[2] = 0; t.ctrl = .6f;
+                t.phase = (k % 30) / 30.f; t.confidence = confidence;
+                t.pulses[0] = hits && k % 30 < 2 ? 1.f : 0.f;
+                engine.render(t, Viz::GROOVE, 20);
+                seen.push_back(t.v);
+            }
+            return seen;
+        };
+        auto diff = [](const std::vector<float> &a, const std::vector<float> &b) {
+            float most = 0;
+            for (size_t i = 0; i < a.size(); i++) most = std::fmax(most, std::fabs(a[i] - b[i]));
+            return most;
+        };
+        const auto locked = groove(1, false, 400);
+        for (int k = 300; k < 330; k += 5)
+            assert(diff(locked[k], locked[k + 60]) < .02f && diff(locked[k], locked[k + 30]) > .2f && diff(locked[k], locked[k + 15]) > .2f);
+        // Without a confident tempo the phase is ignored: without hits the
+        // pattern rests; a bass hit on every beat moves it a step per beat.
+        const auto resting = groove(0, false, 200);
+        assert(diff(resting[150], resting[199]) == 0.f);
+        const auto stepping = groove(0, true, 400);
+        assert(diff(stepping[300], stepping[330]) > .2f && diff(stepping[300], stepping[360]) < .02f);
     }
     // A geometry above the pixel budget renders nothing instead of overflowing.
     {

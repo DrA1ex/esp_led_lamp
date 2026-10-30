@@ -175,7 +175,7 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         !boolfield("origin_ring", origin.ring) ||
         !boolfield("origin_radial", origin.radial)) return false;
     if (next.tuning.window.in_min >= next.tuning.window.in_max) return false;
-    // Visualizations (AudioEffectEnum::VU_METER..MELODY): colours, mirror, auto-level, fall-off and motion in %.
+    // Visualizations (AudioEffectEnum::VU_METER..GROOVE): colours, mirror, auto-level, fall-off and motion in %.
     auto &viz = next.tuning.viz;
     if (!uint8field("viz_color", next.tuning.viz_color, 1) ||
         !boolfield("viz_mirror", viz.mirror) ||

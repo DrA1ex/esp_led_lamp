@@ -50,15 +50,19 @@ async def stream(url, hz, seconds, lead_ms, effect, params=None):
         started = time.monotonic()
         seq = 0
         next_send = started
+        beats = -1
         try:
             while time.monotonic() - started < seconds:
                 t = time.monotonic() - started
                 rms = int((0.5 + 0.5 * math.sin(2 * math.pi * 2 * t)) * 4096)
                 bands = [int(rms * (0.3 + 0.7 * math.sin(i * 0.3 + t) ** 2)) for i in range(32)]
+                # A 120 BPM beat: its phase, a sure tempo and a bass onset on each beat.
+                onset = 1 if int(t * 2) != beats else 0
+                beats = int(t * 2)
                 packet = FRAME.pack(b"ELAF", 1, 1, 1, 32, session, seq,
                                     (now_ms() + lead_ms) & 0xffffffff,
-                                    rms, bands[0], bands[15], bands[31], rms, 0,
-                                    0, 0, 0, 0, 0, *bands)
+                                    rms, bands[0], bands[15], bands[31], rms, 4096 * onset,
+                                    onset, int((t * 2) % 1 * 255), 1200, 230, 0, *bands)
                 await ws.send(packet)
                 seq = (seq + 1) & 0xffffffff
                 next_send += 1 / hz
@@ -74,12 +78,12 @@ if __name__ == "__main__":
     parser.add_argument("--hz", type=float, default=40)
     parser.add_argument("--seconds", type=float, default=30)
     parser.add_argument("--lead-ms", type=int, default=45)
-    parser.add_argument("--effect", type=int, default=3, help="Audio mode 0..28 (10/11 experimental, 12..28 visualizations)")
+    parser.add_argument("--effect", type=int, default=3, help="Audio mode 0..29 (10/11 experimental, 12..29 visualizations)")
     parser.add_argument("--params", help="Effect parameters for a visualization, comma-separated 0..255 (docs: params)")
-    parser.add_argument("--sweep-modes", action="store_true", help="Run all 29 modes sequentially")
+    parser.add_argument("--sweep-modes", action="store_true", help="Run all 30 modes sequentially")
     args = parser.parse_args()
     if not (1 <= args.hz <= 100 and args.seconds > 0 and 0 <= args.lead_ms <= 1000
-            and 0 <= args.effect <= 28):
+            and 0 <= args.effect <= 29):
         parser.error("invalid hz, seconds, lead-ms or effect")
     params = None
     if args.params is not None:
@@ -89,6 +93,6 @@ if __name__ == "__main__":
             parser.error("--params takes comma-separated integers")
         if len(params) > 11 or any(not 0 <= v <= 255 for v in params):
             parser.error("--params takes at most 11 values 0..255")
-    for mode in (range(29) if args.sweep_modes else (args.effect,)):
+    for mode in (range(30) if args.sweep_modes else (args.effect,)):
         print(f"Testing mode {mode}")
         asyncio.run(stream(args.url, args.hz, args.seconds, args.lead_ms, mode, params))

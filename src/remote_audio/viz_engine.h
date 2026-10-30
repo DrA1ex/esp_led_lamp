@@ -15,6 +15,8 @@
 //   int transfer(int v) (reaction range / window / curve, Q12 -> Q12);
 //   int control(), lineSource(), level(int g), pulse(int g);  (Q12)
 //   int beat();  (predicted beat pulse x tempo confidence, Q12)
+//   int beatPhase();  (Q16 turn since the last predicted beat)
+//   int tempoConfidence();  (Q12)
 //   int bandCount(); int band(int i); int wave(int index, int span);  (Q12)
 //   uint8_t random8(); int16_t sin16(uint16_t);
 //   uint16_t noise(uint32_t x, uint32_t y[, uint32_t z]);  (inoise16)
@@ -27,8 +29,8 @@
 //
 // Every mode can take up to MAX_PARAMS parameters (0..255 each, the "params"
 // message): paramDefaults() / paramCount() below, their meaning next to each
-// mode, their names in the lab's web/js/fx-params.js. The constructors' and
-// Melody's last parameter is their brightness (128 = x1, 255 = x2).
+// mode, their names in the lab's web/js/fx-params.js. From Particles on, the
+// last parameter is the mode's brightness (128 = x1, 255 = x2).
 #include <stdint.h>
 
 #ifndef VIZ_WITH_HEAVY
@@ -43,7 +45,9 @@ enum Mode : uint8_t {
     // Constructors: their parameters pick the shape, the trigger, the motion and the colours.
     PARTICLES, FIELD, ZONES,
     // Follows the dominant frequency: the one mode that needs the spectrum's shape, not its energy.
-    MELODY, MODE_COUNT
+    MELODY,
+    // Moves with the beat phase, not with single onsets.
+    GROOVE, MODE_COUNT
 };
 // Per-pixel noise, angles and fields: compiled only with VIZ_WITH_HEAVY.
 inline bool heavy(uint8_t m) { return m == FIRE || m == AURORA || m == RADIAL_SPECTRUM || m == BLOBS || m == FIELD; }
@@ -56,7 +60,7 @@ constexpr int32_t ONE = 4096; // Q12 1.0
 constexpr uint8_t PARAMS_VERSION = 1;
 constexpr int MAX_PARAMS = 11;
 inline uint8_t paramCount(uint8_t m) {
-    static constexpr uint8_t count[MODE_COUNT] = {2, 2, 0, 3, 4, 4, 1, 0, 8, 5, 2, 2, 3, 10, 11, 9, 9};
+    static constexpr uint8_t count[MODE_COUNT] = {2, 2, 0, 3, 4, 4, 1, 0, 8, 5, 2, 2, 3, 10, 11, 9, 9, 8};
     return m < MODE_COUNT ? count[m] : 0;
 }
 // Defaults: the former constants of the existing modes (Fire has a new look);
@@ -82,6 +86,7 @@ inline const uint8_t *paramDefaults(uint8_t m) {
         {0, 100, 80, 1, 1, 120, 100, 60, 120, 30, 128},  // Field: pattern, zoom, flow, map, drive, pump, kick, contrast, colours, drift, brightness
         {8, 0, 0, 1, 100, 40, 0, 60, 128},               // Zones: zones, layout, trigger, pattern, decay, glow, colours, edge, brightness
         {40, 200, 0, 80, 100, 120, 0, 40, 128},          // Melody: from, to, style, glide, size, trail, colours, gate, brightness
+        {0, 64, 200, 160, 100, 100, 0, 128},             // Groove: shape, step, snap, pump, zoom, sparks, colours, brightness
         {0},
     };
     return table[m < MODE_COUNT ? int(m) : int(MODE_COUNT)];
@@ -148,6 +153,10 @@ class Engine {
     // axis: up a matrix, along a strip), velocity Q12 lamps per second, life Q12.
     struct Spark { int32_t x, y; int16_t vx, vy, life; uint8_t hue, on; };
     struct Zone { int16_t level; uint8_t hue; };
+    // Groove: the beat clock (beats, Q16: the phase is its low half) and its
+    // rate (Q16 beats per second), the pattern's travel (Q16 periods, wraps),
+    // the bass expansion (Q12), the direction and a turn due at the next beat.
+    struct Groove { uint32_t pos, travel; int32_t rate; int16_t boost; int8_t dir; uint8_t turn, locked, hue; };
 
     int16_t _level[CHANNELS], _peak[CHANNELS], _hold[CHANNELS]; // Q12, Q12, ms
     int32_t _lo[CHANNELS], _hi[CHANNELS];                       // auto-level range, Q20
@@ -156,8 +165,8 @@ class Engine {
     int32_t _clock = 0, _spawn = 0; // ms, Q8 sparks
     uint16_t _phase[8], _phase2[8]; // Q16 turns
     uint32_t _z = 0;                // Aurora / Field time, noise units
-    // Only one mode runs at a time: Pulses, Particles and Zones share this memory.
-    union { Comet _comets[24]; Spark _sparks[SPARKS]; Zone _zones[ZONES_MAX]; };
+    // Only one mode runs at a time: Pulses, Particles, Zones and Groove share this memory.
+    union { Comet _comets[24]; Spark _sparks[SPARKS]; Zone _zones[ZONES_MAX]; Groove _groove; };
     uint8_t _cursor = 0, _count = 0, _hit_hue = 0; // Zones: chase position, built zones, colour per hit
     int8_t _dir = 1;
     uint8_t _p[MAX_PARAMS] = {};
@@ -194,6 +203,7 @@ public:
             case PARTICLES: particles(); break;
             case ZONES: zones(); break;
             case MELODY: melody(); break;
+            case GROOVE: groove(); break;
 #if VIZ_WITH_HEAVY
             case FIRE: fire(); break;
             case AURORA: aurora(); break;
@@ -212,6 +222,7 @@ private:
         for (int i = 0; i < MAX_PIX; i++) _v[i] = _h[i] = 0;
         if (mode == PARTICLES) for (Spark &s: _sparks) s.on = 0;
         else if (mode == ZONES) for (Zone &z: _zones) z = Zone{0, 0};
+        else if (mode == GROOVE) _groove = Groove{0, 0, 131072, 0, 1, 0, 0, 0}; // 120 BPM until it hears one
         else for (Comet &c: _comets) c.on = false;
         for (int g = 0; g < 3; g++) _prev_pulse[g] = 0;
         for (int k = 0; k < 4; k++) _cool[k] = _grow[k] = 0;
@@ -985,6 +996,121 @@ private:
             }
         }
         showCanvas(m, cols);
+    }
+
+    // Groove: a pattern that moves with the beat, one step per beat that eases
+    // out from the beat itself. A confident tempo runs it from the beat phase;
+    // without one, bass and mid hits start the steps. Bass hits (and the beat)
+    // kick it outwards, a mid hit turns the next step round, the treble adds small sparks.
+    // Parameters: shape (0 rings from the centre, 1 spin: spiral arms, 2
+    // stripes, 3 bounce: a ball swinging side to side; on a strip waves run
+    // along it, or a bar swings), step (128 = one period of the pattern per
+    // beat), snap (0 a steady glide .. 255 a sharp step on the beat), pump (the
+    // expansion), zoom, sparks, colours (0 along the pattern, 1 by tone, 2 a
+    // new colour each beat), brightness.
+    void groove() {
+        using namespace detail;
+        const bool m = matrix();
+        Groove &g = _groove;
+        const int shape = P(0) % 4, colors = P(6) % 3;
+        int32_t strength[3] = {0, 0, 0};
+        const int mask = onsets(strength);
+        // The beat clock. Locked to a confident tempo, a phase-locked loop pulls
+        // it towards the host's phase and its rate towards the tempo.
+        const int32_t conf = _host->tempoConfidence();
+        g.locked = conf > 1229 ? 1 : conf < 819 ? 0 : g.locked;
+        uint32_t from = g.pos;
+        bool beat = false;
+        if (g.locked) {
+            const int32_t err = int16_t(uint16_t(_host->beatPhase() - uint16_t(g.pos)));
+            g.rate = clampi(g.rate + err * 9 * _dt / 1000, 26214, 327680); // 24 .. 300 BPM
+            g.pos += uint32_t(maxi(0, (g.rate + err * 6) * _dt / 1000));  // never backwards
+        } else {
+            // A hit starts the next step from where the pattern is; each step
+            // runs at the last tempo (at least 120 BPM) and stops at its end.
+            if (mask & 3) { from = g.pos = (g.pos | 0xffff) + 1; beat = true; }
+            const uint32_t left = 0xffff - (g.pos & 0xffff);
+            g.pos += mini(left, maxi(g.rate, 131072) * _dt / 1000);
+        }
+        const bool crossed = (g.pos >> 16) != (from >> 16);
+        if (beat || crossed) g.hue = uint8_t(g.hue + (colors == 2 ? 72 : 6));
+        // The step done at a phase (Q16): t glides, 1 - (1 - t)^4 snaps.
+        auto ease = [&](uint32_t pos) {
+            const int32_t t = int32_t(pos & 0xffff), r = (65536 - t) >> 8, r2 = (r * r) >> 8;
+            return t + ((65536 - r2 * r2 - t) * P(2) >> 8);
+        };
+        // The pattern travels `step` / 128 periods per beat; a mid hit turns the next step round.
+        if (mask & 2) g.turn = 1;
+        int32_t done = ease(g.pos) - ease(from);
+        if (crossed || beat) {
+            if (crossed) g.travel += uint32_t(g.dir * (((65536 - ease(from)) * P(1)) >> 7));
+            if (g.turn) { g.dir = int8_t(-g.dir); g.turn = 0; }
+            done = ease(g.pos);
+        }
+        g.travel += uint32_t(g.dir * ((done * P(1)) >> 7));
+        // Expansion (Q12): a kick from a bass hit, or from the beat itself while locked.
+        const int32_t rest = (65536 - int32_t(g.pos & 0xffff)) >> 4, rest2 = (rest * rest) >> 12;
+        const int32_t env = g.locked ? ((rest2 * rest2) >> 12) * 3 / 4 : 0;
+        g.boost = int16_t((mask & 1) && strength[0] > g.boost ? strength[0] : approach(g.boost, 0, 1, 150));
+        const int32_t e = maxi(g.boost, env), grow = (e * P(3)) >> 8;
+        _mood = int16_t(approach(_mood, overall(_host->lineSource()), 30, releaseMs()));
+        const int32_t amp = mini(ONE, _mood * 4);
+        // Sparks: a few with the treble, more on a treble hit; gone in a fraction of a beat.
+        const int n = m ? W * H : stripCells();
+        fade(n, 150);
+        _spawn += ((n + 15) >> 4) * ((P(5) * level01(_host->level(2))) >> 11) * _dt / 1000; // Q8, n / 16 per second x sparks / 128
+        if (mask & 4) _spawn += ((n + 15) >> 4) * P(5) * (strength[2] >> 4) / 128;
+        for (_spawn = mini(_spawn, n << 8); _spawn >= 256; _spawn -= 256) stamp(random(n), 255, (g.hue + 128) & 255);
+        // The pattern: phase per 1/16 LED (Q16 periods), (8 + zoom) / 32 periods across, the expansion stretches it up to 2x.
+        const int cells = m ? W : stripCells();
+        const int32_t size = m ? maxi(W, H) : cells, k0 = 128 * (8 + P(4)) / maxi(1, size);
+        const int32_t k = k0 - ((k0 * grow) >> 13);
+        const int arms = 1 + ((P(4) + 32) >> 6);
+        const int32_t cx = m ? (W - 1) * 8 : 0, cy = radial() ? row16() : (H - 1) * 8;
+        // Bounce: the ball rests at the sides and swings through the middle, lower there (Q4).
+        const int32_t swing = _host->sin16(uint16_t(g.travel + 16384)), dip = _host->sin16(uint16_t(2 * g.travel + 16384));
+        const int32_t span = (m ? W : cells) * 16, bx = m ? cx + ((swing * span * 3 / 10) >> 15) : (cells * 8) + ((swing * span * 3 / 8) >> 15);
+        const int32_t by = cy + ((dip * H * 4) >> 15), radius = (size * 16 * (900 + ((800 * grow) >> 12))) >> 12;
+        const int32_t tone = (_tone * 255) >> 12;
+        auto light = [&](int i, int32_t dx, int32_t dy) -> uint32_t { // brightness << 8 | hue
+            uint32_t s; // the place in the pattern for the colours: Q16 periods, no seams
+            int32_t p;
+            if (shape == 3) {
+                // The ball with a soft edge and a glow around it.
+                const int32_t d = dist(dx - (m ? bx - cx : bx), m ? dy - (by - cy) : 0);
+                p = maxi(clampi((radius + 16 - d) * ONE / 32, 0, ONE), clampi((2 * radius - d) * 1024 / maxi(1, radius), 0, 1024));
+                s = uint32_t(d * 2048);
+            } else {
+                uint32_t a = 0; // spin: the arms, whole periods round the centre
+                if (!m || shape == 0) s = uint32_t(dist(dx, dy) * k);
+                else if (shape == 1) { s = uint32_t(dist(dx, dy) * k * 3 / 4); a = angle16(dy, dx) * uint32_t(arms); }
+                else s = uint32_t((dx + dy) * k * 3 / 8);
+                s -= g.travel;
+                // Bright crests, and a glow of a quarter between them.
+                p = clampi(1024 + ((wave16(uint16_t(s + a)) >> 4) - 1024) * 3 / 2, 1024, ONE);
+            }
+            int32_t v = (p * amp) >> 12;
+            int32_t hue = colors == 0 ? g.hue + (s >> 11) : colors == 1 ? mini(255, tone + ((s >> 12) & 15)) : g.hue + ((s >> 12) & 15);
+            if (_v[i] > u8q(v)) { v = _v[i] << 4; hue = _h[i]; }
+            return uint32_t(u8q(v)) << 8 | uint8_t(hue);
+        };
+        if (!m) {
+            for (int x = 0; x < W; x++) {
+                const int c = stripCell(x);
+                const uint32_t l = c < 0 ? 0 : light(c, c * 16, 0);
+                stripPut(x, uint8_t(l >> 8), l & 255);
+            }
+            return;
+        }
+        for (int x = 0; x < W; x++) {
+            const int xp = _host->originX(x);
+            for (int y = 0; y < H; y++) {
+                if (xp < 0) { put(x, y, 0, 0); continue; }
+                const int32_t dy = y * 16 - cy;
+                const uint32_t l = light(y * W + xp, xp * 16 - cx, settings.mirror ? absi(dy) : dy);
+                put(x, y, uint8_t(l >> 8), l & 255);
+            }
+        }
     }
 
 #if VIZ_WITH_HEAVY

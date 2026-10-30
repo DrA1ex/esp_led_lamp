@@ -19,7 +19,7 @@ Send in this order:
 
 1. `{"type":"hello","version":1,"session":12345}` ->
    `hello_ack` with dimensions, the accepted band counts (`band_counts: [16, 32, 64]`), fps, capabilities
-   and the visualization effect ids this build renders (`visualizations: [12, …, 28]`). Firmware
+   and the visualization effect ids this build renders (`visualizations: [12, …, 29]`). Firmware
    that takes effect parameters lists the `params` capability and `params_version` (1).
 2. `{"type":"sync","session":12345,"t0":123456789}` ->
    `sync_ack` with `t0`, `t1` (device receive), `t2` (device reply).
@@ -60,7 +60,7 @@ Send in this order:
 
 All invalid control messages return an `error` object. `config` is an
 atomic, runtime-only override and cannot persist a preset. Supported
-optional fields: `audio_effect` (0–11, or a listed visualization 12–28), `audio_enabled` (boolean), `audio_min`, `audio_max`,
+optional fields: `audio_effect` (0–11, or a listed visualization 12–29), `audio_enabled` (boolean), `audio_min`, `audio_max`,
 `color_effect` (0–9), `brightness_effect` (0–4), `palette` (valid
 device palette index), `speed`, `scale`, `light` (all 0–255).
 The saved preset, power, gamma and eco settings remain authoritative.
@@ -202,7 +202,7 @@ These are not pixel-identical reproductions of the browser implementation;
 the protocol carries fewer transient/tempo details than the lab's full
 159-feature WASM array.
 
-### Visualizations (12–28)
+### Visualizations (12–29)
 
 Remote-only modes appended after the experimental ones, not offered by the
 lamp's own UI (`AudioEffects` does not list them). They live in
@@ -231,6 +231,14 @@ current palette.
 | 26 | 27 | Field | a moving pattern lit by the level or the spectrum | same in 2-D (clouds, plasma, rings, stripes, spiral) |
 | 27 | 28 | Zones | segments: an equalizer, or flashes on hits | columns, rows, rings, sectors or tiles |
 | 28 | 29 | Melody | the dominant frequency as a dot or a bar | a dot, a bar or a scrolling trace |
+| 29 | 30 | Groove | waves running from the origin, or a swinging bar: a step per beat | rings, spiral arms, stripes or a swinging ball: a step per beat |
+
+Groove is the mode that keeps time: it runs a beat clock of its own, locked
+(a phase-locked loop) to the frame's beat phase while the beat confidence is
+above 0.3 (it lets go below 0.2), and moves its pattern one eased step per
+beat. Between frames the receiver carries the phase on at the frame's BPM
+for the frame's age (`Host::beatPhase()`), so the clock does not see 50 Hz
+steps. Without a confident tempo, bass and mid onsets start the steps.
 
 Levels go through the signal window and `audio_min..audio_max` like every
 other mode; the origin (shift / reverse / ring / radial centre) applies. The
@@ -244,8 +252,9 @@ hundreds of cycles per operation: levels are Q12 (the stream's 0..4096),
 time is in ms, 2-D positions are 1/16 LED, phases Q16 turns; square roots
 and angles are integer approximations. `tests/check_viz_integer.sh` compiles
 it with the xtensa toolchain and fails on any soft-float call. Cost: about
-47 KB flash and, for a 16×16 matrix, 2.1 KB RAM (0.9 KB of per-band meter
-state, two bytes per LED, the particles and the parameters). The `status` response reports the last
+51 KB flash (Groove 4 KB of it) and, for a 16×16 matrix, 2.1 KB RAM (0.9 KB
+of per-band meter state, two bytes per LED, the particles and the
+parameters; Groove's beat clock shares the particles' memory). The `status` response reports the last
 visualization frame time as `viz_us`, which should stay well under the 16 ms
 frame budget.
 
@@ -292,6 +301,7 @@ everything the mode draws: 128 = as drawn, 255 ≈ ×2.
 | 26 | Field | pattern: 0 clouds, 1 plasma, 2 rings, 3 stripes, 4 spiral (0); zoom, (8 + v)/32 waves across (100); flow (80); lit by: 0 level, 1 spectrum (1); driven by: 0 loudness, 1 bass, 2 mid, 3 treble, 4 beats (1); pump (120); kick on hits (100); contrast (60); colour spread (120); colour drift (30); brightness (128) |
 | 27 | Zones | zones 1–16 (8); layout: 0 columns, 1 rows, 2 rings, 3 sectors, 4 tiles (0); lit by: 0 equalizer, 1 band hits, 2 bass, 3 mid, 4 treble, 5 any hit, 6 beats (0); on a hit: 0 all, 1 chase, 2 random, 3 alternate, 4 bounce, 5 build up (1); decay, 50 + 6v ms (100); glow with the level (40); colours: 0 by zone, 1 by what hit, 2 new each hit, 3 by tone (0); borders (60); brightness (128) |
 | 28 | Melody | from, to: the part of the bands, 0–255 (40, 200); style: 0 dot, 1 bar, 2 trace (0); glide, 10 + 3v ms (80); size, (128 + 4v)/128 LED (100); trail (120); colours: 0 by note, 1 by tone, 2 by level (0); ignore below, v·16 of 4096 (40); brightness (128) |
+| 29 | Groove | shape: 0 rings, 1 spin, 2 stripes, 3 bounce (0); step per beat, v/128 of a period (64); snap to the beat: 0 a steady glide .. 255 a sharp step (200); bass expansion (160); zoom, (8 + v)/32 periods across (100); treble sparks (100); colours: 0 along the pattern, 1 by tone, 2 new each beat (0); brightness (128) |
 
 ### Compatibility with the supplied browser lab
 
@@ -301,7 +311,7 @@ and a `start.session_id`. The receiver recognizes this only for a
 `hello` with `client:"esp-led-wasm-lab"`. The browser's mode
 numbers are shifted because it has an explicit `Off` item:
 browser 0 = Off, browser 1..10 = firmware 0..9,
-browser 11..12 = firmware 10..11, browser 13..29 = visualizations 12..28
+browser 11..12 = firmware 10..11, browser 13..30 = visualizations 12..29
 (sent only to lamps that list them in `visualizations`; others get Off).
 Browser pause/stop preserves the
 connected control lease and synchronization, allowing a new `start`
@@ -346,7 +356,7 @@ python -m pip install websockets
 python tools/remote_audio_sender.py ws://192.168.4.1/audio --hz 40 --seconds 30 --effect 3
 ```
 
-Use `--effect 0` through `28`: twelve firmware modes and the 17 visualizations;
+Use `--effect 0` through `29`: twelve firmware modes and the 18 visualizations;
 `--params 0,4,200` sends a visualization's effect parameters (see above) to a
 lamp with the `params` capability. `--lead-ms 45`
 controls the scheduled presentation lead (reduce for a lower-latency

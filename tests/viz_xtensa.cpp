@@ -10,7 +10,8 @@ struct H {
     int radialRow() const { return ext_i(4); } int transfer(int v) const { return ext_i(v); }
     int control() const { return ext_i(5); } int lineSource() const { return ext_i(6); }
     int level(int g) const { return ext_i(7 + g); } int pulse(int g) const { return ext_i(10 + g); }
-    int beat() const { return ext_i(78); }
+    int beat() const { return ext_i(78); } int beatPhase() const { return ext_i(79); }
+    int tempoConfidence() const { return ext_i(80); }
     int bandCount() const { return ext_i(13); } int band(int i) const { return ext_i(14 + i); }
     int wave(int i, int s) const { return ext_i(i * s); }
     uint8_t random8() { return ext_r(); } int16_t sin16(uint16_t t) const { return ext_s(t); }

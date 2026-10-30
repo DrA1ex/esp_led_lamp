@@ -1,6 +1,6 @@
 #pragma once
-// Geometry-aware remote visualizations, AudioEffectEnum::VU_METER..MELODY
-// (lab audio modes 13..29). The modes live in viz_engine.h, shared with the
+// Geometry-aware remote visualizations, AudioEffectEnum::VU_METER..GROOVE
+// (lab audio modes 13..30). The modes live in viz_engine.h, shared with the
 // lab preview; this host feeds it the remote stream and draws with the
 // current palette (or masks the colour effect with viz_color).
 #include <FastLED.h>
@@ -67,6 +67,18 @@ public:
         }
         return pulse <= 0 ? 0 : pulse * f.beat_confidence / 255;
     }
+    // The frame's beat phase (Q16 turn), carried on at the tempo for the frame's
+    // age, so it moves between frames instead of in 50 Hz steps.
+    int beatPhase() const {
+        const auto &f = _controller.timeline().output();
+        uint32_t phase = uint32_t(f.beat_phase) << 8;
+        if (f.bpm_x10 && f.beat_confidence) {
+            const uint32_t age = min<uint32_t>(_controller.timeline().age(), 300);
+            phase += age * min<uint32_t>(f.bpm_x10, 3000) * 3579 >> 15; // 65536 turns / 600000 per ms x BPM x 10
+        }
+        return int(phase & 0xffff);
+    }
+    int tempoConfidence() const { return _controller.timeline().output().beat_confidence * 4096 / 255; }
     int bandCount() const { return _controller.timeline().output().band_count; }
     int band(int i) const { return _controller.timeline().output().bands[i]; }
     // Lab wave_value(): index 0 is the oldest sample; spans longer than the
