@@ -19,7 +19,8 @@ Send in this order:
 
 1. `{"type":"hello","version":1,"session":12345}` ->
    `hello_ack` with dimensions, the accepted band counts (`band_counts: [16, 32, 64]`), fps, capabilities
-   and the visualization effect ids this build renders (`visualizations: [12, …, 24]`).
+   and the visualization effect ids this build renders (`visualizations: [12, …, 28]`). Firmware
+   that takes effect parameters lists the `params` capability and `params_version` (1).
 2. `{"type":"sync","session":12345,"t0":123456789}` ->
    `sync_ack` with `t0`, `t1` (device receive), `t2` (device reply).
    Capture `t3` as soon as the sender receives `sync_ack`.
@@ -37,6 +38,10 @@ Send in this order:
 5. Optional temporary config, e.g.
    `{"type":"config","session":12345,"audio_effect":3,"audio_min":0,"audio_max":255,"speed":100}`
    -> `config_ack`.
+   Then, optionally, the visualization's effect parameters (the `params`
+   capability, see [Effect parameters](#effect-parameters)):
+   `{"type":"params","session":12345,"version":1,"effect":25,"values":[0,0,100]}`
+   -> `params_ack`.
 6. `{"type":"start","session":12345}` -> `start_ack`.
    Start sending binary frames to play audio.
 7. `{"type":"status","session":12345}` returns diagnostics, including
@@ -55,7 +60,7 @@ Send in this order:
 
 All invalid control messages return an `error` object. `config` is an
 atomic, runtime-only override and cannot persist a preset. Supported
-optional fields: `audio_effect` (0–11, or a listed visualization 12–24), `audio_enabled` (boolean), `audio_min`, `audio_max`,
+optional fields: `audio_effect` (0–11, or a listed visualization 12–28), `audio_enabled` (boolean), `audio_min`, `audio_max`,
 `color_effect` (0–9), `brightness_effect` (0–4), `palette` (valid
 device palette index), `speed`, `scale`, `light` (all 0–255).
 The saved preset, power, gamma and eco settings remain authoritative.
@@ -197,7 +202,7 @@ These are not pixel-identical reproductions of the browser implementation;
 the protocol carries fewer transient/tempo details than the lab's full
 159-feature WASM array.
 
-### Visualizations (12–24)
+### Visualizations (12–28)
 
 Remote-only modes appended after the experimental ones, not offered by the
 lamp's own UI (`AudioEffects` does not list them). They live in
@@ -222,12 +227,16 @@ current palette.
 | 22 | 23 | Juggle | eight band dots swinging with trails | Lissajous dots |
 | 23 | 24 | Radial Spectrum | symmetric spectrum rolling along | rotating spectrum sun |
 | 24 | 25 | Blobs | four band blobs merging | lava lamp |
+| 25 | 26 | Particles | hits launch sparks along the strip | fountains, rain, bursts, bubbles or comets |
+| 26 | 27 | Field | a moving pattern lit by the level or the spectrum | same in 2-D (clouds, plasma, rings, stripes, spiral) |
+| 27 | 28 | Zones | segments: an equalizer, or flashes on hits | columns, rows, rings, sectors or tiles |
+| 28 | 29 | Melody | the dominant frequency as a dot or a bar | a dot, a bar or a scrolling trace |
 
 Levels go through the signal window and `audio_min..audio_max` like every
 other mode; the origin (shift / reverse / ring / radial centre) applies. The
 lab's fast line envelope is not on the wire, so modes following loudness use
 the control source (`param_source`). Building with `-DVIZ_WITH_HEAVY=0` drops
-the per-pixel modes 20, 21, 23 and 24 (noise, angles, fields) and removes them
+the per-pixel modes 20, 21, 23, 24 and 26 (noise, angles, fields) and removes them
 from `visualizations`.
 
 The engine is integer only, since the ESP8266 has no FPU and soft-float costs
@@ -235,10 +244,54 @@ hundreds of cycles per operation: levels are Q12 (the stream's 0..4096),
 time is in ms, 2-D positions are 1/16 LED, phases Q16 turns; square roots
 and angles are integer approximations. `tests/check_viz_integer.sh` compiles
 it with the xtensa toolchain and fails on any soft-float call. Cost: about
-13 KB flash and, for a 16×16 matrix, 1.8 KB RAM (0.9 KB of per-band meter
-state plus two bytes per LED). The `status` response reports the last
+47 KB flash and, for a 16×16 matrix, 2.1 KB RAM (0.9 KB of per-band meter
+state, two bytes per LED, the particles and the parameters). The `status` response reports the last
 visualization frame time as `viz_us`, which should stay well under the 16 ms
 frame budget.
+
+### Effect parameters
+
+Every visualization can take up to 11 parameters, 0–255 each
+(`Viz::MAX_PARAMS`, `Viz::paramDefaults()` in `viz_engine.h`; the lab names
+them in `web/js/fx-params.js`). Firmware that takes them lists `params` in
+`hello_ack.capabilities` with `"params_version":1`; the version changes
+whenever a parameter's meaning or order does, so a sender never drives a
+lamp with a different layout.
+
+`{"type":"params","session":S,"version":1,"effect":E,"values":[...]}`:
+
+- `effect` is numbered like `config.audio_effect` (the bundled lab, which
+  has an Off item, adds 1); without it the running effect is meant. It must
+  be a visualization this build renders.
+- `values` are in the order below, at most the mode's count; missing ones
+  take their defaults.
+- Replies `params_ack`, or `error` / `invalid_params` (another version, an
+  effect that is not a visualization, too many values, a value outside 0–255).
+
+The values apply while that effect runs; any other effect draws with its
+defaults, and they last for the session like `config`. Choices wrap
+(a value past the last choice is the first again). *Brightness* scales
+everything the mode draws: 128 = as drawn, 255 ≈ ×2.
+
+| Id | Mode | Parameters in order (default) |
+|---|---|---|
+| 12 | VU Meter | colours: 0 along, 1 by level, 2 by tone (0); peak dot: 0 off (1) |
+| 13 | Spectrum Bars | colours: 0 by height, 1 by band, 2 by level (0); falling peaks: 0 off (1) |
+| 14 | Flow | — |
+| 15 | Pulses | trigger: 0 any onset, 1 bass, 2 mid, 3 treble, 4 beats (0); width, 1/16 LED (24); glow with the level (31) |
+| 16 | Sparkles | treble sparks, 64 = ×1 (64); sparks per hit, /256 of the LEDs (13); bass glow (89); colours: 0 by group, 1 random, 2 by tone (0) |
+| 17 | Mood | colour spread (48); bass flash (90); tone range (200); drawn from: 0 level, 1 spectrum (0) |
+| 18 | Waveform | colours: 0 classic, 1 along the history, 2 by tone (0) |
+| 19 | Bass · Mid · Treble | — |
+| 20 | Fire | fuel: 0 bands, 1 bass, 2 loudness, 3 hits only (0); height (170); intensity (140); flares on hits (140); wind, 128 still (128); flames merge (140); colours: 0 heat, 1 palette by heat, 2 palette by tone (0); embers (60) |
+| 21 | Aurora | zoom, 64 = ×1 (64); threshold (128); colour spread (90); bass flash (77); drawn from: 0 level, 1 spectrum (0) |
+| 22 | Juggle | dots 1–8 (8); dot size, 128 = ×1 (128) |
+| 23 | Radial Spectrum | spin, 128 = ×1 (128); bass core (90) |
+| 24 | Blobs | size, 128 = ×1 (128); blobs 1–4 (4); softness (127) |
+| 25 | Particles | shape: 0 fountain, 1 rain, 2 bursts, 3 bubbles, 4 comets (0); launched by: 0 band hits, 1 bass, 2 mid, 3 treble, 4 any hit, 5 beats, 6 a stream with the level (0); amount, 1 + v·15/255 per hit (100); speed, (1024 + 81v)/4096 lamps/s (100); gravity, 128 none (170); spread (90); life, 150 + 15v ms (110); trail, 20 + 4v ms (90); colours: 0 by frequency, 1 by tone, 2 random, 3 cooling (0); brightness (128) |
+| 26 | Field | pattern: 0 clouds, 1 plasma, 2 rings, 3 stripes, 4 spiral (0); zoom, (8 + v)/32 waves across (100); flow (80); lit by: 0 level, 1 spectrum (1); driven by: 0 loudness, 1 bass, 2 mid, 3 treble, 4 beats (1); pump (120); kick on hits (100); contrast (60); colour spread (120); colour drift (30); brightness (128) |
+| 27 | Zones | zones 1–16 (8); layout: 0 columns, 1 rows, 2 rings, 3 sectors, 4 tiles (0); lit by: 0 equalizer, 1 band hits, 2 bass, 3 mid, 4 treble, 5 any hit, 6 beats (0); on a hit: 0 all, 1 chase, 2 random, 3 alternate, 4 bounce, 5 build up (1); decay, 50 + 6v ms (100); glow with the level (40); colours: 0 by zone, 1 by what hit, 2 new each hit, 3 by tone (0); borders (60); brightness (128) |
+| 28 | Melody | from, to: the part of the bands, 0–255 (40, 200); style: 0 dot, 1 bar, 2 trace (0); glide, 10 + 3v ms (80); size, (128 + 4v)/128 LED (100); trail (120); colours: 0 by note, 1 by tone, 2 by level (0); ignore below, v·16 of 4096 (40); brightness (128) |
 
 ### Compatibility with the supplied browser lab
 
@@ -248,7 +301,7 @@ and a `start.session_id`. The receiver recognizes this only for a
 `hello` with `client:"esp-led-wasm-lab"`. The browser's mode
 numbers are shifted because it has an explicit `Off` item:
 browser 0 = Off, browser 1..10 = firmware 0..9,
-browser 11..12 = firmware 10..11, browser 13..25 = visualizations 12..24
+browser 11..12 = firmware 10..11, browser 13..29 = visualizations 12..28
 (sent only to lamps that list them in `visualizations`; others get Off).
 Browser pause/stop preserves the
 connected control lease and synchronization, allowing a new `start`
@@ -293,7 +346,9 @@ python -m pip install websockets
 python tools/remote_audio_sender.py ws://192.168.4.1/audio --hz 40 --seconds 30 --effect 3
 ```
 
-Use `--effect 0` through `24`: twelve firmware modes and the 13 visualizations. `--lead-ms 45`
+Use `--effect 0` through `28`: twelve firmware modes and the 17 visualizations;
+`--params 0,4,200` sends a visualization's effect parameters (see above) to a
+lamp with the `params` capability. `--lead-ms 45`
 controls the scheduled presentation lead (reduce for a lower-latency
 LAN). For normal Wi-Fi setup change `WIFI_MODE` to `WIFI_STA_MODE` in
 `constants.h` and configure `WIFI_SSID`/`WIFI_PASSWORD` in

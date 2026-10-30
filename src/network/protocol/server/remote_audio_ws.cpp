@@ -175,7 +175,7 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         !boolfield("origin_ring", origin.ring) ||
         !boolfield("origin_radial", origin.radial)) return false;
     if (next.tuning.window.in_min >= next.tuning.window.in_max) return false;
-    // Visualizations (AudioEffectEnum::VU_METER..BLOBS): colours, mirror, auto-level, fall-off and motion in %.
+    // Visualizations (AudioEffectEnum::VU_METER..MELODY): colours, mirror, auto-level, fall-off and motion in %.
     auto &viz = next.tuning.viz;
     if (!uint8field("viz_color", next.tuning.viz_color, 1) ||
         !boolfield("viz_mirror", viz.mirror) ||
@@ -199,6 +199,36 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
     next.preset.brightness_effect = static_cast<BrightnessEffectEnum>(brightness_fx);
     next.preset.palette = static_cast<PaletteEnum>(palette);
     _audio.overrides() = next;
+    return true;
+}
+// Effect parameters ("params" capability): {"type":"params","version":1,
+// "effect":E,"values":[0..255, ...]}. E is numbered like config.audio_effect
+// (the bundled lab adds 1) and defaults to the running effect; it must be a
+// visualization this build renders. Values are in Viz::paramDefaults() order,
+// missing ones take their defaults. The engine applies them while E runs.
+bool RemoteAudioSocket::params(JsonDocument &doc) {
+    if ((doc["version"] | 0) != Viz::PARAMS_VERSION) return false;
+    auto &overrides = _audio.overrides();
+    int effect = static_cast<int>(overrides.audio.effect);
+    if (!doc["effect"].isNull()) {
+        if (!doc["effect"].is<int>()) return false;
+        effect = doc["effect"].as<int>() - (_lab_client == _audio.owner() ? 1 : 0);
+    }
+    if (effect < 0 || effect > 255 || !RemoteViz::handles(static_cast<AudioEffectEnum>(effect))) return false;
+    const uint8_t mode = static_cast<uint8_t>(effect - RemoteViz::FIRST);
+    JsonArrayConst values = doc["values"].as<JsonArrayConst>();
+    if (values.isNull() || values.size() > Viz::paramCount(mode)) return false;
+    uint8_t next[Viz::MAX_PARAMS];
+    const uint8_t *defaults = Viz::paramDefaults(mode);
+    for (int i = 0; i < Viz::MAX_PARAMS; ++i) next[i] = defaults[i];
+    int i = 0;
+    for (JsonVariantConst value: values) {
+        if (!value.is<int>() || value.as<int>() < 0 || value.as<int>() > 255) return false;
+        next[i++] = static_cast<uint8_t>(value.as<int>());
+    }
+    auto &viz = overrides.tuning.viz;
+    viz.paramsMode = mode;
+    for (i = 0; i < Viz::MAX_PARAMS; ++i) viz.params[i] = next[i];
     return true;
 }
 void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t len) {
@@ -229,13 +259,13 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
             if (!Viz::available(m)) continue;
             n += snprintf(modes + n, sizeof(modes) - n, "%s%u", n ? "," : "", unsigned(RemoteViz::FIRST + m));
         }
-        char response[420];
+        char response[480];
         snprintf(response, sizeof(response),
                  "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
                  "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[16,32,64],"
-                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\",\"control\"],"
-                 "\"visualizations\":[%s],\"power\":%s,\"brightness\":%u}",
-                 static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT), modes,
+                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\",\"control\",\"params\"],"
+                 "\"visualizations\":[%s],\"params_version\":%u,\"power\":%s,\"brightness\":%u}",
+                 static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT), modes, unsigned(Viz::PARAMS_VERSION),
                  _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));
         _ws.text(client, response);
         return;
@@ -281,6 +311,9 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
     } else if (strcmp(type, "config") == 0) {
         if (configure(doc)) reply(client, "config_ack");
         else reply(client, "error", "invalid_config");
+    } else if (strcmp(type, "params") == 0) {
+        if (params(doc)) reply(client, "params_ack");
+        else reply(client, "error", "invalid_params");
     } else if (strcmp(type, "start") == 0) {
         const uint32_t next = lab ? (doc["session_id"] | uint32_t(0)) : session;
         if (lab && !_audio.adoptSession(client, next)) {

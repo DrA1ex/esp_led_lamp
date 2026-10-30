@@ -1,6 +1,7 @@
 // Host-only checks of the remote visualizations (viz_engine.h, shared with the
 // lab preview) on every geometry class: silence stays dark, music lights the
-// LEDs, strip rows match, mirrored strips are symmetric, band counts are used.
+// LEDs, strip rows match, mirrored strips are symmetric, band counts are used,
+// effect parameters change the picture and every value of them is safe.
 // g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_viz.cpp -o /tmp/remote_viz && /tmp/remote_viz
 #include <cassert>
 #include <cmath>
@@ -12,9 +13,10 @@ struct TestHost {
     int w, h;
     std::vector<float> v;
     std::vector<int> hue;
-    float bands[64] = {}, levels[3] = {}, pulses[3] = {}, ctrl = 0, waves[128] = {};
+    float bands[64] = {}, levels[3] = {}, pulses[3] = {}, ctrl = 0, waves[128] = {}, beats = 0;
     int count = 32;
     uint32_t seed = 1337;
+    uint64_t trace = 0; // every pixel of every frame, hashed
     TestHost(int width, int height) : w(width), h(height), v(width * height), hue(width * height) {}
 
     int width() const { return w; }
@@ -30,6 +32,7 @@ struct TestHost {
     int lineSource() const { return q(ctrl); }
     int level(int g) const { return q(levels[g]); }
     int pulse(int g) const { return q(pulses[g]); }
+    int beat() const { return q(beats); }
     int bandCount() const { return count; }
     int band(int i) const { return q(bands[i]); }
     int wave(int index, int span) const {
@@ -46,6 +49,13 @@ struct TestHost {
     void put(int x, int y, uint8_t value, uint8_t hue_value) {
         assert(x >= 0 && x < w && y >= 0 && y < h);
         v[y * w + x] = value / 255.f; hue[y * w + x] = hue_value;
+        trace = trace * 1000003u + uint64_t(value) * 257u + hue_value;
+    }
+    void rgb(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+        assert(x >= 0 && x < w && y >= 0 && y < h);
+        const uint8_t m = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        v[y * w + x] = m / 255.f; hue[y * w + x] = r * 7 + g * 3 + b; // any colour fingerprint
+        trace = trace * 1000003u + (uint64_t(r) << 16 | uint64_t(g) << 8 | b);
     }
     int lit() const { int n = 0; for (float x: v) n += x > .1f; return n; }
 };
@@ -55,23 +65,31 @@ static void music(TestHost &t, int k) {
     for (int i = 0; i < 64; i++) t.bands[i] = .3f + .6f * std::fabs(std::sin(i * .4f + k * .3f));
     for (int g = 0; g < 3; g++) t.pulses[g] = 0;
     t.pulses[k % 3] = k % 6 < 3 ? 1.f : 0.f;
-    t.ctrl = .8f;
+    t.ctrl = .5f + .3f * std::sin(k * .23f);
     for (int i = 0; i < 128; i++) t.waves[i] = .4f + .5f * std::fabs(std::sin(i * .2f));
     t.levels[0] = .7f; t.levels[1] = .5f; t.levels[2] = .6f;
+    t.beats = k % 30 < 4 ? 1.f - (k % 30) * .25f : 0.f;
+    // A broadband hit every 10 frames for the per-band onsets.
+    if (k % 10 == 0) for (int i = 0; i < 64; i++) t.bands[i] = 1.f;
 }
 static void silence(TestHost &t, int) {
     for (float &b: t.bands) b = 0;
     for (int g = 0; g < 3; g++) t.levels[g] = t.pulses[g] = 0;
-    t.ctrl = 0;
+    t.ctrl = 0; t.beats = 0;
     for (float &x: t.waves) x = 0;
 }
 
 template<int PIX>
 static TestHost run(int w, int h, uint8_t mode, void (*fill)(TestHost &, int), int frames = 40,
-                    bool mirror = false, int count = 32, bool autolevel = false, bool round = false) {
+                    bool mirror = false, int count = 32, bool autolevel = false, bool round = false,
+                    const uint8_t *params = nullptr, uint8_t params_mode = 0xff) {
     static Viz::Engine<TestHost, PIX> engine;
     engine.invalidate();
     engine.settings = Viz::Settings{};
+    if (params) {
+        engine.settings.paramsMode = params_mode == 0xff ? mode : params_mode;
+        for (int i = 0; i < Viz::MAX_PARAMS; i++) engine.settings.params[i] = params[i];
+    }
     engine.settings.mirror = mirror;
     engine.settings.autolevel = autolevel;
     TestHost t(w, h);
@@ -135,12 +153,55 @@ int main() {
         const TestHost t = run<256>(16, 16, Viz::VU_METER, [](TestHost &h, int) { h.ctrl = .5f; }, 40, false, 32, false, true);
         assert(t.v[8 * 16 + 8] > .1f && t.v[0] == 0.f && t.v[255] == 0.f);
     }
+    // Effect parameters: the defaults sent explicitly draw the same as none;
+    // parameters for another mode are ignored; every parameter changes the
+    // picture somewhere in its range; no value of any parameter breaks a mode
+    // (put() asserts the bounds) or lights it in silence.
+    // Parameters that only act with another one set: {mode, parameter, other, its value}.
+    static const struct { uint8_t mode, param, other, value; } contexts[] = {
+        {Viz::ZONES, 3, 2, 5}, // the hit pattern needs a hit trigger
+        {Viz::ZONES, 5, 2, 5}, // the glow shows between hits, not under a full equalizer
+    };
+    for (uint8_t mode = 0; mode < Viz::MODE_COUNT; mode++) {
+        const uint8_t *defaults = Viz::paramDefaults(mode);
+        const int count = Viz::paramCount(mode);
+        assert(count <= Viz::MAX_PARAMS);
+        for (const auto &g: geometries) {
+            const int w = g[0], h = g[1];
+            const TestHost plain = run<256>(w, h, mode, music, 60);
+            const TestHost same = run<256>(w, h, mode, music, 60, false, 32, false, false, defaults);
+            assert(plain.trace == same.trace);
+            uint8_t other[Viz::MAX_PARAMS];
+            for (int i = 0; i < Viz::MAX_PARAMS; i++) other[i] = uint8_t(defaults[i] ^ 0x55);
+            const TestHost ignored = run<256>(w, h, mode, music, 60, false, 32, false, false, other, uint8_t((mode + 1) % Viz::MODE_COUNT));
+            assert(plain.trace == ignored.trace);
+            for (int p = 0; p < count; p++) {
+                bool changed = false;
+                // Every choice of the small enumerations, then the range.
+                uint8_t start[Viz::MAX_PARAMS];
+                for (int i = 0; i < Viz::MAX_PARAMS; i++) start[i] = defaults[i];
+                for (const auto &c: contexts) if (c.mode == mode && c.param == p) start[c.other] = c.value;
+                for (int value = 0; value < 256; value += value < 10 ? 1 : 13) {
+                    uint8_t params[Viz::MAX_PARAMS];
+                    for (int i = 0; i < Viz::MAX_PARAMS; i++) params[i] = start[i];
+                    params[p] = uint8_t(value);
+                    const TestHost t = run<256>(w, h, mode, music, 60, value & 1, 32, true, false, params);
+                    const TestHost base = run<256>(w, h, mode, music, 60, value & 1, 32, true, false, start);
+                    changed = changed || t.trace != base.trace;
+                    const TestHost quiet = run<256>(w, h, mode, silence, 40, value & 1, 32, true, false, params);
+                    if (quiet.lit() > w * h / 50) { std::printf("mode %u param %d = %d %dx%d lit in silence\n", mode, p, value, w, h); return 1; }
+                }
+                // A strip has no use for some matrix-only parameters (zone layouts, wind, blend).
+                if (!changed && h >= 4) { std::printf("mode %u param %d changes nothing on %dx%d\n", mode, p, w, h); return 1; }
+            }
+        }
+    }
     // A geometry above the pixel budget renders nothing instead of overflowing.
     {
         const TestHost t = run<16>(16, 16, Viz::VU_METER, music);
         assert(t.lit() == 0);
     }
-    std::printf("PASS remote visualizations: %d modes on strips 7/46/153, 72x2, 16x16, 32x16; silence, rows, mirror, bands\n",
+    std::printf("PASS remote visualizations: %d modes on strips 7/46/153, 72x2, 16x16, 32x16; silence, rows, mirror, bands, params\n",
                 int(Viz::MODE_COUNT));
     return 0;
 }

@@ -131,7 +131,7 @@ enum class AudioEffectEnum : uint8_t {
     BASS_MID_HIGH,
     BEAT_REACTIVE,
 
-    // Remote-only visualizations (remote_audio/viz_engine.h, lab modes 13..25).
+    // Remote-only visualizations (remote_audio/viz_engine.h, lab modes 13..29).
     // Not in AudioEffects' list, so the lamp UI does not offer them.
     VU_METER,
     SPECTRUM_BARS,
@@ -146,4 +146,8 @@ enum class AudioEffectEnum : uint8_t {
     JUGGLE,
     RADIAL_SPECTRUM,
     BLOBS,
+    PARTICLES,
+    FIELD,
+    ZONES,
+    MELODY,
 };

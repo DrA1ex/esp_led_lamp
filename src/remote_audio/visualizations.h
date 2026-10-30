@@ -1,6 +1,6 @@
 #pragma once
-// Geometry-aware remote visualizations, AudioEffectEnum::VU_METER..BLOBS
-// (lab audio modes 13..25). The modes live in viz_engine.h, shared with the
+// Geometry-aware remote visualizations, AudioEffectEnum::VU_METER..MELODY
+// (lab audio modes 13..29). The modes live in viz_engine.h, shared with the
 // lab preview; this host feeds it the remote stream and draws with the
 // current palette (or masks the colour effect with viz_color).
 #include <FastLED.h>
@@ -56,6 +56,17 @@ public:
         return g == 0 ? f.bass : g == 1 ? f.mid : f.high;
     }
     int pulse(int g) const { return _controller.pulses()[g]; }
+    // The Beat control source in integers: a pulse fading 0.23 s after each
+    // predicted beat (80 phase steps without a tempo), times the confidence.
+    int beat() const {
+        const auto &f = _controller.timeline().output();
+        int32_t pulse = 4096 - int32_t(f.beat_phase) * 4096 / 80;
+        if (f.bpm_x10) {
+            const int32_t since_ms = int32_t(f.beat_phase) * 600000 / (256 * int32_t(f.bpm_x10));
+            pulse = since_ms >= 230 ? 0 : 4096 - since_ms * 4096 / 230;
+        }
+        return pulse <= 0 ? 0 : pulse * f.beat_confidence / 255;
+    }
     int bandCount() const { return _controller.timeline().output().band_count; }
     int band(int i) const { return _controller.timeline().output().bands[i]; }
     // Lab wave_value(): index 0 is the oldest sample; spans longer than the
@@ -73,6 +84,11 @@ public:
     void put(int x, int y, uint8_t v, uint8_t hue) {
         if (_mask) _led.get_pixel(x, y).nscale8(v);
         else _led.get_pixel(x, y) = color_from_palette(_palette, uint16_t(hue) * 15, v);
+    }
+    // A colour of the mode's own (Fire's heat colours); the mask keeps its brightness.
+    void rgb(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+        if (_mask) _led.get_pixel(x, y).nscale8(max(r, max(g, b)));
+        else _led.get_pixel(x, y) = CRGB(r, g, b);
     }
 };
 

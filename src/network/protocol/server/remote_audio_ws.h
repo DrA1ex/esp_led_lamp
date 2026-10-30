@@ -41,6 +41,7 @@ class RemoteAudioSocket {
     void textMessage(uint32_t client, const uint8_t *data, size_t len);
     void reply(uint32_t client, const char *type, const char *reason = nullptr);
     bool configure(JsonDocument &doc);
+    bool params(JsonDocument &doc);
 
 public:
     RemoteAudioSocket(RemoteAudioController &controller, Application &app) : _audio(controller), _app(app) {}

@@ -24,7 +24,7 @@ async def exchange(ws, command, expected):
         raise RuntimeError(f"Expected {expected}; got {reply}")
     return reply
 
-async def stream(url, hz, seconds, lead_ms, effect):
+async def stream(url, hz, seconds, lead_ms, effect, params=None):
     import websockets
     async with websockets.connect(url, max_size=4096) as ws:
         session = random.randrange(1, 2**32)
@@ -38,6 +38,13 @@ async def stream(url, hz, seconds, lead_ms, effect):
         await exchange(ws, {"type": "clock", "session": session,
                             "offset_ms": offset, "rtt_ms": rtt}, "clock_ack")
         await exchange(ws, {"type": "config", "session": session, "audio_effect": effect}, "config_ack")
+        if params is not None:
+            # Older firmware has no "params" capability: it keeps the effect's defaults.
+            if "params" in hello.get("capabilities", []):
+                await exchange(ws, {"type": "params", "session": session, "version": hello.get("params_version", 1),
+                                    "effect": effect, "values": params}, "params_ack")
+            else:
+                print("device has no params capability; effect parameters not sent")
         await exchange(ws, {"type": "start", "session": session}, "start_ack")
         print(f"clock offset: {offset} ms, RTT: {rtt} ms")
         started = time.monotonic()
@@ -67,12 +74,21 @@ if __name__ == "__main__":
     parser.add_argument("--hz", type=float, default=40)
     parser.add_argument("--seconds", type=float, default=30)
     parser.add_argument("--lead-ms", type=int, default=45)
-    parser.add_argument("--effect", type=int, default=3, help="Audio mode 0..24 (10/11 experimental, 12..24 visualizations)")
-    parser.add_argument("--sweep-modes", action="store_true", help="Run all 25 modes sequentially")
+    parser.add_argument("--effect", type=int, default=3, help="Audio mode 0..28 (10/11 experimental, 12..28 visualizations)")
+    parser.add_argument("--params", help="Effect parameters for a visualization, comma-separated 0..255 (docs: params)")
+    parser.add_argument("--sweep-modes", action="store_true", help="Run all 29 modes sequentially")
     args = parser.parse_args()
     if not (1 <= args.hz <= 100 and args.seconds > 0 and 0 <= args.lead_ms <= 1000
-            and 0 <= args.effect <= 24):
+            and 0 <= args.effect <= 28):
         parser.error("invalid hz, seconds, lead-ms or effect")
-    for mode in (range(25) if args.sweep_modes else (args.effect,)):
+    params = None
+    if args.params is not None:
+        try:
+            params = [int(v) for v in args.params.split(",") if v.strip()]
+        except ValueError:
+            parser.error("--params takes comma-separated integers")
+        if len(params) > 11 or any(not 0 <= v <= 255 for v in params):
+            parser.error("--params takes at most 11 values 0..255")
+    for mode in (range(29) if args.sweep_modes else (args.effect,)):
         print(f"Testing mode {mode}")
-        asyncio.run(stream(args.url, args.hz, args.seconds, args.lead_ms, mode))
+        asyncio.run(stream(args.url, args.hz, args.seconds, args.lead_ms, mode, params))
