@@ -90,7 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("--hz", type=float, default=40)
     parser.add_argument("--seconds", type=float, default=30)
     parser.add_argument("--lead-ms", type=int, default=45)
-    parser.add_argument("--effect", type=int, default=3, help="Audio mode 0..30 (10/11 experimental, 12..30 visualizations)")
+    parser.add_argument("--effect", type=int, default=3, help="Audio mode 0..34 (10/11 experimental, 12..34 visualizations)")
     parser.add_argument("--params", help="Effect parameters for a visualization, comma-separated 0..255 (docs: params)")
     parser.add_argument("--sweep-modes", action="store_true", help="Run all 31 modes sequentially")
     args = parser.parse_args()

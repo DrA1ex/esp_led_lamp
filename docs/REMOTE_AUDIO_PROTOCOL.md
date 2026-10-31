@@ -19,7 +19,7 @@ Send in this order:
 
 1. `{"type":"hello","version":1,"session":12345}` ->
    `hello_ack` with dimensions, the accepted band counts (`band_counts: [16, 32, 64]`), fps, capabilities
-   and the visualization effect ids this build renders (`visualizations: [12, …, 30]`). Firmware
+   and the visualization effect ids this build renders (`visualizations: [12, …, 34]`). Firmware
    that takes effect parameters lists the `params` capability and `params_version` (1);
    firmware that takes the 12 pitch classes lists `chroma` (see [Chroma](#chroma)).
 2. `{"type":"sync","session":12345,"t0":123456789}` ->
@@ -61,7 +61,7 @@ Send in this order:
 
 All invalid control messages return an `error` object. `config` is an
 atomic, runtime-only override and cannot persist a preset. Supported
-optional fields: `audio_effect` (0–11, or a listed visualization 12–30), `audio_enabled` (boolean), `audio_min`, `audio_max`,
+optional fields: `audio_effect` (0–11, or a listed visualization 12–34), `audio_enabled` (boolean), `audio_min`, `audio_max`,
 `color_effect` (0–9), `brightness_effect` (0–4), `palette` (valid
 device palette index), `speed`, `scale`, `light` (all 0–255).
 The saved preset, power, gamma and eco settings remain authoritative.
@@ -229,7 +229,7 @@ These are not pixel-identical reproductions of the browser implementation;
 the protocol carries fewer transient/tempo details than the lab's full
 159-feature WASM array.
 
-### Visualizations (12–30)
+### Visualizations (12–34)
 
 Remote-only modes appended after the experimental ones, not offered by the
 lamp's own UI (`AudioEffects` does not list them). They live in
@@ -260,6 +260,10 @@ current palette.
 | 28 | 29 | Melody | the dominant frequency as a dot or a bar | a dot, a bar or a scrolling trace |
 | 29 | 30 | Groove | waves running from the origin, or a swinging bar: a step per beat | rings, spiral arms, stripes or a swinging ball: a step per beat |
 | 30 | 31 | Chromatic Flow | soft colour regions drifting along, one per sounding note | the same as slow 2-D clouds |
+| 31 | 32 | Energy | bass, mid and treble bars from the start, nested | the bars filling from the bottom, the middle or the radial centre |
+| 32 | 33 | Scroll | the sound's colour entering at the start and flowing out | rings flowing out from the centre |
+| 33 | 34 | Water | drops rippling on the wave equation | the same in 2-D |
+| 34 | 35 | Lava Lamp | slow soft blobs, swelled by the bass | one wave across, one up: blobs |
 
 Groove is the mode that keeps time: it runs a beat clock of its own, locked
 (a phase-locked loop) to the frame's beat phase while the beat confidence is
@@ -280,6 +284,22 @@ with every note; bass onsets and beats only add a glow and swell the
 regions. Shares come from the field's own distribution (rank equalisation
 over a 256-entry table on the stack, 512 bytes during the frame), so they
 hold on short strips as well as on matrices.
+
+Energy, Scroll, Water and Lava Lamp follow LedFx effects of the same names
+(own integer code, no LedFx code: LedFx is GPL-3.0). Energy's bars are as
+long as the squared levels and the shortest is drawn on top, so all three
+show. Scroll moves its history in lamp lengths per second (0.15–1.65 with
+the motion speed), so a long strip scrolls like a short one. Water runs the
+wave equation at c² = 1/2 on a strip and 1/4 on a matrix (where 1/2 lets a
+checkerboard grow), its heights in `_v` / `_h` as two int8 buffers, so it
+needs no RAM of its own; drops are soft (half as deep around the centre),
+the bass at both ends and the middle of a strip or the centre of a matrix,
+the mids and the treble at drifting places. Lava Lamp multiplies three slow
+waves into blobs; its colours run there and back along the palette, so a
+palette's end never jumps to its start.
+These four added 80 bytes of RAM (parameter defaults and Water's drift
+table) and 4.3 KB of flash in `pio run -e release` (62 348 B RAM, 545 124 B
+flash); the engine's RAM for 16×16 stays 2 336 bytes.
 
 Levels go through the signal window and `audio_min..audio_max` like every
 other mode; the origin (shift / reverse / ring / radial centre) applies. The
@@ -349,6 +369,10 @@ everything the mode draws: 128 = as drawn, 255 ≈ ×2.
 | 28 | Melody | from, to: the part of the bands, 0–255 (40, 200); style: 0 dot, 1 bar, 2 trace (0); glide, 10 + 3v ms (80); size, (128 + 4v)/128 LED (100); trail (120); colours: 0 by note, 1 by tone, 2 by level (0); ignore below, v·16 of 4096 (40); brightness (128) |
 | 29 | Groove | shape: 0 rings, 1 spin, 2 stripes, 3 bounce (0); step per beat, v/128 of a period (64); snap to the beat: 0 a steady glide .. 255 a sharp step (200); bass expansion (160); zoom, (8 + v)/32 periods across (100); treble sparks (100); colours: 0 along the pattern, 1 by tone, 2 new each beat (0); brightness (128) |
 | 30 | Chromatic Flow | notes on the palette: 0 circle of fifths, 1 semitones (0); C at, v/256 of the palette (0); follow, 50 + 8v ms (100); focus, notes under v/256 of the strongest are left out (80); zoom, at least 4, higher = smaller regions (80); drift (60); soft borders, v/1024 of the lamp (128); glow on hits (90); swell on hits (60); brightness (128) |
+| 31 | Energy | reach, 128 = a full level fills the lamp (128); colours: 0 groups, 1 by tone, 2 turned on beats (0); on top: 0 the shortest bar, 1 treble, 2 bass (0); soft edge, (256 + 12v)/256 LED (64); brightness (128) |
+| 32 | Scroll | ignore below, v·20 of 4096 (30); colours: 0 the mix, 1 by tone, 2 along the lamp (0); brightness (128) |
+| 33 | Water | bass, mid, treble drop size, 128 = ×1 (128, 128, 128); viscosity (128); colours: 0 by height, 1 by tone, 2 along the lamp (0); brightness (128) |
+| 34 | Lava Lamp | bass reactivity, 128 = ×1 (128); contrast (180); zoom, (16 + v)/64 waves along the lamp (96); colours: 0 drifting along the palette, 1 by tone (0); brightness (128) |
 
 ### Compatibility with the supplied browser lab
 
@@ -358,7 +382,7 @@ and a `start.session_id`. The receiver recognizes this only for a
 `hello` with `client:"esp-led-wasm-lab"`. The browser's mode
 numbers are shifted because it has an explicit `Off` item:
 browser 0 = Off, browser 1..10 = firmware 0..9,
-browser 11..12 = firmware 10..11, browser 13..31 = visualizations 12..30
+browser 11..12 = firmware 10..11, browser 13..35 = visualizations 12..34
 (sent only to lamps that list them in `visualizations`; others get Off).
 Browser pause/stop preserves the
 connected control lease and synchronization, allowing a new `start`
@@ -403,7 +427,7 @@ python -m pip install websockets
 python tools/remote_audio_sender.py ws://192.168.4.1/audio --hz 40 --seconds 30 --effect 3
 ```
 
-Use `--effect 0` through `30`: twelve firmware modes and the 19 visualizations;
+Use `--effect 0` through `34`: twelve firmware modes and the 23 visualizations;
 to a lamp with `chroma` it also sends notes (C major, A minor, F major,
 G major, two seconds each) for Chromatic Flow (`--effect 30`);
 `--params 0,4,200` sends a visualization's effect parameters (see above) to a

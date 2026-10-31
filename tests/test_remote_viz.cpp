@@ -351,12 +351,38 @@ int main() {
         swing(50, low, high);
         assert(low < 30 && high > 90);
     }
+    // Energy: bass .9, mid .6, treble .3 make bars of 81, 36 and 9 LEDs (the
+    // squared levels); with the shortest on top all three show, bass on top
+    // hides the others.
+    {
+        static Viz::Engine<TestHost, 256> engine;
+        auto bars = [&](uint8_t order) {
+            engine.invalidate(); engine.settings = Viz::Settings{}; engine.settings.autolevel = false;
+            engine.settings.paramsMode = Viz::ENERGY;
+            for (int i = 0; i < Viz::MAX_PARAMS; i++) engine.settings.params[i] = Viz::paramDefaults(Viz::ENERGY)[i];
+            engine.settings.params[2] = order;
+            TestHost t(100, 1);
+            t.levels[0] = .9f; t.levels[1] = .6f; t.levels[2] = .3f;
+            for (int k = 0; k < 60; k++) engine.render(t, Viz::ENERGY, 17);
+            return t;
+        };
+        const TestHost nested = bars(0), bass = bars(2);
+        assert(nested.hue[2] == 190 && nested.hue[20] == 105 && nested.hue[60] == 20 && nested.v[60] > .9f && nested.v[95] == 0.f);
+        assert(bass.hue[2] == 20 && bass.hue[20] == 20);
+    }
+    // After the music stops, the modes with a memory (Scroll's history, Water's
+    // waves) and the ones that follow the loudness go dark.
+    for (uint8_t mode: {Viz::ENERGY, Viz::SCROLL, Viz::WATER, Viz::LAVA_LAMP})
+        for (const auto &g: {std::pair<int, int>{46, 1}, {16, 16}}) {
+            const TestHost t = run<256>(g.first, g.second, mode, [](TestHost &h, int k) { if (k < 100) music(h, k); else silence(h, k); }, 400);
+            if (t.lit()) { std::printf("mode %u %dx%d lit %d after the music\n", mode, g.first, g.second, t.lit()); return 1; }
+        }
     // A geometry above the pixel budget renders nothing instead of overflowing.
     {
         const TestHost t = run<16>(16, 16, Viz::VU_METER, music);
         assert(t.lit() == 0);
     }
-    std::printf("PASS remote visualizations: %d modes on strips 7/46/153, 72x2, 16x16, 32x16; silence, rows, mirror, bands, params, blur, contrast\n",
+    std::printf("PASS remote visualizations: %d modes on strips 7/46/153, 72x2, 16x16, 32x16; silence, rows, mirror, bands, params, blur, contrast, Energy layers, quiet after music\n",
                 int(Viz::MODE_COUNT));
     return 0;
 }

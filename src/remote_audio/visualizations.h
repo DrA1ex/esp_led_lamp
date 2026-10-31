@@ -1,5 +1,5 @@
 #pragma once
-// Geometry-aware remote visualizations, AudioEffectEnum::VU_METER..CHROMATIC_FLOW
+// Geometry-aware remote visualizations, AudioEffectEnum::VU_METER..LAVA_LAMP
 // (lab audio modes 13..31). The modes live in viz_engine.h, shared with the
 // lab preview; this host feeds it the remote stream and draws with the
 // current palette (or masks the colour effect with viz_color).

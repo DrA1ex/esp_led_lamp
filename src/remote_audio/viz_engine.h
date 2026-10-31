@@ -52,7 +52,10 @@ enum Mode : uint8_t {
     // Moves with the beat phase, not with single onsets.
     GROOVE,
     // Follows the pitch classes (chroma): which notes sound, not how loud.
-    CHROMATIC_FLOW, MODE_COUNT
+    CHROMATIC_FLOW,
+    // Strip-first ideas from LedFx (own integer versions): bars, a scrolling
+    // history, the wave equation and a slow lava field.
+    ENERGY, SCROLL, WATER, LAVA_LAMP, MODE_COUNT
 };
 // Per-pixel noise, angles and fields: compiled only with VIZ_WITH_HEAVY.
 inline bool heavy(uint8_t m) { return m == FIRE || m == AURORA || m == RADIAL_SPECTRUM || m == BLOBS || m == FIELD || m == CHROMATIC_FLOW; }
@@ -65,7 +68,7 @@ constexpr int32_t ONE = 4096; // Q12 1.0
 constexpr uint8_t PARAMS_VERSION = 1;
 constexpr int MAX_PARAMS = 11;
 inline uint8_t paramCount(uint8_t m) {
-    static constexpr uint8_t count[MODE_COUNT] = {2, 2, 0, 3, 4, 4, 1, 0, 8, 5, 2, 2, 3, 10, 11, 9, 9, 8, 10};
+    static constexpr uint8_t count[MODE_COUNT] = {2, 2, 0, 3, 4, 4, 1, 0, 8, 5, 2, 2, 3, 10, 11, 9, 9, 8, 10, 5, 3, 6, 5};
     return m < MODE_COUNT ? count[m] : 0;
 }
 // Defaults: the former constants of the existing modes (Fire has a new look);
@@ -93,6 +96,10 @@ inline const uint8_t *paramDefaults(uint8_t m) {
         {40, 200, 0, 80, 100, 120, 0, 40, 128},          // Melody: from, to, style, glide, size, trail, colours, gate, brightness
         {0, 64, 200, 160, 100, 100, 0, 128},             // Groove: shape, step, snap, pump, zoom, sparks, colours, brightness
         {0, 0, 100, 80, 80, 60, 128, 90, 60, 128},       // Chromatic Flow: order, shift, follow, focus, zoom, flow, blend, glow, swell, brightness
+        {128, 0, 0, 64, 128},                            // Energy: reach, colours, order, edge, brightness
+        {30, 0, 128},                                    // Scroll: threshold, colours, brightness
+        {128, 128, 128, 128, 0, 128},                    // Water: bass, mid, treble drops, viscosity, colours, brightness
+        {128, 180, 96, 0, 128},                          // Lava lamp: reactivity, contrast, zoom, colours, brightness
         {0},
     };
     return table[m < MODE_COUNT ? int(m) : int(MODE_COUNT)];
@@ -212,6 +219,10 @@ public:
             case ZONES: zones(); break;
             case MELODY: melody(); break;
             case GROOVE: groove(); break;
+            case ENERGY: energy(); break;
+            case SCROLL: scroll(); break;
+            case WATER: water(); break;
+            case LAVA_LAMP: lavaLamp(); break;
 #if VIZ_WITH_HEAVY
             case FIRE: fire(); break;
             case AURORA: aurora(); break;
@@ -1540,5 +1551,234 @@ private:
         }
     }
 #endif
+    // ---- LedFx-style modes -----------------------------------------------------
+    // The place of LED (x, y) along a matrix's main axis, for the modes that
+    // fill like the VU meter: from the bottom, the middle row when mirrored,
+    // or out from the radial centre. -1: a dark column.
+    int fillCell(int x, int y, bool round, int cells, int32_t maxd) const {
+        using namespace detail;
+        const int xp = _host->originX(x);
+        if (xp < 0) return -1;
+        return round ? mini(cells - 1, dist(xp * 16 - W * 8, y * 16 - row16()) * (cells - 1) / maxd) : riseCell(y, settings.mirror);
+    }
+    // Energy (LedFx's Energy idea): bass, mid and treble bars from the start,
+    // each as long as its squared level; where they overlap the one on top shows, with
+    // soft edges. Matrices fill from the bottom (or the middle row, or round
+    // the radial centre) like the VU meter. Fall-off sets the bars' release.
+    // Parameters: reach (128 = a full level fills the lamp), colours (0 the
+    // groups, 1 by tone, 2 turned on beats and bass hits), on top (0 the
+    // shortest bar, so all three show; 1 treble; 2 bass), edge (softness),
+    // brightness.
+    void energy() {
+        using namespace detail;
+        const int colors = P(1) % 3, order = P(2) % 3;
+        for (int g = 0; g < 3; g++) meter(g, level01(autolevel(g, _host->level(g), _dt)));
+        int32_t strength[4] = {0, 0, 0, 0};
+        if ((hits(strength) & 9) && colors == 2) _hit_hue = uint8_t(_hit_hue + 85);
+        const int32_t tone = (_tone * 255) >> 12, edge = 256 + P(3) * 12; // edge width, Q8 cells
+        int32_t hue[3];
+        for (int g = 0; g < 3; g++) hue[g] = colors == 1 ? clampi(tone + (g - 1) * 40, 0, 255) : (groupHue(g) + (colors == 2 ? _hit_hue : 0)) & 255;
+        // The bottom layer first: the longest bar, or bass (treble on top), or treble.
+        int layer[3] = {0, 1, 2};
+        if (order == 2) { layer[0] = 2; layer[2] = 0; }
+        if (order == 0)
+            for (int i = 0; i < 2; i++)
+                for (int j = 0; j < 2 - i; j++)
+                    if (_level[layer[j]] < _level[layer[j + 1]]) { const int t = layer[j]; layer[j] = layer[j + 1]; layer[j + 1] = t; }
+        // Cell c of `cells`: brightness << 8 | hue.
+        auto light = [&](int c, int cells) -> uint32_t {
+            int32_t v = 0, h = -1;
+            for (int k = 0; k < 3; k++) {
+                const int g = layer[k];
+                const int32_t power = (int32_t(_level[g]) * _level[g]) >> 12; // squared: a bar is long only when loud
+                const int32_t end = ((power * P(0) >> 7) * cells) >> 4; // Q8 cells
+                if (end <= 0) continue;
+                const int32_t cov = clampi((((end - (c << 8) - 128) << 8) / edge) + 128, 0, 256);
+                if (!cov) continue;
+                h = h < 0 ? hue[g] : h + (((hue[g] - h) * cov) >> 8);
+                v = maxi(v, cov);
+            }
+            return uint32_t(mini(255, v)) << 8 | uint32_t(maxi(0, h));
+        };
+        if (!matrix()) {
+            const int cells = stripCells();
+            for (int x = 0; x < W; x++) {
+                const int c = stripCell(x);
+                const uint32_t l = c < 0 ? 0 : light(c, cells);
+                stripPut(x, uint8_t(l >> 8), l & 255);
+            }
+            return;
+        }
+        const bool round = radial();
+        const int cells = round ? maxi(W, H) / 2 + 1 : riseCells(settings.mirror);
+        const int32_t maxd = originMaxDistance16();
+        for (int x = 0; x < W; x++)
+            for (int y = 0; y < H; y++) {
+                const int c = fillCell(x, y, round, cells, maxd);
+                const uint32_t l = c < 0 ? 0 : light(c, cells);
+                put(x, y, uint8_t(l >> 8), l & 255);
+            }
+    }
+    // Scroll (LedFx's Scroll idea): every frame the sound's colour enters at
+    // the start and the history flows outwards. Bass, mid and treble mix by
+    // their squared levels into one palette place (start, middle, end), as
+    // bright as the loudest of them. Motion speed is in lamp lengths per
+    // second (0.15 .. 1.65), so long strips scroll as fast as short ones;
+    // Fall-off sets the trail. Matrices show the history as rings from the
+    // centre (or the radial centre).
+    // Parameters: threshold (quieter groups add nothing), colours (0 the mix,
+    // 1 by tone, 2 along the lamp), brightness.
+    void scroll() {
+        using namespace detail;
+        const bool m = matrix();
+        const int colors = P(1) % 3;
+        const int32_t cx = (W - 1) * 8, cy = radial() ? row16() : (H - 1) * 8;
+        const int32_t maxd = m ? dist(maxi(cx, (W - 1) * 16 - cx), maxi(cy, (H - 1) * 16 - cy)) : 0;
+        const int n = m ? mini(MAX_PIX, (maxd >> 4) + 2) : stripCells();
+        int32_t sum = 0, mix = 0, peak = 0;
+        for (int g = 0; g < 3; g++) {
+            const int32_t l = level01(autolevel(g, _host->level(g), _dt)), s = l < P(0) * 20 ? 0 : (l * l) >> 12;
+            sum += s; mix += s * groupHue(g); peak = maxi(peak, s);
+        }
+        const int32_t hue = colors == 1 ? (_tone * 255) >> 12 : sum ? mix / sum : 0;
+        fade(n, releaseMs() * 2);
+        // Cells to move this frame, Q8: n x (0.15 + 0.015 x speed) per second.
+        _spawn += n * (150 + 15 * settings.speed) * 256 / 1000 * _dt / 1000;
+        const int steps = mini(n, _spawn >> 8);
+        _spawn = steps == n ? 0 : _spawn - (steps << 8);
+        for (int i = n - 1; i >= steps; i--) { _v[i] = _v[i - steps]; _h[i] = _h[i - steps]; }
+        for (int i = 0; i < steps; i++) { _v[i] = u8q(peak); _h[i] = u8(hue); }
+        stamp(0, u8q(peak), hue);
+        auto hueAt = [&](int c) { return colors == 2 ? c * 255 / maxi(1, n - 1) : _h[c]; };
+        if (!m) {
+            for (int x = 0; x < W; x++) { const int c = stripCell(x); stripPut(x, c < 0 ? 0 : _v[c], c < 0 ? 0 : hueAt(c)); }
+            return;
+        }
+        for (int x = 0; x < W; x++) {
+            const int xp = _host->originX(x);
+            for (int y = 0; y < H; y++) {
+                if (xp < 0) { put(x, y, 0, 0); continue; }
+                const int32_t d = dist(xp * 16 - cx, y * 16 - cy), i = mini(n - 2, d >> 4), f = d - (i << 4);
+                put(x, y, uint8_t((_v[i] * (16 - f) + _v[i + 1] * f) >> 4), hueAt(f < 8 ? i : i + 1));
+            }
+        }
+    }
+    // Water (LedFx's Water idea): the wave equation on the LEDs, 1-D along a
+    // strip, 2-D on a matrix. The sound keeps dropping in: the bass at both
+    // ends and the middle of a strip (the centre of a matrix), the mids at two
+    // and the treble at four drifting places, each as hard as its squared
+    // level. The heights live in _v and _h, used as two int8 buffers, so the
+    // mode needs no memory of its own. Motion speed sets the steps per second.
+    // Parameters: bass, mid and treble drop size, viscosity, colours (0 by
+    // height, 1 by tone, 2 along the lamp), brightness.
+    void water() {
+        using namespace detail;
+        const bool m = matrix();
+        const int cols = m ? W : stripCells(), rows = m ? H : 1;
+        int8_t *cur = reinterpret_cast<int8_t *>(_cursor & 1 ? _h : _v), *old = reinterpret_cast<int8_t *>(_cursor & 1 ? _v : _h);
+        auto add = [&](int x, int y, int32_t s) {
+            if (x < 0 || x >= cols || y < 0 || y >= rows) return;
+            int8_t &c = cur[y * cols + x];
+            c = int8_t(clampi(c + s, -127, 127));
+        };
+        // A soft drop (half as deep around the centre), so it rings in waves, not in a checkerboard.
+        auto drop = [&](int x, int y, int32_t s) {
+            x = clampi(x, 0, cols - 1); y = clampi(y, 0, rows - 1);
+            add(x, y, s); add(x - 1, y, s / 2); add(x + 1, y, s / 2);
+            if (m) { add(x, y - 1, s / 2); add(x, y + 1, s / 2); }
+        };
+        // Drops: up to 32 per frame at size 128 on a strip, 96 on a matrix,
+        // where the rings spread their height over the area (heights run to +-127).
+        int32_t s[3];
+        for (int g = 0; g < 3; g++) { const int32_t l = level01(autolevel(g, _host->level(g), _dt)); s[g] = (((l * l) >> 12) * P(g) * (m ? 3 : 1)) >> 14; }
+        const int32_t speed = 2 + settings.speed / 25; // the drifting places, x 0.5 .. 3
+        static constexpr int16_t drift[6] = {3277, -3277, 5243, -7864, 7864, -5243}; // Q16 turns per second
+        for (int k = 0; k < 6; k++) { _phase[k] = advance(_phase[k], drift[k] * speed / 4); _phase2[k] = advance(_phase2[k], drift[k] * speed * 11 / 32); }
+        if (s[0]) {
+            if (m) drop(cols / 2, radial() ? row16() >> 4 : rows / 2, s[0]);
+            else { drop(0, 0, s[0]); drop(cols / 2, 0, s[0]); drop(cols - 1, 0, s[0]); }
+        }
+        for (int k = 0; k < 6; k++) {
+            const int32_t e = s[k < 2 ? 1 : 2];
+            if (!e) continue;
+            if (m) drop((wave16(_phase[k]) * (cols - 1)) >> 16, (wave16(_phase2[k]) * (rows - 1)) >> 16, e);
+            else drop(1 + ((int32_t(_phase[k]) * maxi(1, cols - 2)) >> 16), 0, e);
+        }
+        // Steps: 30 .. 180 per second of the wave equation at c^2 = 1/2 on a
+        // strip, 1/4 on a matrix (where 1/2 lets a checkerboard grow); each
+        // loses 1 / 2^damp of its height, at least 1.
+        const int damp = 8 - P(3) * 5 / 255;
+        _clock = mini(_clock + _dt * (30 + 3 * settings.speed / 2), 8000);
+        for (; _clock >= 1000; _clock -= 1000) {
+            for (int y = 0; y < rows; y++)
+                for (int x = 0; x < cols; x++) {
+                    auto at = [&](int xx, int yy) { return int32_t(cur[clampi(yy, 0, rows - 1) * cols + clampi(xx, 0, cols - 1)]); };
+                    const int i = y * cols + x;
+                    int32_t v = (m ? (at(x - 1, y) + at(x + 1, y) + at(x, y - 1) + at(x, y + 1)) >> 2 : (at(x - 1, y) + at(x + 1, y)) >> 1) + cur[i] - old[i];
+                    v -= v > 0 ? (v + (1 << damp) - 1) >> damp : -((-v + (1 << damp) - 1) >> damp);
+                    old[i] = int8_t(clampi(v, -127, 127));
+                }
+            int8_t *t = cur; cur = old; old = t;
+            _cursor ^= 1;
+        }
+        const int colors = P(4) % 3;
+        const int32_t tone = (_tone * 255) >> 12;
+        auto show = [&](int i, int along) -> uint32_t {
+            const int32_t h = cur[i], v = mini(255, absi(h) * 4);
+            const int32_t hue = colors == 1 ? tone + h / 2 : colors == 2 ? along : 140 + h;
+            return uint32_t(v) << 8 | uint32_t(clampi(hue, 0, 255));
+        };
+        if (!m) {
+            for (int x = 0; x < W; x++) {
+                const int c = stripCell(x);
+                const uint32_t l = c < 0 ? 0 : show(c, c * 255 / maxi(1, cols - 1));
+                stripPut(x, uint8_t(l >> 8), l & 255);
+            }
+            return;
+        }
+        for (int x = 0; x < W; x++) {
+            const int xp = _host->originX(x);
+            for (int y = 0; y < H; y++) {
+                const uint32_t l = xp < 0 ? 0 : show(y * W + xp, (xp + y) * 255 / maxi(1, W + H - 2));
+                put(x, y, uint8_t(l >> 8), l & 255);
+            }
+        }
+    }
+    // Lava lamp (LedFx's Lava lamp idea, a Pixelblaze pattern): three slow
+    // waves multiplied into soft blobs that drift along the palette. The bass
+    // speeds the waves up and swells the blobs; the loudness sets the light.
+    // On a matrix one wave runs across and one up. Motion speed sets the pace.
+    // Parameters: reactivity, contrast, zoom (blob size), colours (0 drifting
+    // along the palette, 1 by tone), brightness.
+    void lavaLamp() {
+        using namespace detail;
+        const bool m = matrix();
+        _mood = int16_t(approach(_mood, overall(_host->lineSource()), 50, releaseMs()));
+        _boost = int16_t(approach(_boost, level01(autolevel(0, _host->level(0), _dt)), 60, 400));
+        const int32_t bass = (_boost * P(0)) >> 7, rate = 655 + 65 * settings.speed; // Q12 (up to 2); Q16 turns per second
+        _phase[0] = advance(_phase[0], rate + ((rate * bass) >> 11));
+        _phase[1] = advance(_phase[1], 2 * (rate + ((rate * bass) >> 11)));
+        const int32_t amp = mini(ONE, _mood * 3), contrast = (255 - P(1)) * 16, zoom = 16 + P(2), tone = (_tone * 255) >> 12;
+        const int32_t swell2 = (bass * 2867) >> 12, swell3 = (bass * 3686) >> 12;
+        auto wave = [&](uint32_t t) { return (int32_t(_host->sin16(uint16_t(t))) + 32768) >> 4; }; // Q16 turns -> Q12 0..1
+        auto fold = [](int32_t h) { h &= 511; return h < 256 ? h : 511 - h; }; // there and back along the palette
+        const int cells = m ? W : stripCells();
+        for (int x = 0; x < W; x++) {
+            const int c = m ? _host->originX(x) : stripCell(x);
+            const uint32_t px = uint32_t(maxi(0, c)) * uint32_t(zoom) * 1024u / uint32_t(cells);
+            for (int y = 0; y < (m ? H : 1); y++) {
+                if (c < 0) { if (m) put(x, y, 0, 0); else stripPut(x, 0, 0); continue; }
+                const uint32_t qy = m ? uint32_t(y) * uint32_t(zoom) * 1024u / uint32_t(H) : px;
+                const int32_t w1 = wave(_phase[0] + px), w2 = wave(_phase[1] - qy);
+                const int32_t w3 = wave(px + (m ? qy : 0) + uint32_t((w1 + w2) << 4));
+                const int32_t prod = ((((w1 + 410) * (w2 + swell2)) >> 12) * (w3 + swell3)) >> 12;
+                const int32_t v = mini(ONE, ((prod + contrast) * (prod + contrast)) >> 12);
+                const int32_t shift = (prod * 26) >> 12;
+                const int32_t hue = fold(P(3) % 2 ? tone + shift + int32_t(px >> 12) : int32_t((_phase[0] + px) >> 7) + shift);
+                const uint8_t out = u8q((v * amp) >> 12);
+                if (m) put(x, y, out, hue & 255); else stripPut(x, out, hue & 255);
+            }
+        }
+    }
 };
 } // namespace Viz
