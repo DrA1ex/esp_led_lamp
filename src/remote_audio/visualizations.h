@@ -104,6 +104,12 @@ public:
         if (_mask) _led.get_pixel(x, y).nscale8(max(r, max(g, b)));
         else _led.get_pixel(x, y) = CRGB(r, g, b);
     }
+    // The frame blur reads the drawn LEDs back and overwrites them.
+    void get(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const {
+        const CRGB &c = _led.get_pixel(x, y);
+        r = c.r; g = c.g; b = c.b;
+    }
+    void set(int x, int y, uint8_t r, uint8_t g, uint8_t b) { _led.get_pixel(x, y) = CRGB(r, g, b); }
 };
 
 using Engine = Viz::Engine<Host, WIDTH * HEIGHT>;

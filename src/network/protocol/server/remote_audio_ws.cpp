@@ -175,13 +175,16 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         !boolfield("origin_ring", origin.ring) ||
         !boolfield("origin_radial", origin.radial)) return false;
     if (next.tuning.window.in_min >= next.tuning.window.in_max) return false;
-    // Visualizations (AudioEffectEnum::VU_METER..CHROMATIC_FLOW): colours, mirror, auto-level, fall-off and motion in %.
+    // Visualizations (AudioEffectEnum::VU_METER..CHROMATIC_FLOW): colours, mirror, auto-level,
+    // and in %: auto-level contrast, fall-off, motion and the frame blur.
     auto &viz = next.tuning.viz;
     if (!uint8field("viz_color", next.tuning.viz_color, 1) ||
         !boolfield("viz_mirror", viz.mirror) ||
         !boolfield("viz_auto", viz.autolevel) ||
+        !uint8field("viz_contrast", viz.contrast, 100) ||
         !uint8field("viz_decay", viz.decay, 100) ||
-        !uint8field("viz_motion", viz.speed, 100)) return false;
+        !uint8field("viz_motion", viz.speed, 100) ||
+        !uint8field("viz_blur", viz.blur, 100)) return false;
     origin.shift = static_cast<int16_t>(shift);
     next.tuning.window.curve = static_cast<uint16_t>(curve);
     origin.center_y = static_cast<uint16_t>(center_y);

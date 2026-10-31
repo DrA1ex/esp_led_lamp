@@ -23,6 +23,8 @@
 //   uint16_t noise(uint32_t x, uint32_t y[, uint32_t z]);  (inoise16)
 //   void put(int x, int y, uint8_t v, uint8_t hue);  (palette colour, brightness)
 //   void rgb(int x, int y, uint8_t r, uint8_t g, uint8_t b);  (a colour of its own)
+//   void get(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b);  (the LED as drawn)
+//   void set(int x, int y, uint8_t r, uint8_t g, uint8_t b);  (overwrite it: the frame blur)
 //
 // Strips (HEIGHT < 4, every row the same) run along the LEDs from the origin,
 // or out from the centre when mirrored; matrices use the height and mirror
@@ -101,6 +103,8 @@ struct Settings {
     bool autolevel = true;  // each band / meter stretched over its own recent range
     uint8_t decay = 50;     // 0..100 %: meter release and trail length
     uint8_t speed = 50;     // 0..100 %: motion speed (Flow, Pulses and the free-form modes)
+    uint8_t contrast = 0;   // 0..100 %: auto-level floor raised to the recent average (50 %) and towards the peak (0: the stock floor)
+    uint8_t blur = 0;       // 0..100 %: Gaussian blur of the frame, up to 3 LEDs (sigma)
     // Effect parameters for mode `paramsMode`; every other mode runs with its defaults.
     uint8_t paramsMode = 0xff;
     uint8_t params[MAX_PARAMS] = {};
@@ -163,7 +167,7 @@ class Engine {
     struct Groove { uint32_t pos, travel; int32_t rate; int16_t boost; int8_t dir; uint8_t turn, locked, hue; };
 
     int16_t _level[CHANNELS], _peak[CHANNELS], _hold[CHANNELS]; // Q12, Q12, ms
-    int32_t _lo[CHANNELS], _hi[CHANNELS];                       // auto-level range, Q20
+    int32_t _lo[CHANNELS], _hi[CHANNELS], _avg[CHANNELS];       // auto-level range and recent average, Q20
     uint8_t _v[MAX_PIX], _h[MAX_PIX];
     int16_t _prev_pulse[3], _cool[4], _tone = 0, _mood = 0, _grow[4], _prev_beat = 0, _boost = 0;
     int32_t _clock = 0, _spawn = 0; // ms, Q8 sparks
@@ -218,12 +222,13 @@ public:
 #endif
             default: break;
         }
+        if (settings.blur) blurFrame();
     }
 
 private:
     // ---- shared helpers -------------------------------------------------
     void reset(uint8_t mode) {
-        for (int i = 0; i < CHANNELS; i++) { _level[i] = _peak[i] = _hold[i] = 0; _lo[i] = _hi[i] = 0; }
+        for (int i = 0; i < CHANNELS; i++) { _level[i] = _peak[i] = _hold[i] = 0; _lo[i] = _hi[i] = _avg[i] = 0; }
         for (int i = 0; i < MAX_PIX; i++) _v[i] = _h[i] = 0;
         if (mode == PARTICLES) for (Spark &s: _sparks) s.on = 0;
         else if (mode == ZONES) for (Zone &z: _zones) z = Zone{0, 0};
@@ -273,13 +278,23 @@ private:
     // Auto-level channel i: its own recent range (~3 s) is stretched towards
     // 0..1, so quiet bands and the treble meter move like the bass. Only part
     // of the floor is subtracted, so a steady signal stays up instead of 0.
+    // Contrast raises the floor to the average of the last ~2 s at 50 % (only
+    // what rises above it lights, like LedFx, which subtracts that average
+    // from its bands) and on to halfway to the recent peak at 100 % (only the
+    // peaks), so dense, compressed music no longer pins the meters at the top.
     int32_t autolevel(int i, int32_t x, int32_t dt) {
         using namespace detail;
         if (!settings.autolevel) return x;
         const int32_t xs = x << 8;
         _hi[i] = xs > _hi[i] ? xs : _hi[i] + (xs - _hi[i]) * dt / 3000;
         _lo[i] = xs < _lo[i] ? xs : _lo[i] + (xs - _lo[i]) * dt / 3000;
-        const int32_t floor = _lo[i] * 4 / 5, num = xs - floor, den = maxi(_hi[i] - floor, 410 << 8);
+        _avg[i] += (xs - _avg[i]) * mini(dt, 2000) / 2000;
+        int32_t floor = _lo[i] * 4 / 5;
+        if (settings.contrast) {
+            const int32_t c = mini(100, settings.contrast), avg = maxi(floor, _avg[i]);
+            floor = c <= 50 ? floor + (avg - floor) * c / 50 : avg + (maxi(avg, _hi[i]) - avg) * (c - 50) / 100;
+        }
+        const int32_t num = xs - floor, den = maxi(_hi[i] - floor, 410 << 8);
         return num <= 0 ? 0 : mini(ONE, ((num >> 4) << 12) / (den >> 4));
     }
     int32_t overall(int32_t line) { return level01(autolevel(OVERALL, line, _dt)); }
@@ -391,6 +406,39 @@ private:
         for (int i = 0; i < n; i++) { const uint32_t x = _v[i] * keep; _v[i] = uint8_t((x + 1 + (x >> 8)) >> 8); }
     }
     void stamp(int i, uint8_t v, int32_t hue) { if (v >= _v[i]) { _v[i] = v; _h[i] = detail::u8(hue); } }
+
+    // ---- frame blur ----------------------------------------------------------
+    // settings.blur 0..100 % = a Gaussian of 0..3 LEDs (sigma), applied to the
+    // drawn frame like LedFx's blur: [1 2 1] / 4 passes, each adding 1/2 to
+    // sigma^2 (18 at 100 %; a last partial pass makes the steps smooth), along
+    // the strip and, on a matrix, down the columns too. The end LEDs repeat
+    // past the ends, so the ends keep their light.
+    void blurFrame() {
+        using namespace detail;
+        const int32_t b = mini(100, settings.blur), amount = 18 * 256 * b * b / 10000; // passes, Q8
+        for (int k = 0; k <= amount >> 8; k++) {
+            const int32_t w = k < amount >> 8 ? 256 : amount & 255;
+            if (!w) continue;
+            for (int y = 0; y < H; y++) blurLine(W, w, false, y);
+            if (matrix()) for (int x = 0; x < W; x++) blurLine(H, w, true, x);
+        }
+    }
+    // One pass of weight w (Q8: 256 = [1 2 1] / 4) over row `at` (or column).
+    void blurLine(int n, int32_t w, bool column, int at) {
+        using namespace detail;
+        if (n < 2) return;
+        uint8_t a[3], c[3], z[3];
+        auto get = [&](int i, uint8_t *p) { if (column) _host->get(at, i, p[0], p[1], p[2]); else _host->get(i, at, p[0], p[1], p[2]); };
+        get(0, c);
+        for (int k = 0; k < 3; k++) a[k] = c[k];
+        for (int i = 0; i < n; i++) {
+            if (i + 1 < n) get(i + 1, z); else for (int k = 0; k < 3; k++) z[k] = c[k];
+            uint8_t out[3];
+            for (int k = 0; k < 3; k++) out[k] = u8(c[k] + (((int32_t(a[k]) + z[k] - 2 * c[k]) * w + 512) >> 10));
+            if (column) _host->set(at, i, out[0], out[1], out[2]); else _host->set(i, at, out[0], out[1], out[2]);
+            for (int k = 0; k < 3; k++) { a[k] = c[k]; c[k] = z[k]; }
+        }
+    }
 
     // ---- modes -------------------------------------------------------------
     // VU meter: strip fill from the origin (or both ways), matrix fill from the

@@ -61,6 +61,17 @@ struct TestHost {
         v[y * w + x] = m / 255.f; hue[y * w + x] = r * 7 + g * 3 + b; // any colour fingerprint
         trace = trace * 1000003u + (uint64_t(r) << 16 | uint64_t(g) << 8 | b);
     }
+    // The frame blur: the test keeps one grey level per LED.
+    void get(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const {
+        assert(x >= 0 && x < w && y >= 0 && y < h);
+        r = g = b = uint8_t(std::lround(v[y * w + x] * 255));
+    }
+    void set(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+        assert(x >= 0 && x < w && y >= 0 && y < h);
+        const uint8_t m = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        v[y * w + x] = m / 255.f;
+        trace = trace * 1000003u + m;
+    }
     int lit() const { int n = 0; for (float x: v) n += x > .1f; return n; }
 };
 
@@ -305,12 +316,47 @@ int main() {
         for (int i = 0; i < 256; i++) { light[0] += calm.v[i]; light[1] += hit.v[i]; }
         assert(only(hit, 64) && light[1] > light[0] * 1.15f);
     }
+    // Frame blur (settings.blur): one lit LED spreads to its neighbours along a
+    // strip and across the columns of a matrix; far LEDs stay dark.
+    {
+        static Viz::Engine<TestHost, 512> engine;
+        auto blurred = [&](int w, int h, int band, uint8_t blur) {
+            engine.invalidate(); engine.settings = Viz::Settings{}; engine.settings.blur = blur;
+            TestHost t(w, h); t.count = w == 64 ? 64 : 32;
+            for (int k = 0; k < 40; k++) { t.bands[band] = 1; engine.render(t, Viz::SPECTRUM_BARS, 17); }
+            return t;
+        };
+        const TestHost sharp = blurred(64, 1, 32, 0), soft = blurred(64, 1, 32, 100);
+        assert(sharp.v[29] == 0.f && soft.v[29] > .02f && soft.v[32] < sharp.v[32] && soft.v[0] == 0.f);
+        const TestHost column = blurred(32, 16, 31, 100);
+        assert(column.v[8 * 32 + 28] > .02f && column.v[8 * 32 + 31] > column.v[8 * 32 + 28]);
+    }
+    // Contrast (settings.contrast): a level wobbling between .85 and .95 pins the
+    // auto-levelled VU meter; at 50 % it swings with the wobble above the average.
+    {
+        static Viz::Engine<TestHost, 256> engine;
+        auto swing = [&](uint8_t contrast, int &low, int &high) {
+            engine.invalidate(); engine.settings = Viz::Settings{}; engine.settings.contrast = contrast;
+            TestHost t(100, 1);
+            low = 100; high = 0;
+            for (int k = 0; k < 500; k++) {
+                t.ctrl = .9f + .05f * std::sin(k * .08f);
+                engine.render(t, Viz::VU_METER, 17);
+                if (k >= 250) { low = t.lit() < low ? t.lit() : low; high = t.lit() > high ? t.lit() : high; }
+            }
+        };
+        int low, high;
+        swing(0, low, high);
+        assert(low > 70);
+        swing(50, low, high);
+        assert(low < 30 && high > 90);
+    }
     // A geometry above the pixel budget renders nothing instead of overflowing.
     {
         const TestHost t = run<16>(16, 16, Viz::VU_METER, music);
         assert(t.lit() == 0);
     }
-    std::printf("PASS remote visualizations: %d modes on strips 7/46/153, 72x2, 16x16, 32x16; silence, rows, mirror, bands, params\n",
+    std::printf("PASS remote visualizations: %d modes on strips 7/46/153, 72x2, 16x16, 32x16; silence, rows, mirror, bands, params, blur, contrast\n",
                 int(Viz::MODE_COUNT));
     return 0;
 }

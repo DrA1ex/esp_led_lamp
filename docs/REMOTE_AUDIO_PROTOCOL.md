@@ -86,8 +86,10 @@ defaults to 0 on `hello`, which reproduces the stock firmware effects):
 | `viz_color` | 0–1 | Visualizations: 0 draws with the palette, 1 uses the level as a mask over the colour effect |
 | `viz_mirror` | bool | Visualizations: strips run out from the centre both ways, matrices mirror around the middle row |
 | `viz_auto` | bool (default true) | Visualizations: auto-level, each band / meter stretched over its own recent ~3 s range |
+| `viz_contrast` | 0–100 % (default 0) | Visualizations, with `viz_auto`: raises the auto-level floor to the average of the last ~2 s at 50 % (only what rises above it lights) and halfway on to the recent peak at 100 % (only the peaks); 0 keeps the stock floor |
 | `viz_decay` | 0–100 % (default 50) | Visualizations: meter release, peak fall and trail length |
 | `viz_motion` | 0–100 % (default 50) | Visualizations: motion speed (Flow, Pulses, Fire, Aurora, Juggle, Radial Spectrum, Blobs) |
+| `viz_blur` | 0–100 % (default 0) | Visualizations: Gaussian blur of the drawn frame, sigma 0–3 LEDs (100 % = 3), along a strip and on a matrix also down the columns; firmware before 2026-10-31 ignores it and `viz_contrast` |
 
 The signal window applies to every audio mode that maps a value
 (`audioTransfer()` in `src/audio/transfer.h`). The origin maps each column
