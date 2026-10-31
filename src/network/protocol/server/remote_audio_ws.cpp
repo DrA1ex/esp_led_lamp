@@ -234,6 +234,38 @@ bool RemoteAudioSocket::params(JsonDocument &doc) {
     for (i = 0; i < Viz::MAX_PARAMS; ++i) viz.params[i] = next[i];
     return true;
 }
+// Lamp layout ("layout" capability): {"type":"layout","flip_x":b,"flip_y":b,
+// "ring":b,"offset":LEDs}. Missing fields keep their value. Saved on the
+// lamp and applied at once to every effect (Led::get_index).
+bool RemoteAudioSocket::layout(JsonDocument &doc) {
+    LayoutConfig next = _layout.get();
+    auto boolfield = [&](const char *name, bool &value) {
+        if (doc[name].isNull()) return true;
+        if (!doc[name].is<bool>()) return false;
+        value = doc[name].as<bool>();
+        return true;
+    };
+    if (!boolfield("flip_x", next.flip_x) || !boolfield("flip_y", next.flip_y) || !boolfield("ring", next.ring))
+        return false;
+    if (!doc["offset"].isNull()) {
+        if (!doc["offset"].is<int>()) return false;
+        const int offset = doc["offset"].as<int>();
+        if (offset < -int(WIDTH) || offset > int(WIDTH)) return false;
+        next.offset = static_cast<int16_t>(offset);
+    }
+    if (!(next == _layout.get())) {
+        _layout.get() = next;
+        if (!_layout.is_pending_commit()) _layout.save();
+    }
+    _led.set_layout(next);
+    _audio.layout = next;
+    return true;
+}
+int RemoteAudioSocket::layoutJson(char *out, size_t size) const {
+    const auto &l = _layout.get();
+    return snprintf(out, size, "{\"flip_x\":%s,\"flip_y\":%s,\"ring\":%s,\"offset\":%d}",
+                    l.flip_x ? "true" : "false", l.flip_y ? "true" : "false", l.ring ? "true" : "false", int(l.offset));
+}
 void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t len) {
     JsonDocument doc;
     if (deserializeJson(doc, data, len)) { reply(client, "error", "invalid_json"); return; }
@@ -262,14 +294,16 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
             if (!Viz::available(m)) continue;
             n += snprintf(modes + n, sizeof(modes) - n, "%s%u", n ? "," : "", unsigned(RemoteViz::FIRST + m));
         }
-        char response[480];
+        char layout_json[80];
+        layoutJson(layout_json, sizeof(layout_json));
+        char response[560];
         snprintf(response, sizeof(response),
                  "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
                  "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[16,32,64],"
-                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\",\"control\",\"params\",\"chroma\"],"
-                 "\"visualizations\":[%s],\"params_version\":%u,\"power\":%s,\"brightness\":%u}",
+                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\",\"control\",\"params\",\"chroma\",\"layout\"],"
+                 "\"visualizations\":[%s],\"params_version\":%u,\"power\":%s,\"brightness\":%u,\"layout\":%s}",
                  static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT), modes, unsigned(Viz::PARAMS_VERSION),
-                 _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));
+                 _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness), layout_json);
         _ws.text(client, response);
         return;
     }
@@ -344,6 +378,20 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
         char response[80];
         snprintf(response, sizeof(response), "{\"type\":\"control_ack\",\"power\":%s,\"brightness\":%u}",
                  _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));
+        _ws.text(client, response);
+    } else if (strcmp(type, "layout") == 0) {
+        if (!layout(doc)) { reply(client, "error", "invalid_layout"); return; }
+        char json[80], response[120];
+        layoutJson(json, sizeof(json));
+        snprintf(response, sizeof(response), "{\"type\":\"layout_ack\",\"layout\":%s}", json);
+        _ws.text(client, response);
+    } else if (strcmp(type, "test") == 0) {
+        // Orientation test (Layout::testPattern) instead of the effect, until
+        // {"on":false} or the session ends.
+        if (!doc["on"].is<bool>()) { reply(client, "error", "invalid_test"); return; }
+        _audio.setLayoutTest(doc["on"].as<bool>());
+        char response[48];
+        snprintf(response, sizeof(response), "{\"type\":\"test_ack\",\"on\":%s}", _audio.layoutTest() ? "true" : "false");
         _ws.text(client, response);
     } else if (strcmp(type, "status") == 0) {
         const auto &stat = _audio.timeline().stats();

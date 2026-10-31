@@ -93,11 +93,12 @@ class OriginMap {
     float _row;
     Origin _origin;
 public:
-    OriginMap(uint16_t width, uint16_t height, const Origin &origin) :
+    // `columns` adds the open-strip offset of the lamp layout (Layout::originShift).
+    OriginMap(uint16_t width, uint16_t height, const Origin &origin, int columns = 0) :
             _width(width ? width : 1), _height(height ? height : 1), _origin(origin) {
         // Round half away from zero so +/- shifts are symmetric.
         const int32_t scaled = int32_t(_width) * origin.shift;
-        _shift = (scaled >= 0 ? scaled + 500 : scaled - 500) / 1000;
+        _shift = (scaled >= 0 ? scaled + 500 : scaled - 500) / 1000 + columns;
         _row = float(_height - 1) * (origin.center_y > 1000 ? 1000 : origin.center_y) / 1000.f;
     }
     int width() const { return _width; }

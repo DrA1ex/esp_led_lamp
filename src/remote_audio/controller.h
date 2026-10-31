@@ -6,6 +6,7 @@
 #include "remote_audio/timeline.h"
 #include "remote_audio/reactive_math.h"
 #include "remote_audio/viz_engine.h"
+#include "misc/layout.h"
 
 // Does not modify Application::config or persisted preset storage.
 class RemoteAudioController {
@@ -37,8 +38,18 @@ private:
     bool _playing = false;
     uint16_t _pulse[3] = {};
     uint32_t _last_pulse_tick = 0;
+    bool _layout_test = false;
 
 public:
+    // The lamp's saved layout (main.cpp keeps it current): its open-strip
+    // offset moves the origin of the audio modes.
+    LayoutConfig layout;
+    RemoteReactive::OriginMap originMap(uint16_t width, uint16_t height) const {
+        return RemoteReactive::OriginMap(width, height, _overrides.tuning.origin, Layout::originShift(layout));
+    }
+    // Orientation test ("test" message) while its sender holds the session.
+    bool layoutTest() const { return _layout_test && _owner; }
+    void setLayoutTest(bool on) { _layout_test = on; }
     RemoteAudio::Timeline &timeline() { return _timeline; }
     const RemoteAudio::Timeline &timeline() const { return _timeline; }
     Overrides &overrides() { return _overrides; }
@@ -58,6 +69,7 @@ public:
         _overrides.audio.enabled = true;
         _overrides.preset = preset;
         _overrides.tuning = Tuning{};
+        _layout_test = false;
         _last_frame = millis();
         _last_control = millis();
         _playing = false;
@@ -84,6 +96,7 @@ public:
     }
     void stop() {
         pause();
+        _layout_test = false;
         _session = 0; _owner = 0;
     }
     void disconnected(uint32_t client) {

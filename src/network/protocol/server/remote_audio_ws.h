@@ -6,11 +6,15 @@
 #include "network/web.h"
 #include "remote_audio/controller.h"
 #include "application.h"
+#include "misc/led.h"
+#include "misc/storage.h"
 
 class RemoteAudioSocket {
     AsyncWebSocket _ws{"/audio"};
     RemoteAudioController &_audio;
     Application &_app;
+    Led &_led;
+    Storage<LayoutConfig> &_layout;
     uint32_t _lab_client = 0;
     uint8_t _fragments[512] = {};
     uint32_t _fragment_client = 0;
@@ -42,9 +46,12 @@ class RemoteAudioSocket {
     void reply(uint32_t client, const char *type, const char *reason = nullptr);
     bool configure(JsonDocument &doc);
     bool params(JsonDocument &doc);
+    bool layout(JsonDocument &doc);
+    int layoutJson(char *out, size_t size) const;
 
 public:
-    RemoteAudioSocket(RemoteAudioController &controller, Application &app) : _audio(controller), _app(app) {}
+    RemoteAudioSocket(RemoteAudioController &controller, Application &app, Led &led, Storage<LayoutConfig> &layout) :
+            _audio(controller), _app(app), _led(led), _layout(layout) {}
     void begin(WebServer &server);
     void poll();
 };

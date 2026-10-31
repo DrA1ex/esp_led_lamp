@@ -296,7 +296,7 @@ void ColorEffectManager::ripple(Led &led, ColorEffectState &state) {
             const uint16_t index = i + j * width;
             auto value = sin16f((float) (index * scale_factor) + time_factor * 2) / 16 + time_factor;
 
-            led.data()[index] = color_from_palette(*palette, (uint16_t) round(value));
+            led.get_pixel(i, j) = color_from_palette(*palette, (uint16_t) round(value));
         }
     }
 

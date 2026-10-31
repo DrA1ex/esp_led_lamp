@@ -36,6 +36,7 @@
 
 void initialization_animation();
 void render();
+bool layout_test();
 void calibration();
 
 void button_on_click(uint8_t cnt);
@@ -54,6 +55,7 @@ Storage<Config> config_storage(global_timer, "config", STORAGE_CONFIG_VERSION);
 Storage<PresetNames> preset_names_storage(global_timer, "preset_names", STORAGE_PRESET_NAMES_VERSION);
 Storage<PresetConfigs> preset_configs_storage(global_timer, "preset_configs", STORAGE_PRESET_CONFIG_VERSION);
 Storage<CustomPaletteConfig> custom_palette_storage(global_timer, "custom_palette", STORAGE_CUSTOM_PALETTE_VERSION);
+Storage<LayoutConfig> layout_storage(global_timer, "layout", STORAGE_LAYOUT_VERSION);
 
 NightModeManager night_mode_manager(config_storage.get());
 
@@ -103,7 +105,7 @@ RemoteSignalProvider remote_wave_centered(remote_audio, RemoteSignalProvider::WA
 RemoteSignalProvider remote_spectrum(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH);
 RemoteSignalProvider remote_spectrum_centered(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH / 2 + 1);
 RemoteSignalProvider remote_parametric(remote_audio, RemoteSignalProvider::PARAMETRIC, WIDTH);
-RemoteAudioSocket remote_audio_ws(remote_audio, app);
+RemoteAudioSocket remote_audio_ws(remote_audio, app, led, layout_storage);
 #endif
 
 NtpTime ntp_time;
@@ -124,6 +126,11 @@ void setup() {
     preset_names_storage.begin(&LittleFS);
     preset_configs_storage.begin(&LittleFS);
     custom_palette_storage.begin(&LittleFS);
+    layout_storage.begin(&LittleFS);
+    led.set_layout(layout_storage.get());
+#if REMOTE_AUDIO == ENABLED
+    remote_audio.layout = layout_storage.get();
+#endif
 
     app.begin();
 
@@ -203,8 +210,10 @@ void render_loop(void *) {
         case AppState::TURNING_ON:
         case AppState::TURNING_OFF:
             if (brightness_settings.brightness > 0 && brightness_settings.eco > 0) {
-                render();
-                BrightnessEffectManager::eco(led, brightness_settings.eco);
+                if (!layout_test()) {
+                    render();
+                    BrightnessEffectManager::eco(led, brightness_settings.eco);
+                }
             } else {
                 led.clear();
             }
@@ -218,6 +227,18 @@ void render_loop(void *) {
     }
 }
 
+
+// The lab's orientation test (Layout::testPattern) in place of the effect.
+bool layout_test() {
+#if REMOTE_AUDIO == ENABLED
+    if (!remote_audio.layoutTest()) return false;
+    Layout::testPattern(led.width(), led.height(), Layout::originShift(remote_audio.layout),
+                        [](int x, int y, uint32_t color) { led.get_pixel(x, y) = CRGB(color); });
+    return true;
+#else
+    return false;
+#endif
+}
 
 void render() {
     if (app.state == AppState::NORMAL && !app.config.power) {

@@ -21,7 +21,8 @@ Send in this order:
    `hello_ack` with dimensions, the accepted band counts (`band_counts: [16, 32, 64]`), fps, capabilities
    and the visualization effect ids this build renders (`visualizations: [12, …, 34]`). Firmware
    that takes effect parameters lists the `params` capability and `params_version` (1);
-   firmware that takes the 12 pitch classes lists `chroma` (see [Chroma](#chroma)).
+   firmware that takes the 12 pitch classes lists `chroma` (see [Chroma](#chroma)); firmware
+   with a saved layout lists `layout` and sends it as `layout` (see [Layout](#layout)).
 2. `{"type":"sync","session":12345,"t0":123456789}` ->
    `sync_ack` with `t0`, `t1` (device receive), `t2` (device reply).
    Capture `t3` as soon as the sender receives `sync_ack`.
@@ -58,6 +59,13 @@ Send in this order:
    they persist, like `/api/power` and `/api/brightness`. `hello_ack` and
    `status` also carry the current `power` and `brightness`, so changes
    from the lamp's own UI or button show up within one status period.
+10. Lamp layout (the `layout` capability), also at any time after `hello`:
+    `{"type":"layout","flip_x":false,"flip_y":false,"ring":true,"offset":12}`
+    replies `{"type":"layout_ack","layout":{...}}`; missing fields keep their
+    value. It is saved on the lamp and `hello_ack` carries it as `layout`.
+    `{"type":"test","on":true}` replaces the effect with the orientation
+    test until `{"type":"test","on":false}` or the session ends (`test_ack`).
+    See [Layout](#layout).
 
 All invalid control messages return an `error` object. `config` is an
 atomic, runtime-only override and cannot persist a preset. Supported
@@ -103,6 +111,35 @@ and spectrum shaping are at their defaults. A config with
 
 These match the lab's new-FFT preview (`src/render.cpp`,
 `web/js/view.js`), so the lamp shows what the browser previews.
+
+### Layout
+
+How the LEDs are mounted, saved on the lamp (`LayoutConfig` in
+`src/misc/layout.h`, LittleFS file `layout`) and applied to every effect,
+the built-in ones too, by `Led::get_index`. Effects keep drawing in logical
+columns and rows; the layout maps them to the row-serpentine wiring:
+
+| Field | Range | Meaning |
+|---|---|---|
+| `flip_x` | bool | Column 0 at the other end of the wiring |
+| `flip_y` | bool | Row 0 at the other end (matrices, 2-row strips) |
+| `ring` | bool | A closed strip, or a matrix wrapped round a cylinder |
+| `offset` | −WIDTH..WIDTH LEDs | Turns a ring along the wiring by this many LEDs, so the logical centre WIDTH / 2 faces the viewer |
+
+The physical column of logical `x` is `flip_x ? WIDTH − 1 − x : x`, then on a
+ring `(… + offset) mod WIDTH`; the row is `flip_y ? HEIGHT − 1 − y : y`.
+An open strip cannot turn: there the offset moves the origin of the audio
+modes instead (`Layout::originShift`, `offset` LEDs along the wiring, so
+`−offset` logical columns when flipped), on top of `origin_shift`, and LEDs
+past the end stay dark. The tuning fields `origin_shift`, `origin_reverse`
+and `origin_ring` still work for older senders; the lab now sends the layout
+instead.
+
+The orientation test (`Layout::testPattern`, the lab's
+`render_test_pattern()` draws the same) lights red (0, 0), green
+(WIDTH − 1, 0), blue (0, HEIGHT − 1), white (WIDTH − 1, HEIGHT − 1), dim
+edges on a matrix and a yellow column at WIDTH / 2 (moved by an open strip's
+offset), where the Center modes centre.
 
 ## AUDIO_FRAME
 
@@ -417,6 +454,8 @@ g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_audio_timeline.cpp -o /tm
 /tmp/remote_audio_timeline
 g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_viz.cpp -o /tmp/remote_viz
 /tmp/remote_viz
+g++ -std=c++17 -Wall -Wextra -Werror tests/test_layout.cpp -o /tmp/layout
+/tmp/layout
 tests/check_viz_integer.sh
 ```
 

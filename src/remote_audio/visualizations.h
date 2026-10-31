@@ -33,7 +33,7 @@ class Host {
 public:
     Host(Led &led, const RemoteAudioController &controller, const PaletteT &palette, uint8_t v_min, uint8_t v_max) :
             _led(led), _controller(controller), _palette(palette),
-            _origin(led.width(), led.height(), controller.overrides().tuning.origin),
+            _origin(controller.originMap(led.width(), led.height())),
             _window(controller.overrides().tuning.window), _out_min(v_min), _out_max(v_max),
             _mask(controller.overrides().tuning.viz_color != 0),
             _row(int32_t(led.height() - 1) * 256 * min<uint16_t>(controller.overrides().tuning.origin.center_y, 1000) / 1000) {}

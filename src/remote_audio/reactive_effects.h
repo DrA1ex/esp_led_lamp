@@ -14,7 +14,7 @@ inline void apply(Led &led, const RemoteAudioController &controller, AudioEffect
     const uint16_t width = led.width();
     const uint16_t height = led.height();
     if (!width || !height) return;
-    const OriginMap origin(width, height, controller.overrides().tuning.origin);
+    const OriginMap origin = controller.originMap(width, height);
     const float beat = predictedBeat(f.beat_phase, f.beat_confidence, pulses[0], f.bpm_x10);
     for (uint16_t x = 0; x < width; ++x) {
         const int xp = origin.x(x);
@@ -41,15 +41,16 @@ inline void apply(Led &led, const RemoteAudioController &controller, AudioEffect
 // which already handles the signal window.
 inline bool customRender(const RemoteAudioController &controller, AudioEffectEnum mode) {
     const auto &tuning = controller.overrides().tuning;
+    const bool origin = !tuning.origin.is_default() || Layout::originShift(controller.layout);
     switch (mode) {
         case AudioEffectEnum::WAVE:
         case AudioEffectEnum::WAVE_CENTERED:
         case AudioEffectEnum::SPECTRUM:
         case AudioEffectEnum::SPECTRUM_CENTERED:
-            return tuning.spectrum_shape || tuning.spectrum_onset || !tuning.origin.is_default();
+            return tuning.spectrum_shape || tuning.spectrum_onset || origin;
         case AudioEffectEnum::LINE:
         case AudioEffectEnum::LINE_CENTERED:
-            return !tuning.origin.is_default();
+            return origin;
         default:
             return false;
     }
@@ -65,7 +66,7 @@ inline void render(Led &led, const SignalProvider &provider, const RemoteAudioCo
     const int width = led.width();
     const int height = led.height();
     if (!width || !height) return;
-    const OriginMap origin(width, height, tuning.origin);
+    const OriginMap origin = controller.originMap(width, height);
     const uint16_t max_value = provider.max_value();
 
     if (mode == AudioEffectEnum::LINE || mode == AudioEffectEnum::LINE_CENTERED) {
