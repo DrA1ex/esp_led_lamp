@@ -19,8 +19,9 @@ Send in this order:
 
 1. `{"type":"hello","version":1,"session":12345}` ->
    `hello_ack` with dimensions, the accepted band counts (`band_counts: [16, 32, 64]`), fps, capabilities
-   and the visualization effect ids this build renders (`visualizations: [12, …, 29]`). Firmware
-   that takes effect parameters lists the `params` capability and `params_version` (1).
+   and the visualization effect ids this build renders (`visualizations: [12, …, 30]`). Firmware
+   that takes effect parameters lists the `params` capability and `params_version` (1);
+   firmware that takes the 12 pitch classes lists `chroma` (see [Chroma](#chroma)).
 2. `{"type":"sync","session":12345,"t0":123456789}` ->
    `sync_ack` with `t0`, `t1` (device receive), `t2` (device reply).
    Capture `t3` as soon as the sender receives `sync_ack`.
@@ -60,7 +61,7 @@ Send in this order:
 
 All invalid control messages return an `error` object. `config` is an
 atomic, runtime-only override and cannot persist a preset. Supported
-optional fields: `audio_effect` (0–11, or a listed visualization 12–29), `audio_enabled` (boolean), `audio_min`, `audio_max`,
+optional fields: `audio_effect` (0–11, or a listed visualization 12–30), `audio_enabled` (boolean), `audio_min`, `audio_max`,
 `color_effect` (0–9), `brightness_effect` (0–4), `palette` (valid
 device palette index), `speed`, `scale`, `light` (all 0–255).
 The saved preset, power, gamma and eco settings remain authoritative.
@@ -103,7 +104,8 @@ These match the lab's new-FFT preview (`src/render.cpp`,
 
 ## AUDIO_FRAME
 
-**38 + 2 × band count bytes** (16 → 70, 32 → 102, 64 → 166), little endian,
+**38 + 2 × band count bytes** (16 → 70, 32 → 102, 64 → 166), plus 12 with
+chroma (82 / 114 / 178), little endian,
 with manual serialization and validation rather than a packed C++ struct:
 
 | Offset | Field | Type |
@@ -126,8 +128,9 @@ with manual serialization and validation rather than a packed C++ struct:
 | 33 | Beat phase (0–255) | uint8 |
 | 34 | BPM × 10 (0 if unknown) | uint16 |
 | 36 | Beat confidence | uint8 |
-| 37 | Reserved 0 | uint8 |
+| 37 | Extensions: bit 0 = chroma follows the bands; other bits 0 | uint8 |
 | 38 | Logarithmic frequency bands (the lab's analysed range, 40 Hz–8 kHz by default) | count × uint16 |
+| 38 + 2 × count | Chroma, only with extension bit 0: pitch classes C, C♯ … B, 255 = the strongest | 12 × uint8 |
 
 Amplitudes and bands must be within 0–4096 inclusive. The session ID
 must match the active sender. Sequence numbers are tracked in a 32-packet
@@ -143,6 +146,28 @@ The renderer maintains a 25 ms rolling RMS history for Wave modes
 (0–4096, full scale for loud passages) into `rms`, not the raw signal RMS:
 Line, Brightness and the parametric modes use it directly.
 The stream timeout is 300 ms once the buffered frames are consumed.
+
+### Chroma
+
+Byte 37 was reserved 0 in the first v1 firmware, which rejects any other
+value, so the version stays 1 and the chroma is an extension: a sender adds
+it (bit 0, 12 bytes after the bands) only for a lamp whose `hello_ack`
+lists the `chroma` capability; every other lamp keeps receiving the plain
+frames. The receiver rejects unknown extension bits and a size that does
+not match the bits.
+
+The 12 bytes say how much of each note sounds, octaves folded together
+(chroma: C, C♯, D … B), scaled so the strongest class is 255. The lab
+computes them apart from the bands (`chroma_process()` in
+`esp_led_lab/src/dsp.cpp`): the input low-passed at 2.7 kHz and decimated
+to about 8 kHz, a 4096-point FFT (0.51 s window, 2 Hz per bin, enough to
+separate semitones down to A1 = 55 Hz), spectral peaks over twice the local
+background (so noise and drums stay dim) placed on the semitone grid with
+parabolic interpolation, notes from 55 Hz to about 2 kHz, normalised to the
+strongest class and smoothed (80 ms up, 250 ms down). It is updated every
+48 ms and sent with every frame. The receiver interpolates it between
+queued frames like the bands; a frame without chroma reads as all zero.
+Visualizations read it as `Host::chroma(i)`, Q12.
 
 ## Existing audio modes
 
@@ -202,7 +227,7 @@ These are not pixel-identical reproductions of the browser implementation;
 the protocol carries fewer transient/tempo details than the lab's full
 159-feature WASM array.
 
-### Visualizations (12–29)
+### Visualizations (12–30)
 
 Remote-only modes appended after the experimental ones, not offered by the
 lamp's own UI (`AudioEffects` does not list them). They live in
@@ -232,6 +257,7 @@ current palette.
 | 27 | 28 | Zones | segments: an equalizer, or flashes on hits | columns, rows, rings, sectors or tiles |
 | 28 | 29 | Melody | the dominant frequency as a dot or a bar | a dot, a bar or a scrolling trace |
 | 29 | 30 | Groove | waves running from the origin, or a swinging bar: a step per beat | rings, spiral arms, stripes or a swinging ball: a step per beat |
+| 30 | 31 | Chromatic Flow | soft colour regions drifting along, one per sounding note | the same as slow 2-D clouds |
 
 Groove is the mode that keeps time: it runs a beat clock of its own, locked
 (a phase-locked loop) to the frame's beat phase while the beat confidence is
@@ -240,11 +266,24 @@ beat. Between frames the receiver carries the phase on at the frame's BPM
 for the frame's age (`Host::beatPhase()`), so the clock does not see 50 Hz
 steps. Without a confident tempo, bass and mid onsets start the steps.
 
+Chromatic Flow follows the harmony (needs `chroma`; without it the lamp
+stays dark). The notes are laid on the palette in the circle of fifths (C,
+G, D, A …, 1/12 of the palette apart, so related chords sit side by side)
+or in semitone order; a slow noise field is split into regions, each note
+taking a share of the lamp as large as its level, so one note colours the
+whole lamp and a chord shares it between its notes. Borders blend softly
+(the colour turns halfway towards the neighbour, 25 % dimmer). The notes
+follow in 50–2090 ms (`follow`), so the colours change with the chords, not
+with every note; bass onsets and beats only add a glow and swell the
+regions. Shares come from the field's own distribution (rank equalisation
+over a 256-entry table on the stack, 512 bytes during the frame), so they
+hold on short strips as well as on matrices.
+
 Levels go through the signal window and `audio_min..audio_max` like every
 other mode; the origin (shift / reverse / ring / radial centre) applies. The
 lab's fast line envelope is not on the wire, so modes following loudness use
 the control source (`param_source`). Building with `-DVIZ_WITH_HEAVY=0` drops
-the per-pixel modes 20, 21, 23, 24 and 26 (noise, angles, fields) and removes them
+the per-pixel modes 20, 21, 23, 24, 26 and 30 (noise, angles, fields) and removes them
 from `visualizations`.
 
 The engine is integer only, since the ESP8266 has no FPU and soft-float costs
@@ -252,9 +291,14 @@ hundreds of cycles per operation: levels are Q12 (the stream's 0..4096),
 time is in ms, 2-D positions are 1/16 LED, phases Q16 turns; square roots
 and angles are integer approximations. `tests/check_viz_integer.sh` compiles
 it with the xtensa toolchain and fails on any soft-float call. Cost: about
-51 KB flash (Groove 4 KB of it) and, for a 16×16 matrix, 2.1 KB RAM (0.9 KB
+55 KB flash (Groove 4 KB, Chromatic Flow 3.8 KB of it) and, for a 16×16 matrix, 2.1 KB RAM (0.9 KB
 of per-band meter state, two bytes per LED, the particles and the
-parameters; Groove's beat clock shares the particles' memory). The `status` response reports the last
+parameters; Groove's beat clock shares the particles' memory, Chromatic Flow
+keeps its 12 note levels in the band meters and needs 512 bytes of stack
+while it draws). Chroma in the receiver: 12 bytes per queued frame and
+per output frame, 12 more in the largest frame (178 bytes); the whole
+change from Groove to Chromatic Flow measured +328 bytes RAM and +1.7 KB
+flash in `pio run -e release` (61 980 B RAM, 540 252 B flash). The `status` response reports the last
 visualization frame time as `viz_us`, which should stay well under the 16 ms
 frame budget.
 
@@ -302,6 +346,7 @@ everything the mode draws: 128 = as drawn, 255 ≈ ×2.
 | 27 | Zones | zones 1–16 (8); layout: 0 columns, 1 rows, 2 rings, 3 sectors, 4 tiles (0); lit by: 0 equalizer, 1 band hits, 2 bass, 3 mid, 4 treble, 5 any hit, 6 beats (0); on a hit: 0 all, 1 chase, 2 random, 3 alternate, 4 bounce, 5 build up (1); decay, 50 + 6v ms (100); glow with the level (40); colours: 0 by zone, 1 by what hit, 2 new each hit, 3 by tone (0); borders (60); brightness (128) |
 | 28 | Melody | from, to: the part of the bands, 0–255 (40, 200); style: 0 dot, 1 bar, 2 trace (0); glide, 10 + 3v ms (80); size, (128 + 4v)/128 LED (100); trail (120); colours: 0 by note, 1 by tone, 2 by level (0); ignore below, v·16 of 4096 (40); brightness (128) |
 | 29 | Groove | shape: 0 rings, 1 spin, 2 stripes, 3 bounce (0); step per beat, v/128 of a period (64); snap to the beat: 0 a steady glide .. 255 a sharp step (200); bass expansion (160); zoom, (8 + v)/32 periods across (100); treble sparks (100); colours: 0 along the pattern, 1 by tone, 2 new each beat (0); brightness (128) |
+| 30 | Chromatic Flow | notes on the palette: 0 circle of fifths, 1 semitones (0); C at, v/256 of the palette (0); follow, 50 + 8v ms (100); focus, notes under v/256 of the strongest are left out (80); zoom, at least 4, higher = smaller regions (80); drift (60); soft borders, v/1024 of the lamp (128); glow on hits (90); swell on hits (60); brightness (128) |
 
 ### Compatibility with the supplied browser lab
 
@@ -311,7 +356,7 @@ and a `start.session_id`. The receiver recognizes this only for a
 `hello` with `client:"esp-led-wasm-lab"`. The browser's mode
 numbers are shifted because it has an explicit `Off` item:
 browser 0 = Off, browser 1..10 = firmware 0..9,
-browser 11..12 = firmware 10..11, browser 13..30 = visualizations 12..29
+browser 11..12 = firmware 10..11, browser 13..31 = visualizations 12..30
 (sent only to lamps that list them in `visualizations`; others get Off).
 Browser pause/stop preserves the
 connected control lease and synchronization, allowing a new `start`
@@ -356,7 +401,9 @@ python -m pip install websockets
 python tools/remote_audio_sender.py ws://192.168.4.1/audio --hz 40 --seconds 30 --effect 3
 ```
 
-Use `--effect 0` through `29`: twelve firmware modes and the 18 visualizations;
+Use `--effect 0` through `30`: twelve firmware modes and the 19 visualizations;
+to a lamp with `chroma` it also sends notes (C major, A minor, F major,
+G major, two seconds each) for Chromatic Flow (`--effect 30`);
 `--params 0,4,200` sends a visualization's effect parameters (see above) to a
 lamp with the `params` capability. `--lead-ms 45`
 controls the scheduled presentation lead (reduce for a lower-latency

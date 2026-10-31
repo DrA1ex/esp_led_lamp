@@ -159,6 +159,11 @@ public:
                         _output.bands[i] = mix(_output.bands[i], next.bands[i], frac);
                     }
                 }
+                if (next.extensions & _output.extensions & RemoteProtocol::EXT_CHROMA) {
+                    for (uint8_t i = 0; i < RemoteProtocol::CHROMA_SIZE; ++i) {
+                        _output.chroma[i] = uint8_t(mix(_output.chroma[i], next.chroma[i], frac));
+                    }
+                }
             }
         }
         if (_wave_at == 0) _wave_at = now;

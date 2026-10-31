@@ -175,7 +175,7 @@ bool RemoteAudioSocket::configure(JsonDocument &doc) {
         !boolfield("origin_ring", origin.ring) ||
         !boolfield("origin_radial", origin.radial)) return false;
     if (next.tuning.window.in_min >= next.tuning.window.in_max) return false;
-    // Visualizations (AudioEffectEnum::VU_METER..GROOVE): colours, mirror, auto-level, fall-off and motion in %.
+    // Visualizations (AudioEffectEnum::VU_METER..CHROMATIC_FLOW): colours, mirror, auto-level, fall-off and motion in %.
     auto &viz = next.tuning.viz;
     if (!uint8field("viz_color", next.tuning.viz_color, 1) ||
         !boolfield("viz_mirror", viz.mirror) ||
@@ -263,7 +263,7 @@ void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t
         snprintf(response, sizeof(response),
                  "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
                  "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[16,32,64],"
-                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\",\"control\",\"params\"],"
+                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\",\"control\",\"params\",\"chroma\"],"
                  "\"visualizations\":[%s],\"params_version\":%u,\"power\":%s,\"brightness\":%u}",
                  static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT), modes, unsigned(Viz::PARAMS_VERSION),
                  _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));

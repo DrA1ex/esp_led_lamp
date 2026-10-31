@@ -5,6 +5,7 @@
 // g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_viz.cpp -o /tmp/remote_viz && /tmp/remote_viz
 #include <cassert>
 #include <cmath>
+#include <array>
 #include <cstdio>
 #include <vector>
 #include "../src/remote_audio/viz_engine.h"
@@ -13,7 +14,7 @@ struct TestHost {
     int w, h;
     std::vector<float> v;
     std::vector<int> hue;
-    float bands[64] = {}, levels[3] = {}, pulses[3] = {}, ctrl = 0, waves[128] = {}, beats = 0, phase = 0, confidence = 0;
+    float bands[64] = {}, levels[3] = {}, pulses[3] = {}, ctrl = 0, waves[128] = {}, beats = 0, phase = 0, confidence = 0, chromas[12] = {};
     int count = 32;
     uint32_t seed = 1337;
     uint64_t trace = 0; // every pixel of every frame, hashed
@@ -37,6 +38,7 @@ struct TestHost {
     int tempoConfidence() const { return q(confidence); }
     int bandCount() const { return count; }
     int band(int i) const { return q(bands[i]); }
+    int chroma(int i) const { return q(chromas[i]); }
     int wave(int index, int span) const {
         if (span > 128) index = index * 127 / (span - 1);
         return q(waves[index < 127 ? index : 127]);
@@ -75,12 +77,16 @@ static void music(TestHost &t, int k) {
     t.phase = (k % 30) / 30.f; t.confidence = k < 20 ? 0.f : 1.f;
     // A broadband hit every 10 frames for the per-band onsets.
     if (k % 10 == 0) for (int i = 0; i < 64; i++) t.bands[i] = 1.f;
+    // C major, then A minor from frame 20 (A rises, G fades): the chroma.
+    for (float &c: t.chromas) c = 0;
+    t.chromas[0] = 1.f; t.chromas[4] = .8f; t.chromas[7] = k < 20 ? .9f : .2f; t.chromas[9] = k < 20 ? .1f : .9f;
 }
 static void silence(TestHost &t, int) {
     for (float &b: t.bands) b = 0;
     for (int g = 0; g < 3; g++) t.levels[g] = t.pulses[g] = 0;
     t.ctrl = 0; t.beats = 0; t.phase = 0; t.confidence = 0;
     for (float &x: t.waves) x = 0;
+    for (float &c: t.chromas) c = 0;
 }
 
 template<int PIX>
@@ -234,6 +240,70 @@ int main() {
         assert(diff(resting[150], resting[199]) == 0.f);
         const auto stepping = groove(0, true, 400);
         assert(diff(stepping[300], stepping[330]) > .2f && diff(stepping[300], stepping[360]) < .02f);
+    }
+    // Chromatic Flow: the colour follows the note. A lone pitch class fills the
+    // lamp with its place on the palette (circle of fifths: A is the 4th of
+    // 12, hue 64; E the 5th, 85; in semitone order A is 192), and a change of
+    // note recolours it within the follow time; a C major chord shares the
+    // lamp between C, G and E (hues 0, 21, 85); bass hits brighten it but
+    // never change the colours.
+    {
+        static Viz::Engine<TestHost, 256> engine;
+        // `notes` per frame (frame, pitch class -> level); returns the host after the last frame.
+        auto flow = [&](int w, int h, int frames, auto notes, const uint8_t *params = nullptr, bool hits = false) {
+            engine.invalidate();
+            engine.settings = Viz::Settings{};
+            if (params) {
+                engine.settings.paramsMode = Viz::CHROMATIC_FLOW;
+                for (int i = 0; i < Viz::MAX_PARAMS; i++) engine.settings.params[i] = params[i];
+            }
+            TestHost t(w, h);
+            for (int k = 0; k < frames; k++) {
+                for (int i = 0; i < 12; i++) t.chromas[i] = notes(k, i);
+                t.pulses[0] = hits && k % 25 < 2 ? 1.f : 0.f;
+                engine.render(t, Viz::CHROMATIC_FLOW, 20);
+            }
+            return t;
+        };
+        auto hues = [](const TestHost &t) {
+            std::vector<int> seen(256, 0);
+            for (size_t i = 0; i < t.v.size(); i++) if (t.v[i] > .1f) seen[t.hue[i]]++;
+            return seen;
+        };
+        // Every LED lit, all in one colour.
+        auto only = [&](const TestHost &t, int hue) { return t.lit() == int(t.v.size()) && hues(t)[hue] == t.lit(); };
+        const auto a = [](int, int i) { return i == 9 ? 1.f : 0.f; };
+        for (const auto &g: geometries) {
+            assert(only(flow(g[0], g[1], 150, a), 64));
+            // A for 3 s, then E: 3 s later (the default follow is 0.85 s) the lamp is E.
+            assert(only(flow(g[0], g[1], 300, [](int k, int i) { return i == (k < 150 ? 9 : 4) ? 1.f : 0.f; }), 85));
+        }
+        uint8_t params[Viz::MAX_PARAMS];
+        const uint8_t *defaults = Viz::paramDefaults(Viz::CHROMATIC_FLOW);
+        for (int i = 0; i < Viz::MAX_PARAMS; i++) params[i] = defaults[i];
+        params[0] = 1; // semitones
+        assert(only(flow(16, 16, 150, a, params), 192));
+        params[0] = 0; params[1] = 21; // C moved on by a fifth: A takes E's colour
+        assert(only(flow(16, 16, 150, a, params), 85));
+        // C major with hard borders: only C, G and E, each on a good part of the lamp.
+        params[1] = 0; params[6] = 0;
+        const auto cmaj = [](int, int i) { return i == 0 || i == 4 || i == 7 ? 1.f : 0.f; };
+        for (const auto &g: {std::array<int, 2>{16, 16}, std::array<int, 2>{153, 1}}) {
+            const TestHost chord = flow(g[0], g[1], 150, cmaj, params);
+            const auto seen = hues(chord);
+            assert(chord.lit() == g[0] * g[1] && seen[0] + seen[21] + seen[85] == chord.lit());
+            for (int hue: {0, 21, 85}) assert(seen[hue] > chord.lit() / 4);
+        }
+        // Soft borders (the default blend) put colours between the neighbours', never outside them.
+        {
+            const auto seen = hues(flow(16, 16, 150, cmaj));
+            for (int hue = 86; hue < 256; hue++) assert(!seen[hue]);
+        }
+        // Bass hits: brighter, the same single colour.
+        const TestHost calm = flow(16, 16, 151, a), hit = flow(16, 16, 151, a, nullptr, true);
+        float light[2] = {0, 0};
+        for (int i = 0; i < 256; i++) { light[0] += calm.v[i]; light[1] += hit.v[i]; }
+        assert(only(hit, 64) && light[1] > light[0] * 1.15f);
     }
     // A geometry above the pixel budget renders nothing instead of overflowing.
     {

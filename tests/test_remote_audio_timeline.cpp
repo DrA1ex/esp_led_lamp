@@ -11,6 +11,9 @@ static RemoteProtocol::Frame frame(uint32_t seq, uint32_t timestamp, uint16_t le
     f.onset_mask = seq == 1 ? 1 : seq == 2 ? 2 : 0;
     f.onset = level;
     for (unsigned i = 0; i < f.band_count; ++i) f.bands[i] = level;
+    // Chroma: the level's top byte in class 9 (A) only.
+    f.extensions = RemoteProtocol::EXT_CHROMA;
+    f.chroma[9] = uint8_t(level >> 4);
     return f;
 }
 int main() {
@@ -32,6 +35,8 @@ int main() {
     assert(timeline.output().onset_mask == 1);
     assert(timeline.sample(212));
     assert(timeline.output().rms > 1400 && timeline.output().rms < 1600);
+    // Chroma glides between frames like the bands.
+    assert(timeline.output().chroma[9] > 87 && timeline.output().chroma[9] < 100 && timeline.output().chroma[0] == 0);
     assert(timeline.output().onset_mask == 0);
     assert(timeline.sample(225));
     assert(timeline.output().rms == 2000);

@@ -1,6 +1,6 @@
 #pragma once
-// Geometry-aware remote visualizations, AudioEffectEnum::VU_METER..GROOVE
-// (lab audio modes 13..30). The modes live in viz_engine.h, shared with the
+// Geometry-aware remote visualizations, AudioEffectEnum::VU_METER..CHROMATIC_FLOW
+// (lab audio modes 13..31). The modes live in viz_engine.h, shared with the
 // lab preview; this host feeds it the remote stream and draws with the
 // current palette (or masks the colour effect with viz_color).
 #include <FastLED.h>
@@ -81,6 +81,8 @@ public:
     int tempoConfidence() const { return _controller.timeline().output().beat_confidence * 4096 / 255; }
     int bandCount() const { return _controller.timeline().output().band_count; }
     int band(int i) const { return _controller.timeline().output().bands[i]; }
+    // Pitch class i (C..B) in Q12; 0 when the sender adds no chroma (EXT_CHROMA).
+    int chroma(int i) const { return _controller.timeline().output().chroma[i] * 4096 / 255; }
     // Lab wave_value(): index 0 is the oldest sample; spans longer than the
     // history stretch it.
     int wave(int index, int span) const {

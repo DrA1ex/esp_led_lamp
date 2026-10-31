@@ -13,7 +13,7 @@ struct H {
     int beat() const { return ext_i(78); } int beatPhase() const { return ext_i(79); }
     int tempoConfidence() const { return ext_i(80); }
     int bandCount() const { return ext_i(13); } int band(int i) const { return ext_i(14 + i); }
-    int wave(int i, int s) const { return ext_i(i * s); }
+    int wave(int i, int s) const { return ext_i(i * s); } int chroma(int i) const { return ext_i(81 + i); }
     uint8_t random8() { return ext_r(); } int16_t sin16(uint16_t t) const { return ext_s(t); }
     uint16_t noise(uint32_t x, uint32_t y) const { return ext_n(x, y, 0); }
     uint16_t noise(uint32_t x, uint32_t y, uint32_t z) const { return ext_n(x, y, z); }

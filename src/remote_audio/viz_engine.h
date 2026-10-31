@@ -18,6 +18,7 @@
 //   int beatPhase();  (Q16 turn since the last predicted beat)
 //   int tempoConfidence();  (Q12)
 //   int bandCount(); int band(int i); int wave(int index, int span);  (Q12)
+//   int chroma(int i);  (pitch class i = C, C#, ... B; Q12, 4096 = the strongest one)
 //   uint8_t random8(); int16_t sin16(uint16_t);
 //   uint16_t noise(uint32_t x, uint32_t y[, uint32_t z]);  (inoise16)
 //   void put(int x, int y, uint8_t v, uint8_t hue);  (palette colour, brightness)
@@ -47,10 +48,12 @@ enum Mode : uint8_t {
     // Follows the dominant frequency: the one mode that needs the spectrum's shape, not its energy.
     MELODY,
     // Moves with the beat phase, not with single onsets.
-    GROOVE, MODE_COUNT
+    GROOVE,
+    // Follows the pitch classes (chroma): which notes sound, not how loud.
+    CHROMATIC_FLOW, MODE_COUNT
 };
 // Per-pixel noise, angles and fields: compiled only with VIZ_WITH_HEAVY.
-inline bool heavy(uint8_t m) { return m == FIRE || m == AURORA || m == RADIAL_SPECTRUM || m == BLOBS || m == FIELD; }
+inline bool heavy(uint8_t m) { return m == FIRE || m == AURORA || m == RADIAL_SPECTRUM || m == BLOBS || m == FIELD || m == CHROMATIC_FLOW; }
 inline bool available(uint8_t m) { return m < MODE_COUNT && (VIZ_WITH_HEAVY || !heavy(m)); }
 
 constexpr int32_t ONE = 4096; // Q12 1.0
@@ -60,7 +63,7 @@ constexpr int32_t ONE = 4096; // Q12 1.0
 constexpr uint8_t PARAMS_VERSION = 1;
 constexpr int MAX_PARAMS = 11;
 inline uint8_t paramCount(uint8_t m) {
-    static constexpr uint8_t count[MODE_COUNT] = {2, 2, 0, 3, 4, 4, 1, 0, 8, 5, 2, 2, 3, 10, 11, 9, 9, 8};
+    static constexpr uint8_t count[MODE_COUNT] = {2, 2, 0, 3, 4, 4, 1, 0, 8, 5, 2, 2, 3, 10, 11, 9, 9, 8, 10};
     return m < MODE_COUNT ? count[m] : 0;
 }
 // Defaults: the former constants of the existing modes (Fire has a new look);
@@ -87,6 +90,7 @@ inline const uint8_t *paramDefaults(uint8_t m) {
         {8, 0, 0, 1, 100, 40, 0, 60, 128},               // Zones: zones, layout, trigger, pattern, decay, glow, colours, edge, brightness
         {40, 200, 0, 80, 100, 120, 0, 40, 128},          // Melody: from, to, style, glide, size, trail, colours, gate, brightness
         {0, 64, 200, 160, 100, 100, 0, 128},             // Groove: shape, step, snap, pump, zoom, sparks, colours, brightness
+        {0, 0, 100, 80, 80, 60, 128, 90, 60, 128},       // Chromatic Flow: order, shift, follow, focus, zoom, flow, blend, glow, swell, brightness
         {0},
     };
     return table[m < MODE_COUNT ? int(m) : int(MODE_COUNT)];
@@ -210,6 +214,7 @@ public:
             case RADIAL_SPECTRUM: radialSpectrum(); break;
             case BLOBS: blobs(); break;
             case FIELD: field(); break;
+            case CHROMATIC_FLOW: chromaticFlow(); break;
 #endif
             default: break;
         }
@@ -1392,6 +1397,97 @@ private:
                 const int32_t raw = spectral ? spectrumAt(part, 8, u) : (u * _mood) >> 12;
                 const int32_t v = clampi((raw - thr) * ONE / (ONE - thr), 0, ONE) + ((flash * u) >> 12);
                 put(x, y, u8q(v), base + ((u * P(8)) >> 12));
+            }
+        }
+    }
+    // Chromatic Flow: soft, slow colour regions, one per sounding pitch class,
+    // each at its note's place on the palette: the circle of fifths (C G D A
+    // E B F# C# G# D# A# F, so related notes sit side by side) or the
+    // semitones in order. A slowly drifting noise field is split by the
+    // classes' shares, so a lone note fills the lamp and a chord shares it.
+    // Bass hits and beats only add a glow and swell the regions a little.
+    // Parameters: order (0 fifths, 1 semitones), shift (where C sits on the
+    // palette), follow (the classes glide over 50 + 8v ms), focus (classes
+    // under v/256 of the strongest are left out), zoom (80 = 2.5 noise cells
+    // across a matrix, 5 along a strip), flow (drift), blend (soft borders),
+    // glow on hits, swell on hits, brightness.
+    void chromaticFlow() {
+        using namespace detail;
+        const bool m = matrix();
+        const int32_t follow = 50 + P(2) * 8;
+        int32_t now = 0, top = 0;
+        for (int i = 0; i < 12; i++) {
+            const int32_t c = clampi(_host->chroma(i), 0, ONE);
+            now = maxi(now, c);
+            _level[i] = int16_t(approach(_level[i], c, follow, follow));
+            top = maxi(top, _level[i]);
+        }
+        // The light follows the strongest class now: the stream's chroma falls in a fade or a pause.
+        _mood = int16_t(approach(_mood, level01(now), 80, follow + 200));
+        int32_t strength[4] = {0, 0, 0, 0};
+        const int mask = hits(strength);
+        const int32_t kick = mask & 1 ? strength[0] : mask & 8 ? strength[3] : 0;
+        _boost = int16_t(kick > _boost ? kick : approach(_boost, 0, 1, 400));
+        // Drift: up to one noise cell per second (x .3 .. 1.7 motion speed).
+        _z += uint32_t(((P(5) * 256 * (307 + 1434 * settings.speed / 100)) >> 10) * _dt / 1000);
+        // Each class's share of the noise range (Q12), in palette order.
+        const int32_t gate = (top * P(3)) >> 8;
+        int32_t edge[13], hue[12], total = 0;
+        int count = 0;
+        edge[0] = 0;
+        for (int k = 0; k < 12; k++) {
+            const int32_t w = _level[P(0) % 2 ? k : k * 7 % 12] - gate;
+            if (w <= 0) continue;
+            total += w;
+            edge[++count] = total;
+            hue[count - 1] = (k * 64 / 3 + P(1)) & 255;
+        }
+        for (int j = 1; j <= count; j++) edge[j] = edge[j] * ONE / total;
+        const int cells = m ? W : stripCells(), rows = m ? H : 1;
+        const int32_t size = m ? maxi(W, H) : cells;
+        // Noise units per 1/16 LED; a hit swells the regions by up to a quarter.
+        const int32_t swell = (_boost * P(8)) >> 10;
+        const uint32_t k = ((uint32_t(m ? 8192 : 16384) * uint32_t(maxi(4, P(4))) / 64 / uint32_t(maxi(1, size))) * uint32_t(ONE - swell)) >> 12;
+        const int32_t cx = m ? (W - 1) * 8 : settings.mirror ? 0 : (cells - 1) * 8, cy = radial() ? row16() : (H - 1) * 8;
+        // The noise of every lit place (8 bits, in _v) and its rank on the lamp
+        // (Q12, ties at their middle): the classes get their shares of the lamp
+        // whatever the noise's spread.
+        uint16_t rank[256] = {};
+        int lit = 0;
+        for (int x = 0; x < W; x++) {
+            const int c = m ? _host->originX(x) : stripCell(x);
+            if (c < 0 || !count) continue;
+            const uint32_t nx = uint32_t((1 << 24) + (c * 16 - cx) * int32_t(k));
+            for (int y = 0; y < rows; y++) {
+                const int32_t dy = settings.mirror ? riseCell(y, true) * 16 : y * 16 - cy;
+                const uint8_t nz = uint8_t((m ? _host->noise(nx, uint32_t((1 << 24) + dy * int32_t(k)), _z) : _host->noise(nx, _z)) >> 8);
+                _v[y * W + x] = nz;
+                rank[nz]++; lit++;
+            }
+        }
+        for (int32_t v = 0, below = 0; v < 256; v++) {
+            const int32_t same = rank[v];
+            rank[v] = uint16_t((2 * below + same) * ONE / maxi(1, 2 * lit));
+            below += same;
+        }
+        // 70% of the light, so a hit's glow (up to x2) shows.
+        const int32_t base = (_mood * 2867) >> 12, blend = P(6) * 4, glow = (_boost * P(7)) >> 8;
+        for (int x = 0; x < W; x++) {
+            const int c = m ? _host->originX(x) : stripCell(x);
+            for (int y = 0; y < H; y++) {
+                if (c < 0 || !count) { put(x, y, 0, 0); continue; }
+                const int32_t u = rank[_v[m ? y * W + x : x]];
+                int j = 0;
+                while (u >= edge[j + 1]) j++;
+                // Near a border the colour turns towards the neighbour's (halfway at the border) and dims a little.
+                int32_t h = hue[j], v = base;
+                const int32_t up = j + 1 < count ? edge[j + 1] - u : ONE, down = j ? u - edge[j] : ONE, d = mini(up, down);
+                if (d < blend) {
+                    const int32_t other = hue[up <= down ? j + 1 : j - 1], dh = ((other - h + 128) & 255) - 128;
+                    h += dh * (blend - d) / (2 * blend);
+                    v -= (v * (blend - d) / blend) >> 2;
+                }
+                put(x, y, u8q(v + ((v * glow) >> 12)), h & 255);
             }
         }
     }

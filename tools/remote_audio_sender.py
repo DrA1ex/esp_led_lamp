@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Synthetic Remote Audio v1 sender. Install: python -m pip install websockets"""
+"""Synthetic Remote Audio v1 sender (with chroma for devices that list it).
+Install: python -m pip install websockets"""
 import argparse
 import asyncio
 import json
@@ -10,6 +11,9 @@ import time
 
 FRAME = struct.Struct("<4sBBBBIII6HBBHBB32H")
 assert FRAME.size == 102
+EXT_CHROMA = 1  # byte 37: 12 chroma bytes (C..B) follow the bands; only for devices listing "chroma"
+# Two seconds each: C major, A minor, F major, G major (pitch classes, C = 0).
+CHORDS = [(0, 4, 7), (9, 0, 4), (5, 9, 0), (7, 11, 2)]
 
 def now_ms():
     return int(time.monotonic() * 1000) & 0xffffffff
@@ -47,6 +51,9 @@ async def stream(url, hz, seconds, lead_ms, effect, params=None):
                 print("device has no params capability; effect parameters not sent")
         await exchange(ws, {"type": "start", "session": session}, "start_ack")
         print(f"clock offset: {offset} ms, RTT: {rtt} ms")
+        chroma = "chroma" in hello.get("capabilities", [])
+        if not chroma:
+            print("device has no chroma capability; v1 frames without notes")
         started = time.monotonic()
         seq = 0
         next_send = started
@@ -62,7 +69,12 @@ async def stream(url, hz, seconds, lead_ms, effect, params=None):
                 packet = FRAME.pack(b"ELAF", 1, 1, 1, 32, session, seq,
                                     (now_ms() + lead_ms) & 0xffffffff,
                                     rms, bands[0], bands[15], bands[31], rms, 4096 * onset,
-                                    onset, int((t * 2) % 1 * 255), 1200, 230, 0, *bands)
+                                    onset, int((t * 2) % 1 * 255), 1200, 230,
+                                    EXT_CHROMA if chroma else 0, *bands)
+                if chroma:
+                    # The root strongest, the third and fifth a little weaker.
+                    chord = CHORDS[int(t / 2) % len(CHORDS)]
+                    packet += bytes(255 if k == chord[0] else 200 if k in chord else 0 for k in range(12))
                 await ws.send(packet)
                 seq = (seq + 1) & 0xffffffff
                 next_send += 1 / hz
@@ -78,12 +90,12 @@ if __name__ == "__main__":
     parser.add_argument("--hz", type=float, default=40)
     parser.add_argument("--seconds", type=float, default=30)
     parser.add_argument("--lead-ms", type=int, default=45)
-    parser.add_argument("--effect", type=int, default=3, help="Audio mode 0..29 (10/11 experimental, 12..29 visualizations)")
+    parser.add_argument("--effect", type=int, default=3, help="Audio mode 0..30 (10/11 experimental, 12..30 visualizations)")
     parser.add_argument("--params", help="Effect parameters for a visualization, comma-separated 0..255 (docs: params)")
-    parser.add_argument("--sweep-modes", action="store_true", help="Run all 30 modes sequentially")
+    parser.add_argument("--sweep-modes", action="store_true", help="Run all 31 modes sequentially")
     args = parser.parse_args()
     if not (1 <= args.hz <= 100 and args.seconds > 0 and 0 <= args.lead_ms <= 1000
-            and 0 <= args.effect <= 29):
+            and 0 <= args.effect <= 30):
         parser.error("invalid hz, seconds, lead-ms or effect")
     params = None
     if args.params is not None:
@@ -93,6 +105,6 @@ if __name__ == "__main__":
             parser.error("--params takes comma-separated integers")
         if len(params) > 11 or any(not 0 <= v <= 255 for v in params):
             parser.error("--params takes at most 11 values 0..255")
-    for mode in (range(30) if args.sweep_modes else (args.effect,)):
+    for mode in (range(31) if args.sweep_modes else (args.effect,)):
         print(f"Testing mode {mode}")
         asyncio.run(stream(args.url, args.hz, args.seconds, args.lead_ms, mode, params))

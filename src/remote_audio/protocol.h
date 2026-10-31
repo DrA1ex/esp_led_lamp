@@ -6,13 +6,19 @@
 
 namespace RemoteProtocol {
 constexpr uint8_t VERSION = 1;
-// A frame carries 16, 32 or 64 bands (byte 7); its size is 38 + 2 * count.
+// A frame carries 16, 32 or 64 bands (byte 7); its size is 38 + 2 * count,
+// plus 12 chroma bytes when byte 37 (extensions, 0 in older senders) has
+// EXT_CHROMA. Senders add them only for receivers listing "chroma".
 constexpr uint8_t MAX_BANDS = 64;
 constexpr size_t HEADER_SIZE = 38;
-constexpr size_t MAX_FRAME_SIZE = HEADER_SIZE + 2 * MAX_BANDS;
+constexpr uint8_t EXT_CHROMA = 1;
+constexpr size_t CHROMA_SIZE = 12;
+constexpr size_t MAX_FRAME_SIZE = HEADER_SIZE + 2 * MAX_BANDS + CHROMA_SIZE;
 constexpr uint16_t MAX_LEVEL = 4096;
 inline bool validBandCount(uint8_t n) { return n == 16 || n == 32 || n == 64; }
-inline size_t frameSize(uint8_t bands) { return HEADER_SIZE + 2 * size_t(bands); }
+inline size_t frameSize(uint8_t bands, uint8_t extensions = 0) {
+    return HEADER_SIZE + 2 * size_t(bands) + (extensions & EXT_CHROMA ? CHROMA_SIZE : 0);
+}
 
 struct Frame {
     uint8_t flags = 0;
@@ -24,7 +30,10 @@ struct Frame {
     uint16_t bpm_x10 = 0;
     uint8_t beat_confidence = 0;
     uint8_t band_count = 32;
+    uint8_t extensions = 0;
     uint16_t bands[MAX_BANDS] = {};
+    // Pitch classes C, C#, ... B (0..255, 255 = the strongest); 0 without EXT_CHROMA.
+    uint8_t chroma[CHROMA_SIZE] = {};
 };
 
 inline uint16_t read16(const uint8_t *p) {
@@ -37,11 +46,11 @@ inline bool validLevel(uint16_t n) { return n <= MAX_LEVEL; }
 
 // Explicit byte decoding; never cast the incoming bytes to a packed struct.
 inline bool decode(const uint8_t *data, size_t len, Frame &out) {
-    if (!data || len < HEADER_SIZE || !validBandCount(data[7]) || len != frameSize(data[7]) ||
+    if (!data || len < HEADER_SIZE || !validBandCount(data[7]) || len != frameSize(data[7], data[37]) ||
         data[0] != 'E' || data[1] != 'L' || data[2] != 'A' || data[3] != 'F' ||
         data[4] != VERSION || data[5] != 1 ||
         (data[6] & ~uint8_t(1)) != 0 ||
-        (data[32] & ~uint8_t(7)) != 0 || data[37] != 0) return false;
+        (data[32] & ~uint8_t(7)) != 0 || (data[37] & ~EXT_CHROMA) != 0) return false;
 
     Frame parsed;
     parsed.flags = data[6];
@@ -59,6 +68,7 @@ inline bool decode(const uint8_t *data, size_t len, Frame &out) {
     parsed.bpm_x10 = read16(data + 34);
     parsed.beat_confidence = data[36];
     parsed.band_count = data[7];
+    parsed.extensions = data[37];
     if (!validLevel(parsed.rms) || !validLevel(parsed.bass) ||
         !validLevel(parsed.mid) || !validLevel(parsed.high) ||
         !validLevel(parsed.peak) || !validLevel(parsed.onset) ||
@@ -67,6 +77,8 @@ inline bool decode(const uint8_t *data, size_t len, Frame &out) {
         parsed.bands[i] = read16(data + HEADER_SIZE + 2 * i);
         if (!validLevel(parsed.bands[i])) return false;
     }
+    if (parsed.extensions & EXT_CHROMA)
+        for (uint8_t i = 0; i < CHROMA_SIZE; ++i) parsed.chroma[i] = data[frameSize(parsed.band_count) + i];
     out = parsed;
     return true;
 }

@@ -12,7 +12,7 @@ static void put32(uint8_t *p, uint32_t n) { put16(p, uint16_t(n)); put16(p + 2, 
 int main() {
     using namespace RemoteProtocol;
     uint8_t packet[MAX_FRAME_SIZE] = {};
-    static_assert(MAX_FRAME_SIZE == 166, "38-byte header + 64 bands");
+    static_assert(MAX_FRAME_SIZE == 178, "38-byte header + 64 bands + 12 chroma bytes");
     std::memcpy(packet, "ELAF", 4);
     packet[4] = 1; packet[5] = 1; packet[7] = 32;
     put32(packet + 8, 0x01234567);
@@ -55,4 +55,22 @@ int main() {
     }
     packet[7] = 48; assert(!decode(packet, frameSize(48), frame));
     packet[7] = 0; assert(!decode(packet, 38, frame));
+
+    // Chroma (byte 37 = EXT_CHROMA): 12 bytes after the bands, any value 0..255.
+    packet[7] = 16;
+    for (uint8_t i = 0; i < 16; ++i) put16(packet + 38 + 2 * i, 100);
+    for (uint8_t i = 0; i < 12; ++i) packet[frameSize(16) + i] = uint8_t(i == 9 ? 255 : i * 10);
+    assert(decode(packet, frameSize(16), frame) && frame.extensions == 0 && frame.chroma[9] == 0);
+    packet[37] = EXT_CHROMA;
+    assert(frameSize(16, EXT_CHROMA) == 82 && frameSize(64, EXT_CHROMA) == MAX_FRAME_SIZE);
+    assert(!decode(packet, frameSize(16), frame));                       // the chroma bytes are missing
+    assert(decode(packet, frameSize(16, EXT_CHROMA), frame));
+    assert(frame.extensions == EXT_CHROMA && frame.chroma[9] == 255 && frame.chroma[11] == 110 && frame.bands[15] == 100);
+    assert(!decode(packet, frameSize(16, EXT_CHROMA) + 1, frame));
+    packet[37] = EXT_CHROMA | 2; assert(!decode(packet, frameSize(16, EXT_CHROMA), frame)); // unknown extension
+    packet[37] = EXT_CHROMA;
+    packet[7] = 64;
+    for (uint8_t i = 0; i < 64; ++i) put16(packet + 38 + 2 * i, 100); // over the 16-band frame's chroma
+    for (uint8_t i = 0; i < 12; ++i) packet[frameSize(64) + i] = 7;
+    assert(decode(packet, MAX_FRAME_SIZE, frame) && frame.band_count == 64 && frame.chroma[0] == 7);
 }
