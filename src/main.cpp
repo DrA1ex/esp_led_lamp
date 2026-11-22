@@ -87,7 +87,8 @@ SignalProvider *spectrum_provider = nullptr;
 SignalProvider *parametric_provider = nullptr;
 #endif
 
-Application app(config_storage, preset_names_storage, preset_configs_storage, custom_palette_storage, night_mode_manager,
+Application app(config_storage, preset_names_storage, preset_configs_storage, custom_palette_storage,
+                layout_storage, night_mode_manager,
                 wave_provider, spectrum_provider, parametric_provider);
 
 WifiManager wifi_manager;
@@ -440,6 +441,15 @@ void service_loop(void *) {
 
             ntp_time.begin(TIME_ZONE);
             ArduinoOTA.setHostname(MDNS_NAME);
+            ArduinoOTA.onStart([]() {
+                if (ArduinoOTA.getCommand() != U_FS) return;
+                if (config_storage.is_pending_commit()) config_storage.force_save();
+                if (preset_names_storage.is_pending_commit()) preset_names_storage.force_save();
+                if (preset_configs_storage.is_pending_commit()) preset_configs_storage.force_save();
+                if (custom_palette_storage.is_pending_commit()) custom_palette_storage.force_save();
+                if (layout_storage.is_pending_commit()) layout_storage.force_save();
+                LittleFS.end();
+            });
             ArduinoOTA.begin();
 
             app.change_state(AppState::NORMAL);
