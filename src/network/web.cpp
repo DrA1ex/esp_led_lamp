@@ -3,7 +3,7 @@
 class WebLogger : public AsyncWebHandler {
     bool canHandle(AsyncWebServerRequest *request) const override {
         D_PRINTF("WebServer: %s -> %s %s\n", request->client()->remoteIP().toString().c_str(),
-                 ((String)request->methodToString()).c_str(), request->url().c_str());
+                 request->methodToString(), request->url().c_str());
 
         return false;
     }
@@ -18,11 +18,7 @@ WebServer::WebServer(uint16_t port) : _port(port), _server(port) {
 void WebServer::begin(FS *fs) {
     _fs = fs;
 
-    _server.on("/", HTTP_GET, [this](AsyncWebServerRequest *request) {
-        request->send(*_fs, "/index.html", "text/html");
-    });
-
-    _server.serveStatic("/", *_fs, "/");
+    _server.serveStatic("/", *_fs, "/").setDefaultFile("index.html").setCacheControl("no-cache");
 
     _server.begin();
 
