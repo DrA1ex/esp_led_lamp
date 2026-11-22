@@ -19,6 +19,13 @@ import {FileAsyncReader} from "./utils/fetch.js";
 import * as FileUtils from "./utils/file.js";
 import * as FunctionUtils from "./utils/function.js"
 
+function showUnhandledError(error) {
+    alert("Application error: " + (error instanceof Error ? error.message : String(error)));
+}
+
+window.addEventListener("error", event => showUnhandledError(event.error ?? event.message));
+window.addEventListener("unhandledrejection", event => showUnhandledError(event.reason));
+
 if ("serviceWorker" in navigator) {
     try {
         const registration = await navigator.serviceWorker.register("./service_worker.js");
@@ -34,8 +41,27 @@ const params = new Proxy(new URLSearchParams(window.location.search), {
     get: (searchParams, prop) => searchParams.get(prop),
 });
 
-const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 const host = params.host ?? window.location.hostname;
+if (params.host != null) {
+    const valid = /^(?:[a-z0-9_-]+(?:\.[a-z0-9_-]+)*|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i.test(host);
+    if (!valid) throw new Error("Invalid host: expected hostname or IP with optional port");
+    try {
+        const url = new URL(`ws://${host}/ws`);
+        if (url.port === "0") throw new Error("Invalid port");
+    } catch {
+        throw new Error("Invalid host: malformed address or port");
+    }
+}
+if (params.protocol != null && !["ws", "wss"].includes(params.protocol)) {
+    throw new Error("Invalid protocol: expected ws or wss");
+}
+// Only an explicitly supplied host may opt into Chrome's local ws:// exception.
+const localHost = params.host != null && (
+    /(?:^|\.)localhost(?::\d+)?$|\.local(?::\d+)?$/i.test(host) ||
+    /^(?:10\.|127\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(host) ||
+    /^\[(?:::1|f[cd][0-9a-f:]*|fe[89ab][0-9a-f:]*)\](?::\d+)?$/i.test(host)
+);
+const protocol = params.protocol ?? (window.location.protocol === "https:" && !localHost ? "wss" : "ws");
 const gateway = `${protocol}://${host !== "localhost" ? host : DEFAULT_ADDRESS}/ws`;
 
 window.__app = {};
