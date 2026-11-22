@@ -410,5 +410,210 @@ class PresetTests(unittest.TestCase):
             pass
 
 
+class FilesystemUpdateTests(unittest.TestCase):
+    """Hardware-free coverage of the existing LittleFS OTA workflow."""
+
+    def setUp(self):
+        import fs_update as fs
+        import web_bundle as wb
+        self.fs = fs
+        self.wb = wb
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        (self.root / ".pio").mkdir()
+        (self.root / "data").mkdir()
+        (self.root / "data/index.html").write_text("WebUI", encoding="utf-8")
+
+    def test_device_addresses_are_restricted(self):
+        for host in ("", "http://lamp.local", "lamp.local/path", "lamp.local:0",
+                     "lamp.local:99999", "foo@lamp.local", "lamp.local?x=1", "lamp.local\nHost:evil"):
+            with self.subTest(host=host), self.assertRaises(self.fs.BackupError):
+                self.fs.endpoint(host)
+        self.assertEqual(self.fs.endpoint("lamp.local"), ("lamp.local", 80, "lamp.local"))
+        self.assertEqual(self.fs.endpoint("192.168.0.20:81"),
+                         ("192.168.0.20", 81, "192.168.0.20:81"))
+
+    def test_storage_header_versions_missing_and_corruption(self):
+        valid = self.fs.STORAGE_HEADER + bytes([9]) + b"saved settings"
+        with patch.object(self.fs, "_get", return_value=valid):
+            self.assertEqual(self.fs.read_storage("lamp.local", "Basic x", {"config": 9}),
+                             {"config": valid})
+        with patch.object(self.fs, "_get", return_value=None):
+            self.assertEqual(self.fs.read_storage("lamp.local", "Basic x", {"config": 9}), {})
+        for invalid, message in ((b"HTML error", "Corrupt"), (valid, "Incompatible")):
+            with self.subTest(message=message), patch.object(self.fs, "_get", return_value=invalid):
+                with self.assertRaisesRegex(self.fs.BackupError, message):
+                    self.fs.read_storage("lamp.local", "Basic x", {"config": 10})
+
+    def test_backup_retained_separately_for_each_device(self):
+        a = self.fs.STORAGE_HEADER + b"\x09A"
+        b = self.fs.STORAGE_HEADER + b"\x09B"
+        with patch.object(self.fs, "uptime", return_value=50000), \
+             patch.object(self.fs, "restart") as restart, \
+             patch.object(self.fs, "wait_for_restart") as wait, \
+             patch.object(self.fs, "storage_versions", return_value={"config": 9}), \
+             patch.object(self.fs, "read_storage", side_effect=[{"config": a}, {"config": b}]):
+            aa, pa = self.fs.snapshot(self.root, "a", "a.local", "Basic x", self.root / "backups")
+            bb, pb = self.fs.snapshot(self.root, "b", "b.local", "Basic x", self.root / "backups")
+        self.assertEqual((pa / "config").read_bytes(), a)
+        self.assertEqual((pb / "config").read_bytes(), b)
+        self.assertNotEqual(aa, bb)
+        self.assertEqual(restart.call_count, 2)
+        self.assertEqual(wait.call_count, 2)
+        self.assertFalse((self.root / "data/__storage").exists())
+
+    def test_no_settings_is_not_interpreted_as_safe_to_overwrite(self):
+        with patch.object(self.fs, "uptime", return_value=50000), \
+             patch.object(self.fs, "restart"), patch.object(self.fs, "wait_for_restart"), \
+             patch.object(self.fs, "storage_versions", return_value={"config": 9}), \
+             patch.object(self.fs, "read_storage", return_value={}):
+            with self.assertRaisesRegex(self.fs.BackupError, "--initialize"):
+                self.fs.snapshot(self.root, "a", "a.local", "Basic x", self.root / "backups")
+        self.assertFalse((self.root / "backups").exists())
+
+    def test_staging_rejects_settings_in_shared_data(self):
+        self.fs.stage_files(self.root / "data", self.root / "first")
+        self.assertEqual((self.root / "first/index.html").read_text(), "WebUI")
+        (self.root / "data/__storage").mkdir()
+        with self.assertRaisesRegex(self.fs.BackupError, "__storage"):
+            self.fs.stage_files(self.root / "data", self.root / "second")
+
+    def test_websocket_restart_uses_existing_masked_command(self):
+        import base64
+        import hashlib
+        import socket
+        import threading
+        server = socket.socket()
+        self.addCleanup(server.close)
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        packets = []
+
+        def respond():
+            client, _ = server.accept()
+            with client:
+                client.settimeout(3)
+                request = b""
+                while b"\r\n\r\n" not in request:
+                    request += client.recv(4096)
+                key = next(x.split(b":", 1)[1].strip() for x in request.split(b"\r\n")
+                           if x.lower().startswith(b"sec-websocket-key:"))
+                accept = base64.b64encode(hashlib.sha1(
+                    key + b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest())
+                client.sendall(b"HTTP/1.1 101 Switching Protocols\r\n"
+                               b"Sec-WebSocket-Accept: " + accept + b"\r\n\r\n")
+                frame = b""
+                while len(frame) < 10:
+                    part = client.recv(10 - len(frame))
+                    if not part:
+                        break
+                    frame += part
+                packets.append(bytes(b ^ frame[2 + i % 4] for i, b in enumerate(frame[6:10])))
+
+        thread = threading.Thread(target=respond, daemon=True)
+        thread.start()
+        self.fs.restart("127.0.0.1:" + str(server.getsockname()[1]), "Basic fake")
+        thread.join(timeout=3)
+        self.assertEqual(packets, [bytes((0x34, 0xAA, 222, 0))])
+
+    def test_batch_failure_skips_one_device_without_mixup(self):
+        from types import SimpleNamespace
+        args = SimpleNamespace(filesystem=True, upload="ota", initialize=False,
+                               verbose=False, fail_fast=False)
+        seen, uploads = [], []
+
+        def backup(root, name, host, authorization, backups):
+            if name == "b":
+                raise self.fs.BackupError("not reachable")
+            return {"config": name.encode()}, self.root / "backups" / name
+
+        def stage(cmd, env, log, verbose=False, uploading=False):
+            folder = Path(env["PLATFORMIO_DATA_DIR"])
+            name = env["LAMP_PRESET"]
+            self.assertEqual((folder / "__storage/config").read_bytes(), name.encode())
+            if "buildfs" in cmd:
+                image = Path(env["PLATFORMIO_BUILD_DIR"]) / "release/littlefs.bin"
+                image.parent.mkdir(parents=True, exist_ok=True)
+                image.write_bytes(name.encode())
+                seen.append(name)
+            if "uploadfs" in cmd:
+                uploads.append(name)
+            return 0
+
+        with patch.object(cli, "ROOT", self.root), \
+             patch.object(cli, "auth_header", return_value="Basic fake"), \
+             patch.object(cli, "snapshot", side_effect=backup), \
+             patch.object(cli, "run_stage", side_effect=stage), \
+             patch.object(cli, "verify") as verify, contextlib.redirect_stdout(io.StringIO()):
+            code = cli.execute(args, None, [(x, x + ".local") for x in "abc"], "pio", "release")
+        self.assertEqual(code, 1)
+        self.assertEqual(seen, ["a", "c"])
+        self.assertEqual(uploads, ["a", "c"])
+        self.assertEqual(verify.call_count, 2)
+        self.assertFalse((self.root / "data/__storage").exists())
+
+    def test_web_bundle_gzips_files_reproducibly(self):
+        import gzip
+        web = self.root / "www"
+        (web / "src").mkdir(parents=True)
+        (web / "favicons").mkdir()
+        (web / "node_modules/.bin").mkdir(parents=True)
+        (web / "node_modules/.bin/esbuild").write_bytes(b"fake")
+        (web / "src/index.html").write_text("<h1>Hello</h1>", encoding="utf-8")
+        (web / "src/style.css").write_text("body{}", encoding="utf-8")
+        (web / "favicons/favicon.ico").write_bytes(b"icon")
+        (self.root / "data/old.txt").write_bytes(b"old")
+        calls = []
+
+        def fake_run(cmd, cwd, check):
+            calls.append(cmd)
+            if "--bundle" in cmd:
+                target = Path(next(x.split("=", 1)[1] for x in cmd if x.startswith("--outdir=")))
+                (target / "index.js").write_bytes(b"compiled js")
+                (target / "service_worker.js").write_bytes(b"service worker")
+
+        with patch.object(self.wb.shutil, "which", return_value="npm"), \
+             patch.object(self.wb.subprocess, "run", side_effect=fake_run):
+            self.wb.build_web_bundle(self.root)
+            first = {x.name: x.read_bytes() for x in (self.root / "data").iterdir()}
+            self.wb.build_web_bundle(self.root)
+            second = {x.name: x.read_bytes() for x in (self.root / "data").iterdir()}
+        self.assertEqual(first, second)
+        self.assertNotIn("old.txt", second)
+        self.assertEqual(len(calls), 4)
+        for name, content in {"index.html.gz": b"<h1>Hello</h1>",
+                              "index.js.gz": b"compiled js", "style.css.gz": b"body{}",
+                              "favicon.ico.gz": b"icon"}.items():
+            self.assertEqual(gzip.decompress(second[name]), content)
+
+    def test_web_bundle_failure_preserves_previous_files(self):
+        import subprocess
+        web = self.root / "www"
+        (web / "src").mkdir(parents=True)
+        (web / "node_modules/.bin").mkdir(parents=True)
+        (web / "node_modules/.bin/esbuild").write_bytes(b"fake")
+        (self.root / "data/keep.txt").write_bytes(b"keep")
+        with patch.object(self.wb.shutil, "which", return_value="npm"), \
+             patch.object(self.wb.subprocess, "run", side_effect=subprocess.CalledProcessError(1, "npm")):
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.wb.build_web_bundle(self.root)
+        self.assertEqual((self.root / "data/keep.txt").read_bytes(), b"keep")
+
+    def test_build_web_flag_invokes_builder_only_once_before_batch(self):
+        with patch.object(cli, "ROOT", self.root), \
+             patch.object(cli, "make_plan", return_value=[("a", "a.local"), ("b", "b.local")]), \
+             patch.object(cli.shutil, "which", return_value="pio"), \
+             patch.object(cli, "build_web_bundle") as bundle, \
+             patch.object(cli, "execute", return_value=0) as execute, \
+             patch.object(sys, "argv", ["firmware.py", "--preset", "all", "--filesystem",
+                                         "--upload", "ota", "--build-web"]), \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cli.main(), 0)
+        bundle.assert_called_once_with(self.root)
+        execute.assert_called_once()
+
+
+
 if __name__ == "__main__":
     unittest.main()
