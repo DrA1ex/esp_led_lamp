@@ -1,12 +1,16 @@
 # ESP LED LAMP
 
-Атмосферное освещение для светодиодных лент и матриц.
+Атмосферное освещение для адресных светодиодных лент и матриц.
+
+Другие проекты: [[RGB LED](https://github.com/DrA1ex/esp_led)] [[RELAY](https://github.com/DrA1ex/esp_relay)]
+
+English: [README.md](README.md).
 
 <p align="center">
   <img alt="Animation" height="256" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/c33b63fe-1197-439c-8b91-698c3b74b915">
 </p>
 
-## UI
+## Веб-интерфейс
 
 <p align="center">
   <img alt="UI Light" height="480" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/841e800b-41cc-4933-9e5f-deb624b7f1e0">
@@ -33,7 +37,7 @@
    `presets/credentials.ini` и укажите общие реквизиты Wi-Fi, веб-интерфейса и MQTT.
 2. Скопируйте [presets/device.example.ini](presets/device.example.ini), например,
    в `presets/ceiling.ini` и задайте параметры устройства.
-3. При сборке или прошивке указывайте `--preset ceiling`, см. команды ниже.
+3. При сборке или прошивке указывайте `--preset ceiling`, см. [команды загрузки](#загрузка-прошивки).
 
 Личные `presets/*.ini` исключены из Git; в репозитории хранятся только шаблоны
 `*.example.ini`. Не записывайте настоящие пароли в шаблоны.
@@ -125,11 +129,17 @@ WEB_AUTH = true
 | MQTT_TOPIC_COLOR         | MQTT_OUT_TOPIC_COLOR        | uint32_t       | RGB (например, 0xff00ff) | RGB цвет цветового режима                |
 | MQTT_TOPIC_NIGHT_MODE    | MQTT_OUT_TOPIC_NIGHT_MODE   | uint8_t        | 0..1                 | Состояние ночного режима: ВКЛ (1) / ВЫКЛ (0) |
 
-* Фактические значения тем объявлены в constants.h
+* Фактические значения тем объявлены в `constants.h`.
+
+## Подключение
+
+![Схема подключения](https://github.com/user-attachments/assets/f4c72985-7994-4b61-8701-eda145155122)
 
 ## Установка Прошивки
 
 ### Предварительные условия
+
+Перед установкой настройте устройство: [Настройка](#настройка).
 
 Убедитесь, что у вас установлено:
 
@@ -208,3 +218,27 @@ python tools/firmware.py --preset ceiling --filesystem --upload usb --initialize
 Флаг `--initialize` обязателен при загрузке LittleFS через USB и недоступен
 для `--preset all`. Скрипт `upload_fs.sh` тоже собирает веб-файлы
 автоматически (`OTA=1 LAMP_PRESET=ceiling ./upload_fs.sh`).
+
+## Светомузыка с компьютера — Music Lab
+
+[ESP LED Music Lab](https://github.com/DrA1ex/esp_led_lab) позволяет воспроизводить
+музыку или использовать микрофон и передавать световые эффекты на одну или
+несколько ламп по Wi-Fi. Звук анализируется в браузере — на лампу передаются
+только данные для визуализации.
+
+1. Установите прошивку и подключите лампу и компьютер к одной локальной сети.
+2. Откройте [Music Lab](https://dra1ex.github.io/esp_led_lab/) в Chrome,
+   перейдите на вкладку **Lamps**, укажите IP-адрес лампы или
+   `esp_lamp.local` и подключитесь.
+3. Выберите аудиофайл, демонстрационный ритм (**Demo beat**) или
+   **Microphone**, затем настройте эффект во вкладке **Reaction**.
+   В **All lamps** задаются общие настройки, а при выборе отдельной лампы —
+   её индивидуальные параметры.
+
+Для связи используется WebSocket `/audio` на лампе (обычно порт 80).
+Если Chrome запросит разрешение на доступ к локальной сети, предоставьте его.
+Другие браузеры могут блокировать локальные HTTP/WebSocket-подключения
+с HTTPS-сайта. В таком случае запустите Music Lab локально.
+
+Описание формата сообщений и технические подробности:
+[протокол Remote Audio](docs/REMOTE_AUDIO_PROTOCOL.md).
