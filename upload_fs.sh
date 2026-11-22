@@ -1,25 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
 
-OTA=${OTA:0}
-
-set +v
-
-echo "Building..."
-
-cd ./www || (echo "No directory ./www" && exit 1)
-npm install || (echo "Unable to install npm packages" && exit 2)
-npm run build || (echo "Failed" && exit 3)
-cd ..
-
-echo "Compress..."
-gzip -9 -r ./data/*
-
-echo "Uploading..."
-
-if (("$OTA" == 1)); then
-  echo "*** OTA mode selected ***"
-  pio run -t uploadfs -e ota "$@"
-else
-  echo "*** WIRE mode selected ***"
-  pio run -t uploadfs -e release "$@"
-fi
+args=()
+while (($#)); do
+    if [[ "$1" == "--upload-port" ]]; then
+        args+=("--port")
+    else
+        args+=("$1")
+    fi
+    shift
+done
+method=usb
+if [[ "${OTA:-0}" == 1 ]]; then method=ota; fi
+python3 tools/firmware.py --preset "${LAMP_PRESET:-}" --filesystem --upload "$method" --build-web "${args[@]}"

@@ -9,7 +9,11 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
+
+from fs_update import BackupError, auth_header, snapshot, verify
+from web_bundle import BundleError, build_web_bundle
 
 from presets import PresetError, device_presets, load_preset, upload_port
 
@@ -103,6 +107,10 @@ def make_plan(args, credentials):
         raise PresetError("--port requires a single preset with --upload.")
     if args.exclude and not batch:
         raise PresetError("--exclude requires --preset all (or '*').")
+    if args.initialize and (not args.filesystem or not args.upload or batch):
+        raise PresetError("--initialize requires --filesystem --upload and exactly one device.")
+    if args.filesystem and args.upload == "usb" and not args.initialize:
+        raise PresetError("USB filesystem upload requires explicit --initialize (it cannot back up over USB).")
     if batch:
         for name in args.exclude:
             load_preset(ROOT, name, credentials)
@@ -147,18 +155,57 @@ def execute(args, credentials, plan, pio, environment):
         code = 1
         try:
             with log_path.open("w", encoding="utf-8") as log:
-                print("    Building " + ("filesystem" if args.filesystem else "firmware") + "...", flush=True)
-                build_command = command + (["-t", "buildfs"] if args.filesystem else [])
-                code = run_stage(build_command, process_env, log, args.verbose)
-                if not code and args.upload:
-                    print("    Uploading via " + args.upload.upper() + "...", flush=True)
-                    # ESP8266's nobuild skips Arduino setup, including the LD
-                    # script needed by upload/uploadfs. Let SCons check the
-                    # existing build and reuse its up-to-date firmware objects.
-                    upload_command = command + ["-t", "uploadfs" if args.filesystem else "upload"]
-                    if port:
-                        upload_command += ["--upload-port", port]
-                    code = run_stage(upload_command, process_env, log, args.verbose, uploading=True)
+                if args.filesystem and args.upload:
+                    # Each device gets its own image directory; never mix its settings
+                    # into the shared WebUI data/ or another device's image.
+                    from contextlib import ExitStack
+                    from fs_update import stage_files
+                    with ExitStack() as stack:
+                        workspace = Path(stack.enter_context(
+                            tempfile.TemporaryDirectory(prefix="fs-", dir=ROOT / ".pio")))
+                        staged = workspace / "data"
+                        stage_files(ROOT / "data", staged)
+                        expected = None
+                        authorization = None
+                        if not args.initialize:
+                            authorization = auth_header(ROOT, name, credentials)
+                            backups = ROOT / ".pio/storage-backups" / run_dir.name
+                            expected, archive = snapshot(ROOT, name, port, authorization, backups)
+                            print("    Backup: " + str(archive), flush=True)
+                            (staged / "__storage").mkdir()
+                            for filename, contents in expected.items():
+                                (staged / "__storage" / filename).write_bytes(contents)
+                        else:
+                            print("    INITIALIZE: replacing filesystem without backup", flush=True)
+                        process_env["PLATFORMIO_DATA_DIR"] = str(staged)
+                        process_env["PLATFORMIO_BUILD_DIR"] = str(workspace / "build")
+                        print("    Building filesystem...", flush=True)
+                        code = run_stage(command + ["-t", "buildfs"], process_env, log, args.verbose)
+                        image = workspace / "build" / environment / "littlefs.bin"
+                        if not code and (not image.is_file() or image.stat().st_size == 0):
+                            raise BackupError("PlatformIO did not produce a LittleFS image")
+                        if not code:
+                            upload_command = command + ["-t", "uploadfs"]
+                            if port:
+                                upload_command += ["--upload-port", port]
+                            print("    Uploading via " + args.upload.upper() + "...", flush=True)
+                            code = run_stage(upload_command, process_env, log, args.verbose, uploading=True)
+                        if not code and expected:
+                            verify(port, authorization, expected)
+                            print("    Storage verified", flush=True)
+                else:
+                    print("    Building " + ("filesystem" if args.filesystem else "firmware") + "...", flush=True)
+                    build_command = command + (["-t", "buildfs"] if args.filesystem else [])
+                    code = run_stage(build_command, process_env, log, args.verbose)
+                    if not code and args.upload:
+                        print("    Uploading via " + args.upload.upper() + "...", flush=True)
+                        upload_command = command + ["-t", "uploadfs" if args.filesystem else "upload"]
+                        if port:
+                            upload_command += ["--upload-port", port]
+                        code = run_stage(upload_command, process_env, log, args.verbose, uploading=True)
+        except BackupError as error:
+            code = 1
+            print("    Filesystem update stopped: " + str(error), flush=True)
         except OSError as error:
             code = 1
             print("    Could not run PlatformIO: " + str(error), flush=True)
@@ -188,12 +235,16 @@ def main():
     parser.add_argument("--upload", choices=("usb", "ota"), help="Build and flash over USB/UART or OTA")
     parser.add_argument("--port", help="Override a single preset's serial port or OTA host/IP")
     parser.add_argument("--filesystem", action="store_true", help="Build/upload existing data/ instead of firmware")
+    parser.add_argument("--build-web", action="store_true", help="Build and gzip the WebUI once before filesystem operations")
+    parser.add_argument("--initialize", action="store_true", help="Explicitly replace a single device's filesystem without backup")
     parser.add_argument("-e", "--environment", default="release", help="PlatformIO environment (default: release for USB and OTA)")
     parser.add_argument("--exclude", action="append", default=[], metavar="NAME", help="Skip a preset in all; may be repeated")
     parser.add_argument("--dry-run", action="store_true", help="Show the validated plan without building or uploading")
     parser.add_argument("--fail-fast", action="store_true", help="Stop at the first device failure (default: continue)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Show full PlatformIO diagnostics")
     args = parser.parse_args()
+    if args.build_web and not args.filesystem:
+        parser.error("--build-web requires --filesystem")
     credentials = str(Path(args.credentials).resolve()) if args.credentials else None
     try:
         plan = make_plan(args, credentials)
@@ -210,7 +261,12 @@ def main():
         parser.error("PlatformIO CLI was not found. Install PlatformIO and add pio to PATH.")
     try:
         with build_lock(ROOT):
+            if args.build_web:
+                build_web_bundle(ROOT)
             return execute(args, credentials, plan, pio, args.environment)
+    except (BundleError, subprocess.CalledProcessError, OSError) as error:
+        print("WebUI build failed: " + str(error), file=sys.stderr)
+        return 1
     except PresetError as error:
         parser.error(str(error))
     except KeyboardInterrupt:

@@ -183,120 +183,48 @@ python tools/firmware.py --preset ceiling --credentials presets/work.ini --envir
 ### Updating multiple devices
 
 ```sh
-# Preview the complete OTA plan without building or uploading.
 python tools/firmware.py --preset all --upload ota --dry-run
-
-# Build and update devices sequentially, using each preset's OTA address.
 python tools/firmware.py --preset all --upload ota
-
-# Skip a device (repeat --exclude to skip several).
 python tools/firmware.py --preset all --upload ota --exclude test
-
-# '*' means the same as all; quote it to prevent shell expansion.
-python tools/firmware.py --preset "*" --upload ota
-
-# Build every device without uploading.
-python tools/firmware.py --preset all
 ```
 
-`all` selects local INI files in alphabetical order that declare `MDNS_NAME` in
-`[firmware]` or `ota_host` in `[upload]`. Templates, shared `credentials.ini`, the
-explicit `--credentials` file and files containing only credentials are excluded.
-To permanently omit a device from `all`, add `batch = false` under its `[upload]`
-section; it can still be selected by name. Batch uploads support OTA only;
-`--port` is available for a single device.
+`all` selects device presets with `MDNS_NAME` or `ota_host`. Set
+`batch = false` in a preset's `[upload]` section to exclude it permanently.
+Devices are updated sequentially; failures are reported and the next device
+continues. Use `--fail-fast` to stop on errors, or `--verbose` for detailed
+output (also saved to `.pio/logs/`).
 
-The complete plan is validated before any build or upload. Duplicate configured
-OTA addresses stop the batch: for the migrated `test`/`torus` profiles, use
-`--exclude test` or `--exclude torus`, or mark one `batch = false`. Each device is
-built and then uploaded before starting the next device. A failed build is never
-uploaded. Device failures are reported and the remaining devices continue;
-`--fail-fast` stops on the first failure. The final summary lists failures and the
-command returns a nonzero exit code if any device failed. Ctrl+C stops the batch.
-`--filesystem` also works with `all`, using the existing WebUI files in `data/`.
+Use `--preset NAME` for one device and `--port HOST` to override its address.
+OTA requires a reachable lamp; the first firmware installation uses USB.
 
-Preset commands show compact build/upload stages, occasional progress and a final
-summary. Warnings and full PlatformIO output are saved per device in
-`.pio/logs/<run>/<preset>.log`. Use `--verbose` to show detailed output in the
-terminal. The upload stage uses PlatformIO's normal incremental build check,
-reusing up-to-date firmware objects. Filesystem images may be regenerated.
-The wrapper locks its shared build during a run; run direct `pio` commands
-sequentially with it as well.
+### Updating the WebUI (LittleFS)
 
-An explicit `--port` takes priority over `[upload]`. USB never uses `MDNS_NAME`.
-For the first flash, use USB and `WIFI_MODE = WIFI_STA_MODE` with valid Wi-Fi
-credentials. OTA requires a reachable device already running OTA-capable firmware
-on the same network. If renaming `MDNS_NAME`, set `ota_host` to the device's
-**current** hostname/IP for that upload. `test` and `torus` in the old local
-profiles share a hostname; give devices unique names if using both simultaneously.
-
-For PlatformIO IDE buttons or direct `pio run`, add `custom_preset = ceiling`
-under `[env]` in `platformio.ini` (or set the `LAMP_PRESET` environment variable).
-The same build hook selects the credentials and OTA address. Direct `pio` calls
-keep PlatformIO's standard output; `all` and compact output use the Python wrapper.
-The legacy `ota` environment still has its own build directory; use the wrapper's
-default `release` environment to share builds between USB and OTA. Without a preset setting,
-the commands below use the default configuration:
-
-- For wire USB upload:
-```sh
-pio run -e release -t upload
-```
-
-- For OTA upload with default address (`esp_lamp.local`):
-```sh
-pio run -e ota -t upload
-```
-
-- For OTA upload with a custom address:
-```sh
-pio run -e ota -t upload --upload-port esp_lamp_2.local
-```
-
-### Uploading File System
-
-Once the WebUI has been built and compressed into `data/` using the steps below,
-the same preset selection also works for filesystem images:
+Build and gzip the web bundle independently:
 
 ```sh
-python tools/firmware.py --preset ceiling --filesystem
-python tools/firmware.py --preset ceiling --filesystem --upload usb
-python tools/firmware.py --preset ceiling --filesystem --upload ota
+python tools/web_bundle.py
 ```
 
-These commands use the existing `data/`; they do not build or compress the WebUI.
+Or build it automatically and update one lamp or all device presets:
 
-To upload the file system, follow these steps:
-
-1. Make the upload_fs.sh script executable:
 ```sh
-chmod +x ./upload_fs.sh
+python tools/firmware.py --preset ceiling --filesystem --upload ota --build-web
+python tools/firmware.py --preset all --filesystem --upload ota --build-web
 ```
 
-- For automatically building the WebUI and uploading it using OTA with the default address (MacOS, *nix):
+Without `--build-web`, the firmware script uses the existing `data/` bundle.
+Each device's settings are backed up and included in its image; an unavailable
+device is skipped. Backups are retained in `.pio/storage-backups/`.
+
+For a first filesystem installation (no settings to preserve):
+
 ```sh
-OTA=1 ./upload_fs.sh
+python tools/firmware.py --preset ceiling --filesystem --upload usb --initialize --build-web
 ```
 
-- For uploading OTA with a custom address:
-```sh
-OTA=1 ./upload_fs.sh --upload-port esp_lamp_2.local
-```
-
-- For Windows users use manual build:
-
-1. Build WebUI:
-```sh
-cd ./www
-npm run build
-cd ..
-```
-
-2. Upload the file system using OTA:
-```sh
-pio run -t uploadfs -e ota
-```
-
+`--initialize` is required for USB filesystem uploads and cannot be used
+with `--preset all`. The existing `upload_fs.sh` also builds the bundle
+automatically (`OTA=1 LAMP_PRESET=ceiling ./upload_fs.sh`).
 
 ## Experimental remote audio DSP (feature branch)
 
