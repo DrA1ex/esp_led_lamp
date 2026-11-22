@@ -198,7 +198,7 @@ class PresetTests(unittest.TestCase):
                     self.assertNotIn("LAMP_UPLOAD_METHOD", process_env)
 
     def test_filesystem_upload_preserves_settings_over_ota_and_requires_initialize_for_usb(self):
-        self.write("lamp", '[firmware]\\nMDNS_NAME = "lamp"\\n[upload]\\nusb_port = "COM7"\\n')
+        self.write("lamp", '[firmware]\nMDNS_NAME = "lamp"\n[upload]\nusb_port = "COM7"\n')
         (self.root / "data").mkdir()
         (self.root / "data" / "index.html").write_text("Web UI", encoding="utf-8")
         expected = {"settings.json": b'{"brightness":50}'}
@@ -224,13 +224,13 @@ class PresetTests(unittest.TestCase):
                     image.write_bytes(b"filesystem image")
                 return 0
 
-            with self.subTest(options=options), patch.object(cli, "ROOT", self.root), \\
-                    patch.object(sys, "argv", ["firmware.py", "--preset", "lamp"] + options), \\
-                    patch.object(cli.shutil, "which", return_value="pio"), \\
-                    patch.object(cli, "run_stage", side_effect=stage), \\
-                    patch.object(cli, "auth_header", return_value="Basic fake"), \\
-                    patch.object(cli, "snapshot", return_value=(expected, self.root / "backup.zip")) as backup, \\
-                    patch.object(cli, "verify") as verify, \\
+            with self.subTest(options=options), patch.object(cli, "ROOT", self.root), \
+                    patch.object(sys, "argv", ["firmware.py", "--preset", "lamp"] + options), \
+                    patch.object(cli.shutil, "which", return_value="pio"), \
+                    patch.object(cli, "run_stage", side_effect=stage), \
+                    patch.object(cli, "auth_header", return_value="Basic fake"), \
+                    patch.object(cli, "snapshot", return_value=(expected, self.root / "backup.zip")) as backup, \
+                    patch.object(cli, "verify") as verify, \
                     contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(cli.main(), 0)
                 self.assertEqual(len(commands), 2)
@@ -246,26 +246,26 @@ class PresetTests(unittest.TestCase):
                     backup.assert_not_called()
                     verify.assert_not_called()
 
-        with patch.object(cli, "ROOT", self.root), \\
+        with patch.object(cli, "ROOT", self.root), \
                 patch.object(sys, "argv", ["firmware.py", "--preset", "lamp",
-                                            "--filesystem", "--upload", "usb"]), \\
-                contextlib.redirect_stderr(io.StringIO()), \\
+                                            "--filesystem", "--upload", "usb"]), \
+                contextlib.redirect_stderr(io.StringIO()), \
                 self.assertRaises(SystemExit) as caught:
             cli.main()
         self.assertEqual(caught.exception.code, 2)
 
     def test_filesystem_backup_failure_prevents_upload(self):
         from fs_update import BackupError
-        self.write("lamp", '[firmware]\\nMDNS_NAME = "lamp"\\n')
+        self.write("lamp", '[firmware]\nMDNS_NAME = "lamp"\n')
         (self.root / "data").mkdir()
         (self.root / "data" / "index.html").write_text("Web UI")
-        with patch.object(cli, "ROOT", self.root), \\
+        with patch.object(cli, "ROOT", self.root), \
                 patch.object(sys, "argv", ["firmware.py", "--preset", "lamp",
-                                            "--filesystem", "--upload", "ota"]), \\
-                patch.object(cli.shutil, "which", return_value="pio"), \\
-                patch.object(cli, "auth_header", return_value="Basic fake"), \\
-                patch.object(cli, "snapshot", side_effect=BackupError("device offline")), \\
-                patch.object(cli, "run_stage") as stage, \\
+                                            "--filesystem", "--upload", "ota"]), \
+                patch.object(cli.shutil, "which", return_value="pio"), \
+                patch.object(cli, "auth_header", return_value="Basic fake"), \
+                patch.object(cli, "snapshot", side_effect=BackupError("device offline")), \
+                patch.object(cli, "run_stage") as stage, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(cli.main(), 1)
         stage.assert_not_called()
