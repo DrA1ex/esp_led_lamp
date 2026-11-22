@@ -31,6 +31,28 @@ For iOS:
 3. Tap the "Share" button.
 4. Select "Add to Home Screen."
 
+
+## Music-reactive lighting from a computer
+
+Use [ESP LED Music Lab](https://github.com/DrA1ex/esp_led_lab) to play music or
+use a microphone and send audio-reactive effects to one or more lamps over Wi-Fi.
+Audio analysis runs in the browser; the lamp receives only visualization data.
+
+1. Flash the firmware and connect the lamp and computer to the same local network.
+2. Open [Music Lab](https://dra1ex.github.io/esp_led_lab/) in Chrome, then select
+   **Lamps**, enter the lamp's IP address or `esp_lamp.local`, and connect.
+3. Choose a track, the demo beat or **Microphone**, then select an effect in
+   **Reaction**. Use **All lamps** or select an individual lamp to customize it.
+
+The connection uses the lamp's WebSocket `/audio` endpoint (normally port 80).
+On Chrome, grant local-network access when prompted. Local HTTP/WebSocket devices
+may not work from the hosted HTTPS page in other browsers; run Music Lab locally
+if the browser blocks the connection.
+
+For message formats and implementation details, see
+[Remote Audio protocol](docs/REMOTE_AUDIO_PROTOCOL.md).
+
+
 ## Configuration
 
 Use device presets to keep credentials and hardware settings outside the source files.
@@ -221,23 +243,3 @@ python tools/firmware.py --preset ceiling --filesystem --upload usb --initialize
 `--initialize` is required for USB filesystem uploads and cannot be used
 with `--preset all`. The existing `upload_fs.sh` also builds the bundle
 automatically (`OTA=1 LAMP_PRESET=ceiling ./upload_fs.sh`).
-
-## Music-reactive lighting from a computer
-
-Use [ESP LED Music Lab](https://github.com/DrA1ex/esp_led_lab) to play music or
-use a microphone and send audio-reactive effects to one or more lamps over Wi-Fi.
-Audio analysis runs in the browser; the lamp receives only visualization data.
-
-1. Flash the firmware and connect the lamp and computer to the same local network.
-2. Open [Music Lab](https://dra1ex.github.io/esp_led_lab/) in Chrome, then select
-   **Lamps**, enter the lamp's IP address or `esp_lamp.local`, and connect.
-3. Choose a track, the demo beat or **Microphone**, then select an effect in
-   **Reaction**. Use **All lamps** or select an individual lamp to customize it.
-
-The connection uses the lamp's WebSocket `/audio` endpoint (normally port 80).
-On Chrome, grant local-network access when prompted. Local HTTP/WebSocket devices
-may not work from the hosted HTTPS page in other browsers; run Music Lab locally
-if the browser blocks the connection.
-
-For message formats and implementation details, see
-[Remote Audio protocol](docs/REMOTE_AUDIO_PROTOCOL.md).
