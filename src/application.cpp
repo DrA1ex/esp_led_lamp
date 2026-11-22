@@ -13,10 +13,11 @@
 
 Application::Application(Storage<Config> &config_storage, Storage<PresetNames> &preset_names_storage,
                          Storage<PresetConfigs> &preset_configs_storage, Storage<CustomPaletteConfig> &custom_palette_storage,
-                         NightModeManager &night_mode_manager,
+                         Storage<LayoutConfig> &layout_storage, NightModeManager &night_mode_manager,
                          SignalProvider *wave_provider, SignalProvider *spectrum_provider, SignalProvider *parametric_provider) :
         config_storage(config_storage), preset_names_storage(preset_names_storage),
         preset_configs_storage(preset_configs_storage), custom_palette_storage(custom_palette_storage),
+        layout_storage(layout_storage),
         config(config_storage.get()), preset_names(preset_names_storage.get()),
         preset_configs(preset_configs_storage.get()), custom_palette_config(custom_palette_storage.get()),
         night_mode_manager(night_mode_manager),
@@ -184,6 +185,7 @@ void Application::restart() {
     if (preset_names_storage.is_pending_commit()) preset_names_storage.force_save();
     if (preset_configs_storage.is_pending_commit()) preset_configs_storage.force_save();
     if (custom_palette_storage.is_pending_commit()) custom_palette_storage.force_save();
+    if (layout_storage.is_pending_commit()) layout_storage.force_save();
 
     D_PRINT("Restarting");
 

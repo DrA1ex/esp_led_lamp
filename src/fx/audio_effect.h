@@ -6,8 +6,10 @@ class AudioEffectManager : public FxManagerBase<AudioEffectConfig, AudioEffectSt
 public:
     AudioEffectManager();
 
-    void call(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value);
-    int calc(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value);
+    void call(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value,
+              const AudioWindow &window = {});
+    int calc(Led &led, const SignalProvider *provider, uint8_t min_value, uint8_t max_value,
+             const AudioWindow &window = {});
 
 protected:
     static void signal(Led &led, AudioEffectState &state);

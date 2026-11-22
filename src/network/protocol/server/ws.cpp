@@ -19,7 +19,13 @@ void WebSocketServer::begin(WebServer &server) {
 }
 
 void WebSocketServer::handle_incoming_data() {
-    _ws.cleanupClients();
+    // Client cleanup allocates/frees transport buffers; do not run at 50 Hz.
+    static uint32_t last_cleanup = 0;
+    const uint32_t now = millis();
+    if (uint32_t(now - last_cleanup) >= 1000) {
+        last_cleanup = now;
+        _ws.cleanupClients();
+    }
 
     while (_request_queue.can_pop()) {
         auto &request = *_request_queue.pop();

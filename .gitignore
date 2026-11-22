@@ -5,3 +5,9 @@
 data/
 www/node_modules
 www/package-lock.json
+
+# Local device configuration and secrets; only templates are versioned.
+presets/*.ini
+!presets/*.example.ini
+src/_override/
+__pycache__/

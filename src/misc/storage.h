@@ -161,6 +161,7 @@ void Storage<T>::force_save() {
         D_PRINTF("Storage(%s): Clear existing Storage save timer\n", _key);
 
         _timer.clear_timeout(_save_timer_id);
+        _save_timer_id = -1;
     }
 
     _commit_impl();

@@ -3,6 +3,7 @@
 #include "config.h"
 #include "metadata.h"
 #include "misc/storage.h"
+#include "misc/layout.h"
 #include "misc/event_topic.h"
 #include "night_mode.h"
 
@@ -12,6 +13,7 @@ public:
     Storage<PresetNames> &preset_names_storage;
     Storage<PresetConfigs> &preset_configs_storage;
     Storage<CustomPaletteConfig> &custom_palette_storage;
+    Storage<LayoutConfig> &layout_storage;
 
     Config &config;
     PresetNames &preset_names;
@@ -35,7 +37,7 @@ public:
 
     Application(Storage<Config> &config_storage, Storage<PresetNames> &preset_names_storage,
                 Storage<PresetConfigs> &preset_configs_storage, Storage<CustomPaletteConfig> &custom_palette_storage,
-                NightModeManager &night_mode_manager,
+                Storage<LayoutConfig> &layout_storage, NightModeManager &night_mode_manager,
                 SignalProvider *wave_provider, SignalProvider *spectrum_provider, SignalProvider *parametric_provider);
 
     void begin();

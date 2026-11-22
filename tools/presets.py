@@ -1,0 +1,153 @@
+"""Portable INI presets shared by the CLI and PlatformIO build hook."""
+
+import configparser
+import json
+import re
+from pathlib import Path
+
+
+class PresetError(ValueError):
+    pass
+
+
+def preset_path(root, name):
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", name):
+        raise PresetError("Preset names may contain only letters, digits, '_' and '-'.")
+    if name in ("credentials", "all"):
+        raise PresetError("'credentials' and 'all' are reserved names.")
+    return Path(root) / "presets" / (name + ".ini")
+
+
+def known_settings(root):
+    result = set()
+    for filename in ("constants.h", "credentials.h", "sys_constants.h"):
+        source = (Path(root) / "src" / filename).read_text(encoding="utf-8")
+        result.update(re.findall(r"^#define\s+([A-Z][A-Z0-9_]*)\b", source, re.MULTILINE))
+    return result
+
+
+def cpp_value(value, location):
+    """Accept literals and symbolic constants, never execute shell/Python code."""
+    if value.startswith('"'):
+        try:
+            decoded = json.loads(value)
+        except ValueError:
+            raise PresetError(location + ': expected a double-quoted string.') from None
+        if not isinstance(decoded, str) or "\0" in decoded:
+            raise PresetError(location + ': expected a string without NUL characters.')
+        return json.dumps(decoded, ensure_ascii=False)
+    if value.lower() in ("true", "false"):
+        return "1" if value.lower() == "true" else "0"
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+        return value
+    if re.fullmatch(r"[+-]?(?:0[xX][0-9a-fA-F]+|0|[1-9][0-9]*)(?:[uU](?:[lL]{1,2})?|[lL]{1,2}[uU]?)?", value):
+        return value
+    if re.fullmatch(r"[+-]?(?:[0-9]+\.[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?[fF]?", value):
+        return value if value[-1] in "fF" else value + "f"
+    # Do not echo values: this may be a malformed password.
+    raise PresetError(location + ': expected a quoted string, number, true/false or symbolic constant.')
+
+
+def read_config(path, settings):
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.optionxform = str
+    try:
+        with Path(path).open(encoding="utf-8-sig") as stream:
+            parser.read_file(stream)
+    except OSError:
+        raise PresetError("Cannot read configuration file: " + str(path)) from None
+    except configparser.Error:
+        raise PresetError("Invalid INI syntax in " + str(path)) from None
+    if parser.defaults() or set(parser.sections()) - {"firmware", "upload"}:
+        raise PresetError(str(path) + ': only [firmware] and [upload] sections are supported.')
+
+    firmware, upload = {}, {}
+    if parser.has_section("firmware"):
+        for key, value in parser.items("firmware"):
+            location = str(path) + ': ' + key
+            if key not in settings:
+                raise PresetError(location + ': unknown firmware setting.')
+            firmware[key] = cpp_value(value, location)
+            if key == "WEB_AUTH" and firmware[key] not in ("0", "1"):
+                raise PresetError(location + ': use true or false.')
+    if parser.has_section("upload"):
+        for key, value in parser.items("upload"):
+            location = str(path) + ': ' + key
+            if key == "batch":
+                if value.lower() not in ("true", "false"):
+                    raise PresetError(location + ': use true or false.')
+                upload[key] = value.lower() == "true"
+                continue
+            if key not in ("ota_host", "usb_port"):
+                raise PresetError(location + ': unknown upload setting.')
+            # Upload destinations are always strings, with optional quotes.
+            if value.startswith('"'):
+                try:
+                    value = json.loads(value)
+                except ValueError:
+                    raise PresetError(location + ': invalid quoted string.') from None
+            if not isinstance(value, str) or not value or any(ord(c) < 32 for c in value):
+                raise PresetError(location + ': expected a non-empty address or port.')
+            upload[key] = value
+    return firmware, upload
+
+
+def load_preset(root, name="", credentials=None):
+    root = Path(root).resolve()
+    settings = known_settings(root)
+    firmware, upload = {}, {}
+    shared = Path(credentials) if credentials else root / "presets" / "credentials.ini"
+    if not shared.is_absolute():
+        shared = root / shared
+    if credentials or shared.exists():
+        firmware, upload = read_config(shared, settings)
+    if name:
+        device, destination = read_config(preset_path(root, name), settings)
+        firmware.update(device)
+        upload.update(destination)
+    return firmware, upload
+
+
+def device_presets(root, credentials=None, exclude=()):
+    """Discover devices, excluding templates and files containing only credentials."""
+    root = Path(root).resolve()
+    shared = Path(credentials).resolve() if credentials else root / "presets/credentials.ini"
+    settings = known_settings(root)
+    devices = []
+    for path in sorted((root / "presets").glob("*.ini")):
+        if (path.name.endswith(".example.ini") or path.stem == "credentials"
+                or path.resolve() == shared or path.stem in exclude):
+            continue
+        firmware, upload = read_config(path, settings)
+        if not upload.get("batch", True):
+            continue
+        if "MDNS_NAME" in firmware or "ota_host" in upload:
+            preset_path(root, path.stem)
+            devices.append(path.stem)
+    if not devices:
+        raise PresetError("No device presets found. Each device needs MDNS_NAME or [upload] ota_host.")
+    return devices
+
+
+def render_header(firmware):
+    lines = ["// Generated by PlatformIO. Do not edit or commit (may contain secrets).", "#pragma once", ""]
+    for key, value in sorted(firmware.items()):
+        lines.extend(["#undef " + key])
+        # Firmware checks WEB_AUTH with #ifdef rather than #if.
+        if key != "WEB_AUTH" or value != "0":
+            lines.append("#define " + key + " " + value)
+    return "\n".join(lines) + "\n"
+
+
+def upload_port(firmware, upload, method):
+    if method == "usb":
+        return upload.get("usb_port")
+    if upload.get("ota_host"):
+        return upload["ota_host"]
+    try:
+        hostname = json.loads(firmware.get("MDNS_NAME", '"esp_lamp"'))
+    except ValueError:
+        raise PresetError('MDNS_NAME must be a quoted string for OTA; alternatively set [upload] ota_host.') from None
+    if not isinstance(hostname, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", hostname):
+        raise PresetError('MDNS_NAME must be a hostname without .local; alternatively set [upload] ota_host.')
+    return hostname + ".local"

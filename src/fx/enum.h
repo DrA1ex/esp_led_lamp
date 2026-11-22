@@ -126,4 +126,34 @@ enum class AudioEffectEnum : uint8_t {
     SPEED_CONTROL,
     SCALE_CONTROL,
     LIGHT_CONTROL,
+
+    // Remote DSP experimental effects, appended to preserve original IDs 0..9.
+    BASS_MID_HIGH,
+    BEAT_REACTIVE,
+
+    // Remote-only visualizations (remote_audio/viz_engine.h, lab modes 13..35).
+    // Not in AudioEffects' list, so the lamp UI does not offer them.
+    VU_METER,
+    SPECTRUM_BARS,
+    FLOW,
+    PULSES,
+    SPARKLES,
+    MOOD,
+    WAVEFORM,
+    BAND_METERS,
+    FIRE,
+    AURORA,
+    JUGGLE,
+    RADIAL_SPECTRUM,
+    BLOBS,
+    PARTICLES,
+    FIELD,
+    ZONES,
+    MELODY,
+    GROOVE,
+    CHROMATIC_FLOW,
+    ENERGY,
+    SCROLL,
+    WATER,
+    LAVA_LAMP,
 };

@@ -1,0 +1,56 @@
+name: Remote Audio firmware CI
+
+on:
+  push:
+    branches:
+      - feature/remote-audio-dsp
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: remote-audio-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate device presets and upload selection
+        run: python3 -m unittest discover -s tests -p test_presets.py
+      - name: Compile and execute native parser tests
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_audio_protocol.cpp -o /tmp/remote_audio_parser
+          /tmp/remote_audio_parser
+      - name: Compile and execute timeline tests
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_audio_timeline.cpp -o /tmp/remote_audio_timeline
+          /tmp/remote_audio_timeline
+      - name: Compile and test experimental reactive color math
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror tests/test_remote_reactive.cpp -o /tmp/remote_audio_reactive
+          /tmp/remote_audio_reactive
+      - name: Validate synthetic sender
+        run: python3 -m py_compile tools/remote_audio_sender.py tools/ws_idle_soak.py
+
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PlatformIO
+        run: python -m pip install platformio
+      - name: Compile ESP8266 firmware (remote enabled, local microphone disabled)
+        run: pio run -e release
+      - name: Compile dual-source variant (local ADC + remote audio)
+        run: pio run -e local-audio
+      - name: Publish test firmware artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp8266-remote-audio-firmware
+          path: .pio/build/release/firmware.bin
+          if-no-files-found: error
+          retention-days: 14

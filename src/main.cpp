@@ -25,8 +25,18 @@
 #include "network/protocol/server/udp.h"
 #include "network/protocol/server/ws.h"
 
+#if REMOTE_AUDIO == ENABLED
+#include "remote_audio/controller.h"
+#include "remote_audio/reactive_effects.h"
+#include "remote_audio/visualizations.h"
+#include "network/protocol/server/remote_audio_ws.h"
+#include "utils/palette.h"
+#include "utils/color.h"
+#endif
+
 void initialization_animation();
 void render();
+bool layout_test();
 void calibration();
 
 void button_on_click(uint8_t cnt);
@@ -45,6 +55,7 @@ Storage<Config> config_storage(global_timer, "config", STORAGE_CONFIG_VERSION);
 Storage<PresetNames> preset_names_storage(global_timer, "preset_names", STORAGE_PRESET_NAMES_VERSION);
 Storage<PresetConfigs> preset_configs_storage(global_timer, "preset_configs", STORAGE_PRESET_CONFIG_VERSION);
 Storage<CustomPaletteConfig> custom_palette_storage(global_timer, "custom_palette", STORAGE_CUSTOM_PALETTE_VERSION);
+Storage<LayoutConfig> layout_storage(global_timer, "layout", STORAGE_LAYOUT_VERSION);
 
 NightModeManager night_mode_manager(config_storage.get());
 
@@ -76,7 +87,8 @@ SignalProvider *spectrum_provider = nullptr;
 SignalProvider *parametric_provider = nullptr;
 #endif
 
-Application app(config_storage, preset_names_storage, preset_configs_storage, custom_palette_storage, night_mode_manager,
+Application app(config_storage, preset_names_storage, preset_configs_storage, custom_palette_storage,
+                layout_storage, night_mode_manager,
                 wave_provider, spectrum_provider, parametric_provider);
 
 WifiManager wifi_manager;
@@ -87,6 +99,16 @@ MqttServer mqtt_server(app);
 UdpServer udp_server(app);
 WebSocketServer ws_server(app);
 
+#if REMOTE_AUDIO == ENABLED
+RemoteAudioController remote_audio;
+RemoteSignalProvider remote_wave(remote_audio, RemoteSignalProvider::WAVE, WIDTH);
+RemoteSignalProvider remote_wave_centered(remote_audio, RemoteSignalProvider::WAVE, WIDTH / 2 + 1);
+RemoteSignalProvider remote_spectrum(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH);
+RemoteSignalProvider remote_spectrum_centered(remote_audio, RemoteSignalProvider::SPECTRUM, WIDTH / 2 + 1);
+RemoteSignalProvider remote_parametric(remote_audio, RemoteSignalProvider::PARAMETRIC, WIDTH);
+RemoteAudioSocket remote_audio_ws(remote_audio, app, led, layout_storage);
+#endif
+
 NtpTime ntp_time;
 
 Button button(BUTTON_PIN);
@@ -94,6 +116,7 @@ Button button(BUTTON_PIN);
 void setup() {
 #if defined(DEBUG)
     Serial.begin(115200);
+    Serial.printf("\nReset: %s\n%s\n", ESP.getResetReason().c_str(), ESP.getResetInfo().c_str());
     delay(2000);
 #endif
 
@@ -105,6 +128,11 @@ void setup() {
     preset_names_storage.begin(&LittleFS);
     preset_configs_storage.begin(&LittleFS);
     custom_palette_storage.begin(&LittleFS);
+    layout_storage.begin(&LittleFS);
+    led.set_layout(layout_storage.get());
+#if REMOTE_AUDIO == ENABLED
+    remote_audio.layout = layout_storage.get();
+#endif
 
     app.begin();
 
@@ -127,7 +155,8 @@ void setup() {
 #ifdef DEBUG
     D_PRINTF("Startup Free Heap: %u\n", ESP.getFreeHeap());
     global_timer.add_interval([](void *) {
-        D_PRINTF("Free Heap: %u\n", ESP.getFreeHeap());
+        D_PRINTF("Heap: %u, largest: %u, fragmentation: %u%%\n",
+                 ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation());
     }, 5ul * 60 * 1000);
 #endif
 }
@@ -184,8 +213,10 @@ void render_loop(void *) {
         case AppState::TURNING_ON:
         case AppState::TURNING_OFF:
             if (brightness_settings.brightness > 0 && brightness_settings.eco > 0) {
-                render();
-                BrightnessEffectManager::eco(led, brightness_settings.eco);
+                if (!layout_test()) {
+                    render();
+                    BrightnessEffectManager::eco(led, brightness_settings.eco);
+                }
             } else {
                 led.clear();
             }
@@ -200,6 +231,18 @@ void render_loop(void *) {
 }
 
 
+// The lab's orientation test (Layout::testPattern) in place of the effect.
+bool layout_test() {
+#if REMOTE_AUDIO == ENABLED
+    if (!remote_audio.layoutTest()) return false;
+    Layout::testPattern(led.width(), led.height(), Layout::originShift(remote_audio.layout),
+                        [](int x, int y, uint32_t color) { led.get_pixel(x, y) = CRGB(color); });
+    return true;
+#else
+    return false;
+#endif
+}
+
 void render() {
     if (app.state == AppState::NORMAL && !app.config.power) {
         led.clear();
@@ -207,45 +250,108 @@ void render() {
     }
 
 
-    //TODO: Refactor
+    // Work with a copy: audio-driven controls must never modify persistent presets.
     auto preset = app.preset();
+    const PaletteT *palette = &app.current_palette;
 
-#if AUDIO == ENABLED
-    const auto &audio_cfg = app.config.audio_config;
-    bool audio_applied = true;
-
-    if (audio_cfg.is_parametric()) {
-        const auto value = AudioEffects.calc(led, app.signal_provider(), audio_cfg.min, audio_cfg.max);
-
-        switch (audio_cfg.effect) {
-            case AudioEffectEnum::SPEED_CONTROL:
-                preset.speed = value;
-                break;
-            case AudioEffectEnum::SCALE_CONTROL:
-                preset.scale = value;
-                break;
-            case AudioEffectEnum::LIGHT_CONTROL:
-                preset.light = value;
-                break;
-
-            default:
-                audio_applied = false;
-        }
-    } else {
-        audio_applied = false;
+#if REMOTE_AUDIO == ENABLED
+    const bool remote_active = remote_audio.sample(millis());
+    static bool remote_was_active = false;
+    if (!remote_active && remote_was_active) {
+        // Restore saved palette and effects without writing flash.
+        app.load();
+        preset = app.preset();
+        palette = &app.current_palette;
     }
+    remote_was_active = remote_active;
+    PaletteT remote_palette;
+    if (remote_active) {
+        const auto &override = remote_audio.overrides();
+        preset = override.preset;
+        ColorEffects.select(preset.color_effect);
+        BrightnessEffects.select(preset.brightness_effect);
+        AudioEffects.select(override.audio.effect);
+        if (preset.palette != app.preset().palette) {
+            if (preset.palette == PaletteEnum::CUSTOM && app.custom_palette_config.updated) {
+                remote_palette = app.custom_palette_config.colors;
+            } else {
+                const auto &entry = Palettes.entries[(uint8_t)preset.palette];
+                set_palette(remote_palette, entry.value.data, entry.value.size);
+            }
+#if GAMMA_CORRECTION_RT == DISABLED
+            if (app.config.gamma != 0)
+                napplyGamma_video(remote_palette.entries, 16, gamma_value(app.config.gamma));
+#endif
+            palette = &remote_palette;
+        }
+    }
+#else
+    const bool remote_active = false;
 #endif
 
-    const auto palette = &app.current_palette;
+    bool audio_applied = false;
+    bool audio_enabled = false;
+    SignalProvider *provider = nullptr;
+    AudioConfig audio_cfg;
+#if REMOTE_AUDIO == ENABLED
+    if (remote_active) {
+        audio_cfg = remote_audio.overrides().audio;
+        audio_enabled = audio_cfg.enabled;
+        if (audio_cfg.is_wave()) provider = audio_cfg.effect == AudioEffectEnum::WAVE_CENTERED ? &remote_wave_centered : &remote_wave;
+        else if (audio_cfg.is_spectrum()) provider = audio_cfg.effect == AudioEffectEnum::SPECTRUM_CENTERED ? &remote_spectrum_centered : &remote_spectrum;
+        else provider = &remote_parametric;
+    }
+#endif
+#if AUDIO == ENABLED
+    if (!remote_active && app.config.audio_config.enabled) {
+        audio_cfg = app.config.audio_config;
+        audio_enabled = true;
+        provider = app.signal_provider();
+    }
+#endif
+    // Remote "Signal window": the input range stretched onto min..max.
+    AudioWindow audio_window;
+#if REMOTE_AUDIO == ENABLED
+    if (remote_active) audio_window = remote_audio.overrides().tuning.window;
+#endif
+    if (audio_enabled && provider && audio_cfg.is_parametric()) {
+        const auto value = AudioEffects.calc(led, provider, audio_cfg.min, audio_cfg.max, audio_window);
+        switch (audio_cfg.effect) {
+            case AudioEffectEnum::SPEED_CONTROL: {
+                preset.speed = value;
+#if REMOTE_AUDIO == ENABLED
+                // Optional speed floor from older lab versions (current ones send 0
+                // and use audio_min / the signal window instead).
+                const uint8_t speed_floor = remote_active ? remote_audio.overrides().tuning.speed_floor : 0;
+                if (speed_floor > 0) preset.speed = speed_floor + value * (255 - speed_floor) / 255;
+#endif
+                audio_applied = true;
+                break;
+            }
+            case AudioEffectEnum::SCALE_CONTROL: preset.scale = value; audio_applied = true; break;
+            case AudioEffectEnum::LIGHT_CONTROL: preset.light = value; audio_applied = true; break;
+            default: break;
+        }
+    }
 
     ColorEffects.call(led, palette, preset, app.config.gamma);
     BrightnessEffects.call(led, preset);
-
-#if AUDIO == ENABLED
-    if (!audio_applied && audio_cfg.enabled) {
-        AudioEffects.call(led, app.signal_provider(), audio_cfg.min, audio_cfg.max);
-    }
+    if (audio_enabled && provider && !audio_applied) {
+#if REMOTE_AUDIO == ENABLED
+        if (remote_active &&
+            (audio_cfg.effect == AudioEffectEnum::BASS_MID_HIGH ||
+             audio_cfg.effect == AudioEffectEnum::BEAT_REACTIVE)) {
+            RemoteReactive::apply(led, remote_audio, audio_cfg.effect);
+        } else if (remote_active && RemoteViz::handles(audio_cfg.effect)) {
+            RemoteViz::render(led, remote_audio, *palette, audio_cfg.effect, audio_cfg.min, audio_cfg.max);
+        } else if (remote_active && RemoteReactive::customRender(remote_audio, audio_cfg.effect)) {
+            RemoteReactive::render(led, *provider, remote_audio, audio_cfg.effect, audio_cfg.min, audio_cfg.max);
+        } else
 #endif
+        {
+            AudioEffects.call(led, provider, audio_cfg.min, audio_cfg.max, audio_window);
+        }
+    }
 }
 
 void calibration() {
@@ -312,25 +418,38 @@ void service_loop(void *) {
             api_server.begin(web_server);
             udp_server.begin(UDP_PORT);
             ws_server.begin(web_server);
+#if REMOTE_AUDIO == ENABLED
+            remote_audio_ws.begin(web_server);
+#endif
 
             if constexpr (MQTT) mqtt_server.begin();
 
             web_server.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
-                char result[320] = {};
+                char result[384] = {};
 
-                size_t offset = snprintf(result, sizeof(result), "General:\nHeap: %u\nNow: %lu\nTime: %lu\n",
-                                         ESP.getFreeHeap(), millis(), ntp_time.epoch_tz());
+                size_t offset = snprintf(result, sizeof(result), "General:\nHeap: %u\nLargest block: %u\nFragmentation: %u%%\nNow: %lu\nTime: %lu\n",
+                                         ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation(),
+                                         millis(), ntp_time.epoch_tz());
 
                 offset += BrightnessEffects.debug(result + offset, sizeof(result) - offset);
                 ColorEffects.debug(result + offset, sizeof(result) - offset);
 
-                request->send_P(200, "text/plain", result);
+                request->send(200, "text/plain", result);
             });
 
             web_server.begin(&LittleFS);
 
             ntp_time.begin(TIME_ZONE);
             ArduinoOTA.setHostname(MDNS_NAME);
+            ArduinoOTA.onStart([]() {
+                if (ArduinoOTA.getCommand() != U_FS) return;
+                if (config_storage.is_pending_commit()) config_storage.force_save();
+                if (preset_names_storage.is_pending_commit()) preset_names_storage.force_save();
+                if (preset_configs_storage.is_pending_commit()) preset_configs_storage.force_save();
+                if (custom_palette_storage.is_pending_commit()) custom_palette_storage.force_save();
+                if (layout_storage.is_pending_commit()) layout_storage.force_save();
+                LittleFS.end();
+            });
             ArduinoOTA.begin();
 
             app.change_state(AppState::NORMAL);
@@ -346,6 +465,9 @@ void service_loop(void *) {
 
             udp_server.handle_incoming_data();
             ws_server.handle_incoming_data();
+#if REMOTE_AUDIO == ENABLED
+            remote_audio_ws.poll();
+#endif
 
             if constexpr (MQTT) mqtt_server.handle_connection();
             break;
@@ -358,6 +480,10 @@ void service_loop(void *) {
 }
 
 void audio_loop(void *) {
+#if REMOTE_AUDIO == ENABLED
+    // Avoid unnecessary ADC sampling/FFT while a remote session is driving the LEDs.
+    if (remote_audio.playing()) return;
+#endif
     const auto &cfg = app.config.audio_config;
     if (!cfg.enabled) return;
 

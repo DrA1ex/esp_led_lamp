@@ -1,9 +1,9 @@
 #include "web.h"
 
 class WebLogger : public AsyncWebHandler {
-    bool canHandle(AsyncWebServerRequest *request) override {
+    bool canHandle(AsyncWebServerRequest *request) const override {
         D_PRINTF("WebServer: %s -> %s %s\n", request->client()->remoteIP().toString().c_str(),
-                 ((String)request->methodToString()).c_str(), request->url().c_str());
+                 request->methodToString(), request->url().c_str());
 
         return false;
     }
@@ -18,11 +18,7 @@ WebServer::WebServer(uint16_t port) : _port(port), _server(port) {
 void WebServer::begin(FS *fs) {
     _fs = fs;
 
-    _server.on("/", HTTP_GET, [this](AsyncWebServerRequest *request) {
-        request->send(*_fs, "/index.html", "text/html");
-    });
-
-    _server.serveStatic("/", *_fs, "/");
+    _server.serveStatic("/", *_fs, "/").setDefaultFile("index.html").setCacheControl("no-cache");
 
     _server.begin();
 
@@ -36,8 +32,9 @@ void WebAuthHandler::handleRequest(AsyncWebServerRequest *request) {
     request->redirect("https://google.com");
 }
 
-bool WebAuthHandler::canHandle(AsyncWebServerRequest *request) {
-    bool is_local = (request->client()->getRemoteAddress() & PP_HTONL(0xffff0000UL)) == PP_HTONL(0xc0a80000UL);
+bool WebAuthHandler::canHandle(AsyncWebServerRequest *request) const {
+    const IPAddress peer = request->client()->remoteIP();
+    const bool is_local = peer[0] == 192 && peer[1] == 168;
     bool auth_required = _allow_local ? !is_local : true;
 
     return auth_required && !request->authenticate(AUTH_USER, AUTH_PASSWORD);

@@ -24,6 +24,7 @@
 #define STORAGE_PRESET_NAMES_VERSION            ((uint8_t) 4)
 #define STORAGE_PRESET_CONFIG_VERSION           ((uint8_t) 5)
 #define STORAGE_CUSTOM_PALETTE_VERSION          ((uint8_t) 2)
+#define STORAGE_LAYOUT_VERSION                  ((uint8_t) 1)
 #define STORAGE_SAVE_INTERVAL                   (60000u)                // Wait before commit settings to FLASH
 
 #define TIMER_GROW_AMOUNT                       (8u);

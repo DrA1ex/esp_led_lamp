@@ -1,0 +1,422 @@
+#include "constants.h"
+#if REMOTE_AUDIO == ENABLED
+#include "network/protocol/server/remote_audio_ws.h"
+#include <ArduinoJson.h>
+#include <string.h>
+#include "fx/fx.h"
+#include "remote_audio/visualizations.h"
+
+void RemoteAudioSocket::begin(WebServer &server) {
+    _ws.onEvent([this](AsyncWebSocket *s, AsyncWebSocketClient *c,
+                       AwsEventType type, void *arg, uint8_t *data, size_t len) {
+        onEvent(s, c, type, arg, data, len);
+    });
+    server.add_handler(&_ws);
+}
+void RemoteAudioSocket::poll() {
+    // Process events on the Arduino loop, never from AsyncTCP callbacks.
+    const uint32_t disconnected = _pending_disconnect;
+    _pending_disconnect = 0;
+    if (disconnected) {
+        _audio.disconnected(disconnected);
+        if (_lab_client == disconnected) _lab_client = 0;
+    }
+    uint8_t budget = QUEUE_CAPACITY - 1;
+    while (_tail != _head && budget--) {
+        auto &message = _inbox[_tail];
+        // Never allow already queued messages to resurrect a disconnected session.
+        if (message.client != disconnected)
+            onMessage(message.client, message.opcode, message.payload, message.length);
+        _tail = (_tail + 1) % QUEUE_CAPACITY;
+    }
+    _audio.poll();
+    const uint32_t now = millis();
+    if (uint32_t(now - _last_cleanup) >= 1000) {
+        _last_cleanup = now;
+        _ws.cleanupClients();
+    }
+}
+void RemoteAudioSocket::enqueue(uint32_t client, uint8_t opcode,
+                                const uint8_t *data, size_t length) {
+    if (length > sizeof(_inbox[0].payload)) { ++_queue_drops; return; }
+    const uint8_t next = (_head + 1) % QUEUE_CAPACITY;
+    if (next == _tail) { ++_queue_drops; return; }
+    auto &message = _inbox[_head];
+    message.client = client;
+    message.opcode = opcode;
+    message.length = static_cast<uint16_t>(length);
+    memcpy(message.payload, data, length);
+    _head = next; // publish only after copying a complete message
+}
+void RemoteAudioSocket::reply(uint32_t client, const char *type, const char *reason) {
+    char response[180];
+    if (reason) snprintf(response, sizeof(response),
+                         "{\"type\":\"%s\",\"reason\":\"%s\"}", type, reason);
+    else snprintf(response, sizeof(response),
+                  "{\"type\":\"%s\",\"session\":%lu}", type,
+                  static_cast<unsigned long>(_audio.session()));
+    _ws.text(client, response);
+}
+void RemoteAudioSocket::onEvent(AsyncWebSocket *, AsyncWebSocketClient *client,
+                                AwsEventType type, void *arg, uint8_t *data, size_t len) {
+    if (type == WS_EVT_DISCONNECT || type == WS_EVT_ERROR) {
+        // Defer all controller changes to poll(); only publish an ID here.
+        if (_fragment_client == client->id()) {
+            _fragment_client = 0;
+            _fragment_length = 0;
+        }
+        if (_audio.owner() == client->id()) _pending_disconnect = client->id();
+        return;
+    }
+    if (type != WS_EVT_DATA || !arg) return;
+    const auto *info = static_cast<AwsFrameInfo *>(arg);
+    // Continuation frames carry opcode 0; use the opcode of their first fragment.
+    const uint8_t opcode = info->opcode == WS_CONTINUATION &&
+                           _fragment_client == client->id() ? _fragment_opcode : info->opcode;
+    if (opcode != WS_TEXT && opcode != WS_BINARY) return;
+    const size_t maximum = opcode == WS_BINARY ? RemoteProtocol::MAX_FRAME_SIZE : sizeof(_fragments);
+    // WebSocket frame fragments are assembled in one statically bounded scratch area.
+    // The owner is single-client; concurrent fragmented messages are rejected.
+    if (info->num == 0 && info->index == 0) {
+        if (_fragment_client && _fragment_client != client->id()) return;
+        _fragment_client = client->id();
+        _fragment_opcode = opcode;
+        _fragment_length = 0;
+    }
+    if (_fragment_client != client->id() || _fragment_opcode != opcode ||
+        len > maximum || _fragment_length > maximum - len) {
+        if (_fragment_client == client->id()) {
+            _fragment_client = 0;
+            _fragment_length = 0;
+        }
+        return;
+    }
+    memcpy(_fragments + _fragment_length, data, len);
+    _fragment_length += len;
+    if (info->final && info->index + len == info->len) {
+        if (_fragment_opcode == WS_BINARY) {
+            // The stream can burst ~12 frames within its 240 ms lookahead.
+            // Keep the binary fast path allocation-free rather than funneling
+            // it through the tiny, control-only JSON inbox.
+            RemoteProtocol::Frame frame;
+            if (RemoteProtocol::decode(_fragments, _fragment_length, frame))
+                _audio.receive(client->id(), frame);
+        } else {
+            enqueue(client->id(), _fragment_opcode, _fragments, _fragment_length);
+        }
+        _fragment_client = 0;
+        _fragment_length = 0;
+    }
+}
+void RemoteAudioSocket::onMessage(uint32_t client, uint8_t opcode, const uint8_t *data, size_t len) {
+    if (opcode == WS_BINARY) {
+        RemoteProtocol::Frame frame;
+        if (RemoteProtocol::decode(data, len, frame)) _audio.receive(client, frame);
+    } else if (opcode == WS_TEXT) {
+        textMessage(client, data, len);
+    }
+}
+bool RemoteAudioSocket::configure(JsonDocument &doc) {
+    auto next = _audio.overrides();
+    auto uint8field = [&](const char *name, uint8_t &value, int upper) {
+        if (doc[name].isNull()) return true;
+        if (!doc[name].is<int>() && !doc[name].is<unsigned int>()) return false;
+        int v = doc[name].as<int>();
+        if (v < 0 || v > upper) return false;
+        value = static_cast<uint8_t>(v);
+        return true;
+    };
+    auto intfield = [&](const char *name, int &value, int lower, int upper) {
+        if (doc[name].isNull()) return true;
+        if (!doc[name].is<int>()) return false;
+        const int v = doc[name].as<int>();
+        if (v < lower || v > upper) return false;
+        value = v;
+        return true;
+    };
+    auto boolfield = [&](const char *name, bool &value) {
+        if (doc[name].isNull()) return true;
+        if (!doc[name].is<bool>()) return false;
+        value = doc[name].as<bool>();
+        return true;
+    };
+    uint8_t audio_fx = static_cast<uint8_t>(next.audio.effect);
+    const bool lab = (_lab_client == _audio.owner());
+    if (lab) audio_fx += 1;
+    uint8_t color_fx = static_cast<uint8_t>(next.preset.color_effect);
+    uint8_t brightness_fx = static_cast<uint8_t>(next.preset.brightness_effect);
+    uint8_t palette = static_cast<uint8_t>(next.preset.palette);
+    if (!uint8field("audio_effect", audio_fx, 255) ||
+        !uint8field("audio_min", next.audio.min, 255) ||
+        !uint8field("audio_max", next.audio.max, 255) ||
+        !uint8field("color_effect", color_fx, ColorEffects.config().count - 1) ||
+        !uint8field("brightness_effect", brightness_fx, BrightnessEffects.config().count - 1) ||
+        !uint8field("palette", palette, Palettes.count - 1) ||
+        !uint8field("speed", next.preset.speed, 255) ||
+        !uint8field("scale", next.preset.scale, 255) ||
+        !uint8field("light", next.preset.light, 255)) return false;
+    // Optional lab reaction tuning (unknown to older senders: defaults keep stock behaviour).
+    uint8_t source = static_cast<uint8_t>(next.tuning.param_source);
+    if (!uint8field("param_source", source, static_cast<int>(RemoteReactive::ControlSource::COUNT) - 1) ||
+        !uint8field("speed_floor", next.tuning.speed_floor, 255) ||
+        !uint8field("spectrum_shape", next.tuning.spectrum_shape, 100) ||
+        !uint8field("spectrum_onset", next.tuning.spectrum_onset, 100)) return false;
+    next.tuning.param_source = static_cast<RemoteReactive::ControlSource>(source);
+    // Signal window and origin (docs/REMOTE_AUDIO_PROTOCOL.md, "Tuning").
+    auto &origin = next.tuning.origin;
+    int shift = origin.shift, center_y = origin.center_y, curve = next.tuning.window.curve;
+    if (!uint8field("input_min", next.tuning.window.in_min, 255) ||
+        !uint8field("input_max", next.tuning.window.in_max, 255) ||
+        !boolfield("input_gate", next.tuning.window.gate) ||
+        !intfield("input_curve", curve, 25, 400) ||
+        !intfield("origin_shift", shift, -500, 500) ||
+        !intfield("origin_y", center_y, 0, 1000) ||
+        !boolfield("origin_reverse", origin.reverse) ||
+        !boolfield("origin_ring", origin.ring) ||
+        !boolfield("origin_radial", origin.radial)) return false;
+    if (next.tuning.window.in_min >= next.tuning.window.in_max) return false;
+    // Visualizations (AudioEffectEnum::VU_METER..LAVA_LAMP): colours, mirror, auto-level,
+    // and in %: auto-level contrast, fall-off, motion and the frame blur.
+    auto &viz = next.tuning.viz;
+    if (!uint8field("viz_color", next.tuning.viz_color, 1) ||
+        !boolfield("viz_mirror", viz.mirror) ||
+        !boolfield("viz_auto", viz.autolevel) ||
+        !uint8field("viz_contrast", viz.contrast, 100) ||
+        !uint8field("viz_decay", viz.decay, 100) ||
+        !uint8field("viz_motion", viz.speed, 100) ||
+        !uint8field("viz_blur", viz.blur, 100)) return false;
+    origin.shift = static_cast<int16_t>(shift);
+    next.tuning.window.curve = static_cast<uint16_t>(curve);
+    origin.center_y = static_cast<uint16_t>(center_y);
+    if (next.audio.min > next.audio.max) return false;
+    next.audio.effect = static_cast<AudioEffectEnum>(lab && audio_fx ? audio_fx - 1 : audio_fx);
+    // Stock and experimental effects, or a visualization this build renders.
+    if (!(lab && audio_fx == 0) && uint8_t(next.audio.effect) >= AudioEffects.config().count &&
+        !RemoteViz::handles(next.audio.effect)) return false;
+    next.audio.enabled = !(lab && audio_fx == 0);
+    if (!doc["audio_enabled"].isNull()) {
+        if (!doc["audio_enabled"].is<bool>()) return false;
+        next.audio.enabled = doc["audio_enabled"].as<bool>();
+    }
+    next.preset.color_effect = static_cast<ColorEffectEnum>(color_fx);
+    next.preset.brightness_effect = static_cast<BrightnessEffectEnum>(brightness_fx);
+    next.preset.palette = static_cast<PaletteEnum>(palette);
+    _audio.overrides() = next;
+    return true;
+}
+// Effect parameters ("params" capability): {"type":"params","version":1,
+// "effect":E,"values":[0..255, ...]}. E is numbered like config.audio_effect
+// (the bundled lab adds 1) and defaults to the running effect; it must be a
+// visualization this build renders. Values are in Viz::paramDefaults() order,
+// missing ones take their defaults. The engine applies them while E runs.
+bool RemoteAudioSocket::params(JsonDocument &doc) {
+    if ((doc["version"] | 0) != Viz::PARAMS_VERSION) return false;
+    auto &overrides = _audio.overrides();
+    int effect = static_cast<int>(overrides.audio.effect);
+    if (!doc["effect"].isNull()) {
+        if (!doc["effect"].is<int>()) return false;
+        effect = doc["effect"].as<int>() - (_lab_client == _audio.owner() ? 1 : 0);
+    }
+    if (effect < 0 || effect > 255 || !RemoteViz::handles(static_cast<AudioEffectEnum>(effect))) return false;
+    const uint8_t mode = static_cast<uint8_t>(effect - RemoteViz::FIRST);
+    JsonArrayConst values = doc["values"].as<JsonArrayConst>();
+    if (values.isNull() || values.size() > Viz::paramCount(mode)) return false;
+    uint8_t next[Viz::MAX_PARAMS];
+    const uint8_t *defaults = Viz::paramDefaults(mode);
+    for (int i = 0; i < Viz::MAX_PARAMS; ++i) next[i] = defaults[i];
+    int i = 0;
+    for (JsonVariantConst value: values) {
+        if (!value.is<int>() || value.as<int>() < 0 || value.as<int>() > 255) return false;
+        next[i++] = static_cast<uint8_t>(value.as<int>());
+    }
+    auto &viz = overrides.tuning.viz;
+    viz.paramsMode = mode;
+    for (i = 0; i < Viz::MAX_PARAMS; ++i) viz.params[i] = next[i];
+    return true;
+}
+// Lamp layout ("layout" capability): {"type":"layout","flip_x":b,"flip_y":b,
+// "ring":b,"offset":LEDs}. Missing fields keep their value. Saved on the
+// lamp and applied at once to every effect (Led::get_index).
+bool RemoteAudioSocket::layout(JsonDocument &doc) {
+    LayoutConfig next = _layout.get();
+    auto boolfield = [&](const char *name, bool &value) {
+        if (doc[name].isNull()) return true;
+        if (!doc[name].is<bool>()) return false;
+        value = doc[name].as<bool>();
+        return true;
+    };
+    if (!boolfield("flip_x", next.flip_x) || !boolfield("flip_y", next.flip_y) || !boolfield("ring", next.ring))
+        return false;
+    if (!doc["offset"].isNull()) {
+        if (!doc["offset"].is<int>()) return false;
+        const int offset = doc["offset"].as<int>();
+        if (offset < -int(WIDTH) || offset > int(WIDTH)) return false;
+        next.offset = static_cast<int16_t>(offset);
+    }
+    if (!(next == _layout.get())) {
+        _layout.get() = next;
+        if (!_layout.is_pending_commit()) _layout.save();
+    }
+    _led.set_layout(next);
+    _audio.layout = next;
+    return true;
+}
+int RemoteAudioSocket::layoutJson(char *out, size_t size) const {
+    const auto &l = _layout.get();
+    return snprintf(out, size, "{\"flip_x\":%s,\"flip_y\":%s,\"ring\":%s,\"offset\":%d}",
+                    l.flip_x ? "true" : "false", l.flip_y ? "true" : "false", l.ring ? "true" : "false", int(l.offset));
+}
+void RemoteAudioSocket::textMessage(uint32_t client, const uint8_t *data, size_t len) {
+    JsonDocument doc;
+    if (deserializeJson(doc, data, len)) { reply(client, "error", "invalid_json"); return; }
+    const char *type = doc["type"] | "";
+    uint32_t session = doc["session"] | uint32_t(0);
+
+    if (strcmp(type, "hello") == 0) {
+        if ((doc["version"] | 0) != 1) {
+            reply(client, "error", "incompatible_version");
+            return;
+        }
+        // The bundled WASM lab sends hello without a session and establishes
+        // the actual session in start(session_id). Standard RFC clients use
+        // hello(session). Both are supported without weakening client ownership.
+        const bool lab = !session && strcmp(doc["client"] | "", "esp-led-wasm-lab") == 0;
+        if (!session && !lab) { reply(client, "error", "missing_session"); return; }
+        if (!session) session = 1; // temporary owner marker, replaced on start
+        if (!_audio.begin(client, session, _app.config.audio_config, _app.preset())) {
+            reply(client, "error", "busy");
+            return;
+        }
+        _lab_client = lab ? client : 0;
+        // Visualization effect ids this build renders (firmware numbering).
+        char modes[80] = "";
+        for (uint8_t m = 0, n = 0; m < Viz::MODE_COUNT; ++m) {
+            if (!Viz::available(m)) continue;
+            n += snprintf(modes + n, sizeof(modes) - n, "%s%u", n ? "," : "", unsigned(RemoteViz::FIRST + m));
+        }
+        char layout_json[80];
+        layoutJson(layout_json, sizeof(layout_json));
+        char response[560];
+        snprintf(response, sizeof(response),
+                 "{\"type\":\"hello_ack\",\"version\":1,\"session\":%lu,"
+                 "\"width\":%u,\"height\":%u,\"bands\":32,\"band_counts\":[16,32,64],"
+                 "\"fps\":60,\"capabilities\":[\"sync\",\"clock\",\"config\",\"status\",\"tuning\",\"visualizations\",\"control\",\"params\",\"chroma\",\"layout\"],"
+                 "\"visualizations\":[%s],\"params_version\":%u,\"power\":%s,\"brightness\":%u,\"layout\":%s}",
+                 static_cast<unsigned long>(session), unsigned(WIDTH), unsigned(HEIGHT), modes, unsigned(Viz::PARAMS_VERSION),
+                 _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness), layout_json);
+        _ws.text(client, response);
+        return;
+    }
+    const bool lab = (_lab_client == client && client && _audio.owner() == client);
+    if (lab) session = _audio.session();
+    if (!_audio.owns(client, session)) {
+        reply(client, "error", "invalid_session");
+        return;
+    }
+    _audio.activity();
+
+    if (strcmp(type, "sync") == 0) {
+        const uint32_t t0 = doc["t0"] | uint32_t(0);
+        const uint32_t t1 = millis();
+        const uint32_t id = doc["id"] | uint32_t(0);
+        char response[180];
+        snprintf(response, sizeof(response),
+                 "{\"type\":\"sync_ack\",\"session\":%lu,\"id\":%lu,\"t0\":%lu,"
+                 "\"t1\":%lu,\"t2\":%lu}",
+                 static_cast<unsigned long>(session), static_cast<unsigned long>(id),
+                 static_cast<unsigned long>(t0), static_cast<unsigned long>(t1),
+                 static_cast<unsigned long>(millis()));
+        _ws.text(client, response);
+    } else if (strcmp(type, "clock") == 0) {
+        if (doc["offset_ms"].isNull() || doc["offset_ms"].is<const char *>()) {
+            reply(client, "error", "invalid_clock");
+        } else {
+            const double raw = doc["offset_ms"].as<double>();
+            if (raw < -2147483648.0 || raw > 2147483647.0 || raw != raw) {
+                reply(client, "error", "invalid_clock");
+            } else {
+                const int32_t offset = static_cast<int32_t>(raw);
+                const double raw_rtt = doc["rtt_ms"] | 0.0;
+                if (raw_rtt < 0 || raw_rtt > 10000 || raw_rtt != raw_rtt) {
+                    reply(client, "error", "invalid_rtt");
+                    return;
+                }
+                _audio.timeline().setClock(offset, static_cast<uint32_t>(raw_rtt));
+                reply(client, "clock_ack");
+            }
+        }
+    } else if (strcmp(type, "config") == 0) {
+        if (configure(doc)) reply(client, "config_ack");
+        else reply(client, "error", "invalid_config");
+    } else if (strcmp(type, "params") == 0) {
+        if (params(doc)) reply(client, "params_ack");
+        else reply(client, "error", "invalid_params");
+    } else if (strcmp(type, "start") == 0) {
+        const uint32_t next = lab ? (doc["session_id"] | uint32_t(0)) : session;
+        if (lab && !_audio.adoptSession(client, next)) {
+            reply(client, "error", "invalid_session");
+        } else if (_audio.start(client, next)) {
+            reply(client, "start_ack");
+        } else reply(client, "error", "clock_not_set");
+    } else if (strcmp(type, "stop") == 0) {
+        if (lab) _audio.pause();
+        else _audio.stop();
+        reply(client, "stop_ack");
+    } else if (strcmp(type, "power") == 0 || strcmp(type, "brightness") == 0) {
+        // Lamp controls ("control" capability): persistent, like /api/power and /api/brightness.
+        if (strcmp(type, "power") == 0) {
+            if (!doc["on"].is<bool>()) { reply(client, "error", "invalid_power"); return; }
+            if (doc["on"].as<bool>() != _app.config.power) _app.set_power(doc["on"].as<bool>());
+        } else {
+            if (!doc["value"].is<int>() || doc["value"].as<int>() < 0 || doc["value"].as<int>() > 255) {
+                reply(client, "error", "invalid_brightness");
+                return;
+            }
+            _app.config.max_brightness = static_cast<uint8_t>(doc["value"].as<int>());
+            if (!_app.config_storage.is_pending_commit()) _app.config_storage.save();
+        }
+        char response[80];
+        snprintf(response, sizeof(response), "{\"type\":\"control_ack\",\"power\":%s,\"brightness\":%u}",
+                 _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));
+        _ws.text(client, response);
+    } else if (strcmp(type, "layout") == 0) {
+        if (!layout(doc)) { reply(client, "error", "invalid_layout"); return; }
+        char json[80], response[120];
+        layoutJson(json, sizeof(json));
+        snprintf(response, sizeof(response), "{\"type\":\"layout_ack\",\"layout\":%s}", json);
+        _ws.text(client, response);
+    } else if (strcmp(type, "test") == 0) {
+        // Orientation test (Layout::testPattern) instead of the effect, until
+        // {"on":false} or the session ends.
+        if (!doc["on"].is<bool>()) { reply(client, "error", "invalid_test"); return; }
+        _audio.setLayoutTest(doc["on"].as<bool>());
+        char response[48];
+        snprintf(response, sizeof(response), "{\"type\":\"test_ack\",\"on\":%s}", _audio.layoutTest() ? "true" : "false");
+        _ws.text(client, response);
+    } else if (strcmp(type, "status") == 0) {
+        const auto &stat = _audio.timeline().stats();
+        char response[600];
+        snprintf(response, sizeof(response),
+                 "{\"type\":\"status\",\"session\":%lu,\"playing\":%s,"
+                 "\"received\":%lu,\"received_frames\":%lu,\"dropped\":%lu,\"duplicates\":%lu,"
+                 "\"stale\":%lu,\"overflow\":%lu,\"frame_age_ms\":%lu,"
+                 "\"clock_offset_ms\":%ld,\"rtt_ms\":%lu,\"buffer\":%u,\"buffer_occupancy\":%u,"
+                 "\"heap\":%u,\"heap_max_block\":%u,\"heap_fragmentation\":%u,\"queue_drops\":%lu,\"uptime_ms\":%lu,\"reset_reason\":%u,\"viz_us\":%lu,"
+                 "\"power\":%s,\"brightness\":%u}",
+                 static_cast<unsigned long>(session), _audio.playing() ? "true" : "false",
+                 static_cast<unsigned long>(stat.received), static_cast<unsigned long>(stat.received),
+                 static_cast<unsigned long>(stat.dropped), static_cast<unsigned long>(stat.duplicate),
+                 static_cast<unsigned long>(stat.stale), static_cast<unsigned long>(stat.overflow),
+                 static_cast<unsigned long>(stat.frame_age_ms),
+                 static_cast<long>(static_cast<int32_t>(stat.clock_offset_ms)),
+                 static_cast<unsigned long>(stat.rtt_ms),
+                 unsigned(_audio.timeline().occupancy()), unsigned(_audio.timeline().occupancy()),
+                 unsigned(ESP.getFreeHeap()), unsigned(ESP.getMaxFreeBlockSize()),
+                 unsigned(ESP.getHeapFragmentation()), static_cast<unsigned long>(_queue_drops),
+                 static_cast<unsigned long>(millis()), unsigned(ESP.getResetInfoPtr()->reason),
+                 static_cast<unsigned long>(RemoteViz::lastRenderMicros()),
+                 _app.config.power ? "true" : "false", unsigned(_app.config.max_brightness));
+        _ws.text(client, response);
+    } else reply(client, "error", "unknown_command");
+}
+#endif

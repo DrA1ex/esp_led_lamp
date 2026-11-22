@@ -6,11 +6,14 @@
 #include <FastLED.h>
 
 #include "constants.h"
+#include "misc/layout.h"
 
 class Led {
     int _width;
     int _height;
     int _count;
+    bool _flip_x = false, _flip_y = false;
+    int _rotate = 0;
 
     CRGB *_data;
 
@@ -26,8 +29,12 @@ public:
     [[nodiscard]] inline int height() const { return _height; }
     [[nodiscard]] inline int count() const { return _count; }
 
+    // Logical (x, y) to the wiring, through the lamp's LayoutConfig.
     [[nodiscard]] inline int get_index(int x, int y) const {
-        return (y & 1 ? _width - 1 - x : x) + y * _width;
+        return Layout::index(x, y, _width, _height, _flip_x, _flip_y, _rotate);
+    }
+    inline void set_layout(const LayoutConfig &layout) {
+        _flip_x = layout.flip_x; _flip_y = layout.flip_y; _rotate = Layout::rotation(layout, _width);
     }
 
     inline CRGB &get_pixel(int x, int y) { return _data[get_index(x, y)]; }

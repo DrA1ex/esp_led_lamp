@@ -1,0 +1,139 @@
+diff --git a/src/WebResponses.cpp b/src/WebResponses.cpp
+--- a/src/WebResponses.cpp
++++ b/src/WebResponses.cpp
+@@ -305,7 +305,9 @@
+   }
+ 
+   if (_state == RESPONSE_CONTENT) {
+-    size_t const pcb_written = request->client()->write(_content.c_str() + _sentLength, _content.length() - _sentLength);
++    size_t const remaining = _content.length() - _sentLength;
++    size_t const pcb_written = remaining ? request->client()->add(_content.c_str() + _sentLength, remaining) : 0;
++    if (payloadlen || pcb_written) request->client()->send();
+     _writtenLength += pcb_written;  // total written data (hdrs + body)
+     _sentLength += pcb_written;     // body written data
+     payloadlen += pcb_written;      // data writtent in current buff
+@@ -369,10 +371,6 @@
+   if (_chunked || !_sendContentLength || (_sentLength > CONFIG_LWIP_TCP_WND_DEFAULT)) {
+     if (!_in_flight_credit || (ASYNC_RESPONCE_BUFF_SIZE > request->client()->space())) {
+       // async_ws_log_d("defer user call in_flight:%u, tcpwin:%u", _in_flight, request->client()->space());
+-      // take the credit back since we are ignoring this ack and rely on other inflight data acks
+-      if (len) {
+-        --_in_flight_credit;
+-      }
+       return 0;
+     }
+   }
+@@ -393,7 +391,7 @@
+ // we were not able to fit all headers in current buff, send this part here and return later for the rest
+ #if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
+       _in_flight += pcb_written;
+-      --_in_flight_credit;  // take a credit
++      if (pcb_written && _in_flight_credit) --_in_flight_credit;
+ #endif
+       if (!request->client()->send()) {
+         // something is wrong, what should we do here?
+@@ -408,13 +406,14 @@
+     _assembled_headers = String();  // clear
+   }
+ 
+-  // send content body
+-  if (_state == RESPONSE_CONTENT) {
++  // send content body, including a partially queued final block
++  if (_state == RESPONSE_CONTENT || _state == RESPONSE_WAIT_ACK) {
+     do {
+       if (_send_buffer_len && _send_buffer) {
+         // data is pending in buffer from a previous call or previous iteration
+         size_t const added_len =
+           request->client()->add(reinterpret_cast<char *>(_send_buffer->data() + _send_buffer_offset), _send_buffer_len - _send_buffer_offset);
++        payloadlen += added_len;
+         if (added_len != _send_buffer_len - _send_buffer_offset) {
+           // we were not able to add entire buffer's content to tcp buffs, leave it for later
+           // (this should not happen normally unless connection's TCP window suddenly changed from remote or mem pressure)
+@@ -423,11 +422,10 @@
+         } else {
+           _send_buffer_len = _send_buffer_offset = 0;  // consider buffer empty
+         }
+-        payloadlen += added_len;
+       }
+ 
+       auto tcp_win = request->client()->space();
+-      if (tcp_win == 0 || _state == RESPONSE_END) {
++      if (tcp_win == 0 || _state == RESPONSE_WAIT_ACK) {
+         break;  // no room left or no more data
+       }
+ 
+@@ -442,7 +440,9 @@
+           _send_buffer.reset(p);
+           _send_buffer_len = _send_buffer_offset = 0;
+         } else {
+-          break;  // OOM
++          _state = RESPONSE_FAILED;
++          request->client()->close();
++          return 0;
+         }
+       }
+ 
+@@ -467,7 +467,7 @@
+           _sentLength += readLen;           // data is not sent yet, but we won't get a chance to count this later properly for chunked data
+           if (!readLen) {
+             // last chunk?
+-            _state = RESPONSE_END;
++            _state = RESPONSE_WAIT_ACK;
+           }
+         }
+       } else {
+@@ -483,37 +483,31 @@
+ 
+         if (readLen == 0) {
+           // no more data to send
+-          _state = RESPONSE_END;
++          _state = RESPONSE_WAIT_ACK;
+         } else if (readLen != RESPONSE_TRY_AGAIN) {
+           _send_buffer_len += readLen;  // set buffers's size to match added data
+           _sentLength += readLen;       // data is not sent yet, but we need it to understand that it would be last block
+           if (_sendContentLength && (_sentLength == _contentLength)) {
+             // it was last piece of content
+-            _state = RESPONSE_END;
++            _state = RESPONSE_WAIT_ACK;
+           }
+         }
+       }
+     } while (_send_buffer_len);  // go on till we have something in buffer pending to send
+ 
+     // execute sending whatever we have in sock buffs now
+-    request->client()->send();
++    if (payloadlen) request->client()->send();
+     _writtenLength += payloadlen;
+ #if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
+     _in_flight += payloadlen;
+-    --_in_flight_credit;  // take a credit
++    if (payloadlen && _in_flight_credit) --_in_flight_credit;
+ #endif
+     if (_send_buffer_len == 0) {
+       // buffer empty, we can release mem, otherwise need to keep it till next run (should not happen under normal conditions)
+       _send_buffer.reset();
+     }
++    if (_state == RESPONSE_WAIT_ACK && _send_buffer_len == 0) _state = RESPONSE_END;
+     return payloadlen;
+-  }  // (_state == RESPONSE_CONTENT)
+-
+-  // implicit check
+-  if (_state == RESPONSE_WAIT_ACK) {
+-    // we do not need to wait for any acks actually if we won't send any more data,
+-    // connection would be closed gracefully with last piece of data (in AsyncWebServerRequest::_onAck)
+-    _state = RESPONSE_END;
+   }
+   return 0;
+ }
+diff --git a/src/WebRequest.cpp b/src/WebRequest.cpp
+--- a/src/WebRequest.cpp
++++ b/src/WebRequest.cpp
+@@ -1060,7 +1060,7 @@
+     }
+ 
+     // here, we either have a response given from user or one of the two above
+-    _client->setRxTimeout(0);
++    _client->setRxTimeout(isHTTP() ? 10 : 0);
+     _response->_respond(this);
+     _sent = true;
+   }

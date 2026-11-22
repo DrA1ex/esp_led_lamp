@@ -1,12 +1,16 @@
 # ESP LED LAMP
 
-Атмосферное освещение для светодиодных лент и матриц.
+Атмосферное освещение для адресных светодиодных лент и матриц.
+
+Другие проекты: [[RGB LED](https://github.com/DrA1ex/esp_led)] [[RELAY](https://github.com/DrA1ex/esp_relay)]
+
+English: [README.md](README.md).
 
 <p align="center">
   <img alt="Animation" height="256" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/c33b63fe-1197-439c-8b91-698c3b74b915">
 </p>
 
-## UI
+## Веб-интерфейс
 
 <p align="center">
   <img alt="UI Light" height="480" src="https://github.com/DrA1ex/esp_led_lamp/assets/1194059/841e800b-41cc-4933-9e5f-deb624b7f1e0">
@@ -27,20 +31,70 @@
 
 ## Настройка
 
-Настройте данные аутентификации, отредактировав файл [src/credentials.h](src/credentials.h).
+Для разных устройств используйте пресеты, не редактируя исходные файлы.
+
+1. Скопируйте [presets/credentials.example.ini](presets/credentials.example.ini) в
+   `presets/credentials.ini` и укажите общие реквизиты Wi-Fi, веб-интерфейса и MQTT.
+2. Скопируйте [presets/device.example.ini](presets/device.example.ini), например,
+   в `presets/ceiling.ini` и задайте параметры устройства.
+3. При сборке или прошивке указывайте `--preset ceiling`, см. [команды загрузки](#загрузка-прошивки).
+
+Личные `presets/*.ini` исключены из Git; в репозитории хранятся только шаблоны
+`*.example.ini`. Не записывайте настоящие пароли в шаблоны.
+Старые файлы `src/_override/*.h` больше не подключаются.
+
+```ini
+[firmware]
+WIFI_MODE = WIFI_STA_MODE
+MDNS_NAME = "ceiling_lamp"
+WIDTH = 153
+HEIGHT = 1
+LED_COLOR_ORDER = RGB
+CURRENT_LIMIT = 2000
+MQTT = true
+WEB_AUTH = true
+
+[upload]
+# Необязательно: иначе OTA использует ceiling_lamp.local.
+# ota_host = "192.168.1.42"
+# Необязательно: иначе PlatformIO определит USB-порт автоматически.
+# usb_port = "COM3"
+```
+
+Формат: `ИМЯ = значение`. Строки — в двойных кавычках, числа, `true` / `false`
+и символы прошивки (`WIFI_STA_MODE`, `DISABLED`, `WS2812B`, `RGB`) — без кавычек.
+В строках экранирование как в JSON: `\"` для кавычки и `\\` для обратного слеша;
+пробелы, `#`, `;` и `%` сохраняются. Комментарии начинайте с `#` или `;` на
+отдельной строке, не после значения. Регистр имён важен, неизвестные параметры
+останавливают сборку. `WEB_AUTH = false` отключает веб-аутентификацию.
+
+Приоритет настроек: значения по умолчанию из `src/constants.h`, `src/credentials.h`
+и `src/sys_constants.h` → общие `presets/credentials.ini` (если файл существует)
+→ выбранный INI устройства. В пресете можно переопределить и общие реквизиты.
+Для другого набора общих реквизитов используйте `--credentials presets/work.ini`.
+Имена параметров `[firmware]` соответствуют существующим `#define` в этих трёх
+заголовках. Без пресета PlatformIO использует значения по умолчанию и общий файл
+реквизитов, если он есть. Все пресеты одного окружения используют общий каталог
+`.pio/build/<окружение>/`. При изменении заголовка настроек пересобираются зависимые
+исходники, а неизменившиеся библиотеки и объекты Arduino framework используются
+повторно. Файл прошивки в этом каталоге соответствует последнему собранному
+пресету. Скрипт по умолчанию использует `release` для USB и OTA; у `debug` и
+`local-audio` остаются отдельные каталоги.
+
+В таблицах ниже приведены значения по умолчанию, которые можно менять через `[firmware]`.
 
 | Параметр           | Описание                                    | Значение по умолчанию |
 |---------------------|---------------------------------------------|-----------------------|
 | `WIFI_SSID`         | SSID сети Wi-Fi, к которой нужно подключиться | "ESP_LED"             |
 | `WIFI_PASSWORD`     | Пароль для сети Wi-Fi                       | "12345678"            |
-| `WEBAUTH_USER`      | Имя пользователя для веб-аутентификации    | "esp_led"             |
-| `WEBAUTH_PASSWORD`  | Пароль для веб-аутентификации               | "password"            |
+| `AUTH_USER`         | Имя пользователя для веб-аутентификации    | "esp_lamp"            |
+| `AUTH_PASSWORD`     | Пароль для веб-аутентификации               | "password"            |
 | `MQTT_HOST`         | Имя хоста или IP-адрес для MQTT брокера    | "example.com"         |
 | `MQTT_PORT`         | Номер порта для MQTT брокера                | 1234                  |
 | `MQTT_USER`         | Имя пользователя для MQTT аутентификации    | "esp_user"            |
 | `MQTT_PASSWORD`     | Пароль для MQTT аутентификации              | "esp_pass"            |
 
-Настройте приложение под ваши специфические параметры, отредактировав файл [src/constants.h](src/constants.h).
+Параметры оборудования и приложения по умолчанию заданы в [src/constants.h](src/constants.h).
 
 | Параметр                             | Описание                                                        | Значение по умолчанию |
 |---------------------------------------|-----------------------------------------------------------------|-----------------------|
@@ -75,11 +129,17 @@
 | MQTT_TOPIC_COLOR         | MQTT_OUT_TOPIC_COLOR        | uint32_t       | RGB (например, 0xff00ff) | RGB цвет цветового режима                |
 | MQTT_TOPIC_NIGHT_MODE    | MQTT_OUT_TOPIC_NIGHT_MODE   | uint8_t        | 0..1                 | Состояние ночного режима: ВКЛ (1) / ВЫКЛ (0) |
 
-* Фактические значения тем объявлены в constants.h
+* Фактические значения тем объявлены в `constants.h`.
+
+## Подключение
+
+![Схема подключения](https://github.com/user-attachments/assets/f4c72985-7994-4b61-8701-eda145155122)
 
 ## Установка Прошивки
 
 ### Предварительные условия
+
+Перед установкой настройте устройство: [Настройка](#настройка).
 
 Убедитесь, что у вас установлено:
 
@@ -88,52 +148,97 @@
 
 ### Загрузка Прошивки
 
-Для загрузки прошивки выполните следующие команды:
+Выполняйте команды из корня репозитория. Python-скрипт работает в Windows, macOS
+и Linux без Bash и дополнительных Python-пакетов. Команда PlatformIO `pio`
+должна быть в `PATH`. Используйте доступную у вас команду Python 3: `python`,
+`python3` или `py -3` в Windows.
 
-- Для загрузки через USB:
 ```sh
-pio run -e release
+# Только собрать, без прошивки устройства.
+python tools/firmware.py --preset ceiling
+
+# Собрать и прошить через USB/UART с автоматическим определением порта.
+python tools/firmware.py --preset ceiling --upload usb
+
+# Явно указать последовательный порт (пример для Windows).
+python tools/firmware.py --preset ceiling --upload usb --port COM3
+
+# Собрать и прошить по Wi-Fi: адрес из MDNS_NAME.local или [upload] ota_host.
+python tools/firmware.py --preset ceiling --upload ota
+
+# Разово переопределить адрес назначения.
+python tools/firmware.py --preset ceiling --upload ota --port 192.168.1.42
+
+# Другой общий файл реквизитов или окружение сборки.
+python tools/firmware.py --preset ceiling --credentials presets/work.ini --environment debug
 ```
 
-- Для OTA загрузки с адресом по умолчанию (`esp_lamp.local`):
+### Обновление нескольких устройств
+
 ```sh
-pio run -e ota -t upload
+python tools/firmware.py --preset all --upload ota --dry-run
+python tools/firmware.py --preset all --upload ota
+python tools/firmware.py --preset all --upload ota --exclude test
 ```
 
-- Для OTA загрузки с кастомным адресом:
+`all` выбирает пресеты устройств с `MDNS_NAME` или `ota_host`.
+Чтобы исключить устройство из массового обновления, добавьте
+`batch = false` в секцию `[upload]` его пресета. При ошибке скрипт
+переходит к следующей лампе; `--fail-fast` останавливает процесс.
+Для подробного вывода используйте `--verbose` (логи в `.pio/logs/`).
+
+Для одной лампы укажите `--preset NAME`, для изменения адреса — `--port HOST`.
+OTA требует доступной лампы; первая установка прошивки выполняется через USB.
+
+### Обновление веб-интерфейса (LittleFS)
+
+Чтобы отдельно собрать и сжать веб-файлы:
+
 ```sh
-pio run -e ota -t upload --upload-port esp_lamp_2.local
+python tools/web_bundle.py
 ```
 
-### Загрузка Файловой Системы
+Или собрать их автоматически и обновить одну лампу либо все устройства:
 
-Чтобы загрузить файловую систему, выполните следующие шаги:
-
-1. Сделайте скрипт upload_fs.sh исполняемым:
 ```sh
-chmod +x ./upload_fs.sh
+python tools/firmware.py --preset ceiling --filesystem --upload ota --build-web
+python tools/firmware.py --preset all --filesystem --upload ota --build-web
 ```
 
-- Для автоматической сборки WebUI и загрузки его с помощью OTA с адресом по умолчанию (MacOS, *nix):
+Без `--build-web` используются готовые файлы из `data/`.
+Настройки каждой лампы сохраняются в её образе. Недоступные устройства
+пропускаются, копии остаются в `.pio/storage-backups/`.
+
+Для первоначальной установки файловой системы:
+
 ```sh
-OTA=1 ./upload_fs.sh
+python tools/firmware.py --preset ceiling --filesystem --upload usb --initialize --build-web
 ```
 
-- Для загрузки OTA с пользовательским адресом:
-```sh
-OTA=1 ./upload_fs.sh --upload-port esp_lamp_2.local
-```
+Флаг `--initialize` обязателен при загрузке LittleFS через USB и недоступен
+для `--preset all`. Скрипт `upload_fs.sh` тоже собирает веб-файлы
+автоматически (`OTA=1 LAMP_PRESET=ceiling ./upload_fs.sh`).
 
-- Для пользователей Windows используйте ручную сборку:
+## Светомузыка с компьютера — Music Lab
 
-1. Соберите WebUI:
-```sh
-cd ./www
-npm run build
-cd ..
-```
+[ESP LED Music Lab](https://github.com/DrA1ex/esp_led_lab) позволяет воспроизводить
+музыку или использовать микрофон и передавать световые эффекты на одну или
+несколько ламп по Wi-Fi. Звук анализируется в браузере — на лампу передаются
+только данные для визуализации.
 
-2. Загрузите файловую систему с помощью OTA:
-```sh
-pio run -t uploadfs -e ota
-```
+1. Установите прошивку и подключите лампу и компьютер к одной локальной сети.
+2. Откройте [Music Lab](https://dra1ex.github.io/esp_led_lab/) в Chrome,
+   перейдите на вкладку **Lamps**, укажите IP-адрес лампы или
+   `esp_lamp.local` и подключитесь.
+3. Выберите аудиофайл, демонстрационный ритм (**Demo beat**) или
+   **Microphone**, затем настройте эффект во вкладке **Reaction**.
+   В **All lamps** задаются общие настройки, а при выборе отдельной лампы —
+   её индивидуальные параметры.
+
+Для связи используется WebSocket `/audio` на лампе (обычно порт 80).
+Если Chrome запросит разрешение на доступ к локальной сети, предоставьте его.
+Другие браузеры могут блокировать локальные HTTP/WebSocket-подключения
+с HTTPS-сайта. В таком случае запустите Music Lab локально.
+
+Описание формата сообщений и технические подробности:
+[протокол Remote Audio](docs/REMOTE_AUDIO_PROTOCOL.md).
