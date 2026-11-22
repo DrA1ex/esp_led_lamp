@@ -226,17 +226,22 @@ python tools/firmware.py --preset ceiling --filesystem --upload usb --initialize
 with `--preset all`. The existing `upload_fs.sh` also builds the bundle
 automatically (`OTA=1 LAMP_PRESET=ceiling ./upload_fs.sh`).
 
-## Experimental remote audio DSP (feature branch)
+## Music-reactive lighting from a computer
 
-The `feature/remote-audio-dsp` branch adds the independent WebSocket
-`/audio` receiver for timestamped desktop DSP features (no ESP8266 ADC or
-local FFT required). Its ten original modes, the two experimental WASM-lab modes and 13 remote-only
-visualizations that adapt to strips and matrices (VU meter, spectrum bars, flow, pulses, sparkles, mood,
-waveform, band meters, fire, aurora, juggle, radial spectrum, blobs) are driven by remote RMS,
-onsets, beats and 16, 32 or 64 frequency bands. Sessions/configuration are runtime-only and never
-persist audio frames to flash. See [protocol, sender and test instructions](docs/REMOTE_AUDIO_PROTOCOL.md).
+Use [ESP LED Music Lab](https://github.com/DrA1ex/esp_led_lab) to play music or
+use a microphone and send audio-reactive effects to one or more lamps over Wi-Fi.
+Audio analysis runs in the browser; the lamp receives only visualization data.
 
-The GitHub Actions workflow builds ESP8266 `firmware.bin` and publishes it
-as a downloadable artifact for board testing. Real-world latency and hardware
-behavior must be measured on a device; the two experimental Bass/Mid/High and Beat-aware modes are included
-in the same feature branch.
+1. Flash the firmware and connect the lamp and computer to the same local network.
+2. Open [Music Lab](https://dra1ex.github.io/esp_led_lab/) in Chrome, then select
+   **Lamps**, enter the lamp's IP address or `esp_lamp.local`, and connect.
+3. Choose a track, the demo beat or **Microphone**, then select an effect in
+   **Reaction**. Use **All lamps** or select an individual lamp to customize it.
+
+The connection uses the lamp's WebSocket `/audio` endpoint (normally port 80).
+On Chrome, grant local-network access when prompted. Local HTTP/WebSocket devices
+may not work from the hosted HTTPS page in other browsers; run Music Lab locally
+if the browser blocks the connection.
+
+For message formats and implementation details, see
+[Remote Audio protocol](docs/REMOTE_AUDIO_PROTOCOL.md).
