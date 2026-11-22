@@ -5,7 +5,6 @@ import {
     REQUEST_TIMEOUT,
     REQUEST_SIGNATURE,
     CONNECTION_TIMEOUT_DELAY_STEP,
-    CONNECTION_CLOSE_TIMEOUT,
     CONNECTION_TIMEOUT_MAX_DELAY
 } from "../constants.js";
 
@@ -202,14 +201,7 @@ export class WebSocketInteraction extends EventEmitter {
         this.#ws.onmessage = null;
 
         if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(this.#ws.readyState)) {
-            const ws = this.#ws;
-
-            const timerId = setInterval(() => {
-                if (ws.readyState === WebSocket.CONNECTING) return;
-
-                ws.close();
-                clearInterval(timerId);
-            }, CONNECTION_CLOSE_TIMEOUT);
+            this.#ws.close();
         }
 
         console.log(`#${this.#ws.__id}: WebSocket connection closed`);

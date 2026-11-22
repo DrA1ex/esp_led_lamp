@@ -94,6 +94,7 @@ Button button(BUTTON_PIN);
 void setup() {
 #if defined(DEBUG)
     Serial.begin(115200);
+    Serial.printf("\nReset: %s\n%s\n", ESP.getResetReason().c_str(), ESP.getResetInfo().c_str());
     delay(2000);
 #endif
 
@@ -127,7 +128,8 @@ void setup() {
 #ifdef DEBUG
     D_PRINTF("Startup Free Heap: %u\n", ESP.getFreeHeap());
     global_timer.add_interval([](void *) {
-        D_PRINTF("Free Heap: %u\n", ESP.getFreeHeap());
+        D_PRINTF("Heap: %u, largest: %u, fragmentation: %u%%\n",
+                 ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation());
     }, 5ul * 60 * 1000);
 #endif
 }
@@ -316,15 +318,16 @@ void service_loop(void *) {
             if constexpr (MQTT) mqtt_server.begin();
 
             web_server.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
-                char result[320] = {};
+                char result[384] = {};
 
-                size_t offset = snprintf(result, sizeof(result), "General:\nHeap: %u\nNow: %lu\nTime: %lu\n",
-                                         ESP.getFreeHeap(), millis(), ntp_time.epoch_tz());
+                size_t offset = snprintf(result, sizeof(result), "General:\nHeap: %u\nLargest block: %u\nFragmentation: %u%%\nNow: %lu\nTime: %lu\n",
+                                         ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation(),
+                                         millis(), ntp_time.epoch_tz());
 
                 offset += BrightnessEffects.debug(result + offset, sizeof(result) - offset);
                 ColorEffects.debug(result + offset, sizeof(result) - offset);
 
-                request->send_P(200, "text/plain", result);
+                request->send(200, "text/plain", result);
             });
 
             web_server.begin(&LittleFS);
